@@ -18,3 +18,12 @@ func track(t *testing.T, taskCtx *flowstate.TaskCtx) {
 	err := taskCtx.Data.Set("visited", visited)
 	require.NoError(t, err)
 }
+
+type nopDriver struct {
+	calls int
+}
+
+func (d *nopDriver) Commit(cmds ...flowstate.Command) error {
+	d.calls++
+	return nil
+}

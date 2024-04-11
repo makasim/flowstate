@@ -37,11 +37,13 @@ func (r *MapBehaviorRegistry) Behavior(id BehaviorID) (Behavior, error) {
 }
 
 type Engine struct {
+	d  Driver
 	br behaviorRegistry
 }
 
-func NewEngine(br behaviorRegistry) *Engine {
+func NewEngine(d Driver, br behaviorRegistry) *Engine {
 	return &Engine{
+		d:  d,
 		br: br,
 	}
 }
@@ -87,6 +89,18 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 			return err
 		}
 
+		if cmd1, ok := cmd.(*CommitCommand); ok {
+			if len(cmd1.Commands) > 1 {
+				return fmt.Errorf("commit command with more than one command not supported yet")
+			}
+
+			if err := e.d.Commit(cmd1.Commands...); err != nil {
+				return err
+			}
+
+			cmd = cmd1.Commands[0]
+		}
+
 		switch cmd.(type) {
 		case *EndCommand:
 			return nil
@@ -96,56 +110,4 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 			return fmt.Errorf("unknown command %T", cmd)
 		}
 	}
-}
-
-type Command interface {
-	Do() error
-}
-
-func Transit(taskCtx *TaskCtx, tsID TransitionID) *TransitCommand {
-	return &TransitCommand{
-		TaskCtx:      taskCtx,
-		TransitionID: tsID,
-	}
-}
-
-type TransitCommand struct {
-	TaskCtx      *TaskCtx
-	TransitionID TransitionID
-}
-
-func (cmd *TransitCommand) Do() error {
-	ts, err := cmd.TaskCtx.Process.Transition(cmd.TransitionID)
-	if err != nil {
-		return err
-	}
-
-	if ts.ToID == `` {
-		return fmt.Errorf("transition to id empty")
-	}
-
-	n, err := cmd.TaskCtx.Process.Node(ts.ToID)
-	if err != nil {
-		return err
-	}
-
-	cmd.TaskCtx.Transition = ts
-	cmd.TaskCtx.Node = n
-
-	return nil
-}
-
-func End(taskCtx *TaskCtx) *EndCommand {
-	return &EndCommand{
-		TaskCtx: taskCtx,
-	}
-}
-
-type EndCommand struct {
-	TaskCtx *TaskCtx
-}
-
-func (cmd *EndCommand) Do() error {
-	// todo
-	return nil
 }

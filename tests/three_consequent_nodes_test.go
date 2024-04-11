@@ -58,7 +58,7 @@ func TestThreeConsequentNodes(t *testing.T) {
 		return flowstate.End(taskCtx), nil
 	}))
 
-	e := flowstate.NewEngine(br)
+	e := flowstate.NewEngine(&nopDriver{}, br)
 
 	taskCtx := &flowstate.TaskCtx{
 		Task: flowstate.Task{

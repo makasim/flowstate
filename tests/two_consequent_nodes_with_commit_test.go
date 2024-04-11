@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSingleNode(t *testing.T) {
+func TestTwoConsequentNodesWithCommit(t *testing.T) {
 	p := flowstate.Process{
 		ID:  "simplePID",
 		Rev: 1,
@@ -16,6 +16,10 @@ func TestSingleNode(t *testing.T) {
 				ID:         "firstNID",
 				BehaviorID: "first",
 			},
+			{
+				ID:         "secondNID",
+				BehaviorID: "second",
+			},
 		},
 		Transitions: []flowstate.Transition{
 			{
@@ -23,16 +27,26 @@ func TestSingleNode(t *testing.T) {
 				FromID: "",
 				ToID:   "firstNID",
 			},
+			{
+				ID:     "secondTID",
+				FromID: "firstNID",
+				ToID:   "secondNID",
+			},
 		},
 	}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		track(t, taskCtx)
+		return flowstate.Commit(flowstate.Transit(taskCtx, `secondTID`)), nil
+	}))
+	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+		track(t, taskCtx)
 		return flowstate.End(taskCtx), nil
 	}))
 
-	e := flowstate.NewEngine(&nopDriver{}, br)
+	d := &nopDriver{}
+	e := flowstate.NewEngine(d, br)
 
 	taskCtx := &flowstate.TaskCtx{
 		Task: flowstate.Task{
@@ -51,6 +65,7 @@ func TestSingleNode(t *testing.T) {
 
 	require.NoError(t, err)
 
-	visited, _ := taskCtx.Data.Get("visited")
-	require.Equal(t, []interface{}{`firstTID`}, visited)
+	visited, _ := taskCtx.Data.Get(`visited`)
+	require.Equal(t, []interface{}{`firstTID`, `secondTID`}, visited)
+	require.Equal(t, 1, d.calls)
 }

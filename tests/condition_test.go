@@ -62,7 +62,7 @@ func TestCondition(t *testing.T) {
 		return flowstate.End(taskCtx), nil
 	}))
 
-	e := flowstate.NewEngine(br)
+	e := flowstate.NewEngine(&nopDriver{}, br)
 
 	// condition true
 	taskCtx := &flowstate.TaskCtx{
