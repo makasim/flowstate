@@ -56,31 +56,96 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 		return fmt.Errorf(`taskCtx.ID empty`)
 	}
 
-	//for {
-	ts, err := taskCtx.Process.Transition(taskCtx.Transition.ID)
+	for {
+		ts, err := taskCtx.Process.Transition(taskCtx.Transition.ID)
+		if err != nil {
+			return err
+		}
+		taskCtx.Transition = ts
+
+		n, err := taskCtx.Process.Node(taskCtx.Transition.ToID)
+		if err != nil {
+			return err
+		}
+		taskCtx.Node = n
+
+		if n.BehaviorID == `` {
+			return fmt.Errorf("behavior id empty")
+		}
+
+		b, err := e.br.Behavior(n.BehaviorID)
+		if err != nil {
+			return err
+		}
+
+		cmd, err := b.Execute(taskCtx)
+		if err != nil {
+			return err
+		}
+
+		if err := cmd.Do(); err != nil {
+			return err
+		}
+
+		switch cmd.(type) {
+		case *EndCommand:
+			return nil
+		case *TransitCommand:
+			continue
+		default:
+			return fmt.Errorf("unknown command %T", cmd)
+		}
+	}
+}
+
+type Command interface {
+	Do() error
+}
+
+func Transit(taskCtx *TaskCtx, tsID TransitionID) *TransitCommand {
+	return &TransitCommand{
+		TaskCtx:      taskCtx,
+		TransitionID: tsID,
+	}
+}
+
+type TransitCommand struct {
+	TaskCtx      *TaskCtx
+	TransitionID TransitionID
+}
+
+func (cmd *TransitCommand) Do() error {
+	ts, err := cmd.TaskCtx.Process.Transition(cmd.TransitionID)
 	if err != nil {
 		return err
 	}
-	taskCtx.Transition = ts
 
-	n, err := taskCtx.Process.Node(taskCtx.Transition.ToID)
-	if err != nil {
-		return err
-	}
-	taskCtx.Node = n
-
-	if n.BehaviorID == `` {
-		return fmt.Errorf("behavior id empty")
+	if ts.ToID == `` {
+		return fmt.Errorf("transition to id empty")
 	}
 
-	b, err := e.br.Behavior(n.BehaviorID)
+	n, err := cmd.TaskCtx.Process.Node(ts.ToID)
 	if err != nil {
 		return err
 	}
 
-	if err := b.Execute(taskCtx); err != nil {
-		return err
+	cmd.TaskCtx.Transition = ts
+	cmd.TaskCtx.Node = n
+
+	return nil
+}
+
+func End(taskCtx *TaskCtx) *EndCommand {
+	return &EndCommand{
+		TaskCtx: taskCtx,
 	}
-	//}
+}
+
+type EndCommand struct {
+	TaskCtx *TaskCtx
+}
+
+func (cmd *EndCommand) Do() error {
+	// todo
 	return nil
 }
