@@ -35,20 +35,22 @@ func TestTwoConsequentNodes(t *testing.T) {
 		},
 	}
 
+	trkr := &tracker{}
+
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(t, taskCtx)
+		track(taskCtx, trkr)
 		return flowstate.Transit(taskCtx, `secondTID`), nil
 	}))
 	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(t, taskCtx)
+		track(taskCtx, trkr)
 		return flowstate.End(taskCtx), nil
 	}))
 
 	e := flowstate.NewEngine(&nopDriver{}, br)
 
 	taskCtx := &flowstate.TaskCtx{
-		Task: flowstate.Task{
+		Current: flowstate.Task{
 			ID:         "aTID",
 			Rev:        0,
 			ProcessID:  p.ID,
@@ -63,7 +65,5 @@ func TestTwoConsequentNodes(t *testing.T) {
 	err := e.Execute(taskCtx)
 
 	require.NoError(t, err)
-
-	visited, _ := taskCtx.Data.Get(`visited`)
-	require.Equal(t, []interface{}{`firstTID`, `secondTID`}, visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.visited)
 }

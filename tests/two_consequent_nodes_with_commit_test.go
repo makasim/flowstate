@@ -35,13 +35,15 @@ func TestTwoConsequentNodesWithCommit(t *testing.T) {
 		},
 	}
 
+	trkr := &tracker{}
+
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(t, taskCtx)
+		track(taskCtx, trkr)
 		return flowstate.Commit(flowstate.Transit(taskCtx, `secondTID`)), nil
 	}))
 	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(t, taskCtx)
+		track(taskCtx, trkr)
 		return flowstate.End(taskCtx), nil
 	}))
 
@@ -49,7 +51,7 @@ func TestTwoConsequentNodesWithCommit(t *testing.T) {
 	e := flowstate.NewEngine(d, br)
 
 	taskCtx := &flowstate.TaskCtx{
-		Task: flowstate.Task{
+		Current: flowstate.Task{
 			ID:         "aTID",
 			Rev:        0,
 			ProcessID:  p.ID,
@@ -65,7 +67,6 @@ func TestTwoConsequentNodesWithCommit(t *testing.T) {
 
 	require.NoError(t, err)
 
-	visited, _ := taskCtx.Data.Get(`visited`)
-	require.Equal(t, []interface{}{`firstTID`, `secondTID`}, visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.visited)
 	require.Equal(t, 1, d.calls)
 }

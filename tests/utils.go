@@ -1,29 +1,25 @@
 package tests
 
 import (
-	"testing"
+	"sync"
 
 	"github.com/makasim/flowstate"
-	"github.com/stretchr/testify/require"
 )
 
-func track(t *testing.T, taskCtx *flowstate.TaskCtx) {
-	var visited []interface{}
-	visited0, found := taskCtx.Data.Get("visited")
-	if found {
-		visited = visited0.([]interface{})
-	}
-	visited = append(visited, string(taskCtx.Transition.ID))
+type tracker struct {
+	mux     sync.Mutex
+	visited []flowstate.TransitionID
+}
 
-	err := taskCtx.Data.Set("visited", visited)
-	require.NoError(t, err)
+func track(taskCtx *flowstate.TaskCtx, trkr *tracker) {
+	trkr.visited = append(trkr.visited, taskCtx.Current.Transition.ID)
 }
 
 type nopDriver struct {
 	calls int
 }
 
-func (d *nopDriver) Commit(cmds ...flowstate.Command) error {
+func (d *nopDriver) Commit(_ ...flowstate.Command) error {
 	d.calls++
 	return nil
 }

@@ -3,6 +3,8 @@ package flowstate
 import (
 	"errors"
 	"fmt"
+	"log"
+	"time"
 )
 
 var ErrBehaviorNotFound = errors.New("behavior not found")
@@ -54,18 +56,16 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 	}
 	taskCtx.Engine = e
 
-	if taskCtx.ID == `` {
+	if taskCtx.Current.ID == `` {
 		return fmt.Errorf(`taskCtx.ID empty`)
 	}
 
 	for {
-		ts, err := taskCtx.Process.Transition(taskCtx.Transition.ID)
-		if err != nil {
+		if _, err := taskCtx.Process.Transition(taskCtx.Current.Transition.ID); err != nil {
 			return err
 		}
-		taskCtx.Transition = ts
 
-		n, err := taskCtx.Process.Node(taskCtx.Transition.ToID)
+		n, err := taskCtx.Process.Node(taskCtx.Current.Transition.ToID)
 		if err != nil {
 			return err
 		}
@@ -80,16 +80,16 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 			return err
 		}
 
-		cmd, err := b.Execute(taskCtx)
+		cmd0, err := b.Execute(taskCtx)
 		if err != nil {
 			return err
 		}
 
-		if err := cmd.Do(); err != nil {
+		if err := cmd0.Prepare(); err != nil {
 			return err
 		}
 
-		if cmd1, ok := cmd.(*CommitCommand); ok {
+		if cmd1, ok := cmd0.(*CommitCommand); ok {
 			if len(cmd1.Commands) > 1 {
 				return fmt.Errorf("commit command with more than one command not supported yet")
 			}
@@ -98,16 +98,37 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 				return err
 			}
 
-			cmd = cmd1.Commands[0]
+			cmd0 = cmd1.Commands[0]
 		}
 
-		switch cmd.(type) {
+		switch cmd := cmd0.(type) {
 		case *EndCommand:
 			return nil
 		case *TransitCommand:
 			continue
+		case *DeferCommand:
+			return e.Defer(cmd)
 		default:
-			return fmt.Errorf("unknown command %T", cmd)
+			return fmt.Errorf("unknown command %T", cmd0)
 		}
 	}
+}
+
+func (e *Engine) Defer(cmd *DeferCommand) error {
+	if err := cmd.Prepare(); err != nil {
+		return err
+	}
+
+	// todo: replace naive implementation with real one
+	go func() {
+		t := time.NewTimer(cmd.Duration)
+		defer t.Stop()
+
+		<-t.C
+		if err := e.Execute(cmd.DeferredTaskCtx); err != nil {
+			log.Printf(`ERROR: %s`, err)
+		}
+	}()
+
+	return nil
 }

@@ -2,12 +2,13 @@ package tests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCondition(t *testing.T) {
+func TestDefer(t *testing.T) {
 	p := flowstate.Process{
 		ID:  "simplePID",
 		Rev: 1,
@@ -18,10 +19,6 @@ func TestCondition(t *testing.T) {
 			},
 			{
 				ID:         "secondNID",
-				BehaviorID: "end",
-			},
-			{
-				ID:         "thirdNID",
 				BehaviorID: "end",
 			},
 		},
@@ -36,11 +33,6 @@ func TestCondition(t *testing.T) {
 				FromID: "firstNID",
 				ToID:   "secondNID",
 			},
-			{
-				ID:     "thirdTID",
-				FromID: "firstNID",
-				ToID:   "thirdNID",
-			},
 		},
 	}
 
@@ -49,24 +41,20 @@ func TestCondition(t *testing.T) {
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		track(taskCtx, trkr)
-
-		cond0, _ := taskCtx.Data.Get("condition")
-		cond := cond0.(bool)
-
-		if cond {
+		if taskCtx.Current.Transition.Annotations[flowstate.DeferAtAnnotation] != `` {
 			return flowstate.Transit(taskCtx, `secondTID`), nil
-		} else {
-			return flowstate.Transit(taskCtx, `thirdTID`), nil
 		}
+
+		return flowstate.Defer(taskCtx, time.Millisecond*200), nil
 	}))
 	br.SetBehavior("end", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		track(taskCtx, trkr)
 		return flowstate.End(taskCtx), nil
 	}))
 
-	e := flowstate.NewEngine(&nopDriver{}, br)
+	d := &nopDriver{}
+	e := flowstate.NewEngine(d, br)
 
-	// condition true
 	taskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
 			ID:         "aTID",
@@ -78,35 +66,12 @@ func TestCondition(t *testing.T) {
 		},
 		Process: p,
 		Node:    p.Nodes[0],
-		Data: flowstate.Data{
-			Bytes: []byte(`{"condition": true}`),
-		},
 	}
 
 	err := e.Execute(taskCtx)
 	require.NoError(t, err)
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.visited)
 
-	// condition false
-	trkr.visited = nil
+	time.Sleep(time.Millisecond * 500)
 
-	taskCtx = &flowstate.TaskCtx{
-		Current: flowstate.Task{
-			ID:         "aTID",
-			Rev:        0,
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
-
-			Transition: p.Transitions[0],
-		},
-		Process: p,
-		Node:    p.Nodes[0],
-		Data: flowstate.Data{
-			Bytes: []byte(`{"condition": false}`),
-		},
-	}
-
-	err = e.Execute(taskCtx)
-	require.NoError(t, err)
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `thirdTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `firstTID`, `secondTID`}, trkr.visited)
 }

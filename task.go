@@ -16,13 +16,13 @@ type Task struct {
 }
 
 type TaskCtx struct {
-	Task
-	Committed Task
+	Current   Task `json:"current"`
+	Committed Task `json:"committed"`
+	// Transitions between committed and current states
+	Transitions []Transition `json:"transitions"`
 
-	Process Process
-	Node    Node
-	Data    Data
-	Engine  *Engine
-
-	UncommittedTransitions []Transition
+	Process Process `json:"-"`
+	Node    Node    `json:"-"`
+	Data    Data    `json:"-"`
+	Engine  *Engine `json:"-"`
 }
