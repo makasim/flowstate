@@ -15,11 +15,12 @@ func track(taskCtx *flowstate.TaskCtx, trkr *tracker) {
 	trkr.visited = append(trkr.visited, taskCtx.Current.Transition.ID)
 }
 
-type nopDriver struct {
-	calls int
-}
-
-func (d *nopDriver) Commit(_ ...flowstate.Command) error {
-	d.calls++
-	return nil
-}
+//
+//type nopDriver struct {
+//	calls int
+//}
+//
+//func (d *nopDriver) Commit(_ ...flowstate.Command) error {
+//	d.calls++
+//	return nil
+//}

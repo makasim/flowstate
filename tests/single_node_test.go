@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/memdriver"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +35,8 @@ func TestSingleNode(t *testing.T) {
 		return flowstate.End(taskCtx), nil
 	}))
 
-	e := flowstate.NewEngine(&nopDriver{}, br)
+	d := &memdriver.Driver{}
+	e := flowstate.NewEngine(d, br)
 
 	taskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{

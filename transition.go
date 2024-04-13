@@ -15,3 +15,19 @@ func (ts *Transition) SetAnnotation(name, value string) {
 	}
 	ts.Annotations[name] = value
 }
+
+func (ts *Transition) CopyTo(to *Transition) {
+	to.ID = ts.ID
+	to.FromID = ts.FromID
+	to.ToID = ts.ToID
+
+	if len(ts.Annotations) > 0 {
+		if to.Annotations == nil {
+			to.Annotations = make(map[string]string)
+		}
+
+		for k, v := range ts.Annotations {
+			to.Annotations[k] = v
+		}
+	}
+}

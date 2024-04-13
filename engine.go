@@ -94,7 +94,15 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 				return fmt.Errorf("commit command with more than one command not supported yet")
 			}
 
-			if err := e.d.Commit(cmd1.Commands...); err != nil {
+			for _, cmd := range cmd1.Commands {
+				if err := cmd.Prepare(); err != nil {
+					return err
+				}
+			}
+
+			if err := e.d.Commit(cmd1.Commands...); errors.Is(err, ErrCommitConflict) {
+				return nil
+			} else if err != nil {
 				return err
 			}
 
@@ -108,6 +116,8 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 			continue
 		case *DeferCommand:
 			return e.Defer(cmd)
+		case *NopCommand:
+			return nil
 		default:
 			return fmt.Errorf("unknown command %T", cmd0)
 		}
@@ -125,8 +135,24 @@ func (e *Engine) Defer(cmd *DeferCommand) error {
 		defer t.Stop()
 
 		<-t.C
+
+		if cmd.Commit {
+			transitCmd := &TransitCommand{
+				TaskCtx: cmd.DeferredTaskCtx,
+			}
+			// no need to prepare transit command, defer cmd prepare did it
+
+			if err := e.d.Commit(transitCmd); errors.Is(err, ErrCommitConflict) {
+				// ok
+				return
+			} else if err != nil {
+				log.Printf(`ERROR: engine: defer: driver: commit: %s`, err)
+				return
+			}
+		}
+
 		if err := e.Execute(cmd.DeferredTaskCtx); err != nil {
-			log.Printf(`ERROR: %s`, err)
+			log.Printf(`ERROR: engine: defer: engine: execute: %s`, err)
 		}
 	}()
 

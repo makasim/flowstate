@@ -86,10 +86,11 @@ func (cmd *CommitCommand) Prepare() error {
 	return nil
 }
 
-func Defer(taskCtx *TaskCtx, dur time.Duration) *DeferCommand {
+func Defer(taskCtx *TaskCtx, dur time.Duration, commit bool) *DeferCommand {
 	return &DeferCommand{
 		OriginTaskCtx: taskCtx,
 		Duration:      dur,
+		Commit:        commit,
 	}
 
 }
@@ -101,27 +102,37 @@ type DeferCommand struct {
 	OriginTaskCtx   *TaskCtx
 	DeferredTaskCtx *TaskCtx
 	Duration        time.Duration
+	Commit          bool
 }
 
 func (cmd *DeferCommand) Prepare() error {
-	// todo: copy annotations
-	// todo: xxx.Copy methods
-	cmd.DeferredTaskCtx = &TaskCtx{
-		Current:     cmd.OriginTaskCtx.Current,
-		Committed:   cmd.OriginTaskCtx.Committed,
-		Transitions: append([]Transition(nil), cmd.OriginTaskCtx.Transitions...),
-		Process:     cmd.OriginTaskCtx.Process,
-		Node:        cmd.OriginTaskCtx.Node,
-		Data: Data{
-			ID:    cmd.OriginTaskCtx.Data.ID,
-			Rev:   cmd.OriginTaskCtx.Data.Rev,
-			Bytes: append([]byte(nil), cmd.OriginTaskCtx.Data.Bytes...),
-		},
-		Engine: nil,
+	deferredTaskCtx := &TaskCtx{}
+	cmd.OriginTaskCtx.CopyTo(deferredTaskCtx)
+
+	deferredTaskCtx.Engine = nil
+
+	if err := Transit(deferredTaskCtx, deferredTaskCtx.Current.Transition.ID).Prepare(); err != nil {
+		return err
 	}
 
-	cmd.DeferredTaskCtx.Current.Transition.SetAnnotation(DeferAtAnnotation, time.Now().Format(time.RFC3339Nano))
-	cmd.DeferredTaskCtx.Current.Transition.SetAnnotation(DeferDurationAnnotation, cmd.Duration.String())
+	deferredTaskCtx.Current.Transition.SetAnnotation(DeferAtAnnotation, time.Now().Format(time.RFC3339Nano))
+	deferredTaskCtx.Current.Transition.SetAnnotation(DeferDurationAnnotation, cmd.Duration.String())
 
+	cmd.DeferredTaskCtx = deferredTaskCtx
+
+	return nil
+}
+
+func Nop(taskCtx *TaskCtx) *NopCommand {
+	return &NopCommand{
+		TaskCtx: taskCtx,
+	}
+}
+
+type NopCommand struct {
+	TaskCtx *TaskCtx
+}
+
+func (cmd *NopCommand) Prepare() error {
 	return nil
 }
