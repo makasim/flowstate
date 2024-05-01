@@ -40,5 +40,5 @@ func (p *Process) Node(id NodeID) (Node, error) {
 		}
 	}
 
-	return Node{}, ErrNodeNotFound
+	return Node{}, fmt.Errorf("%w; node: %s", ErrNodeNotFound, id)
 }
