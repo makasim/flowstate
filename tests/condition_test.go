@@ -87,7 +87,7 @@ func TestCondition(t *testing.T) {
 
 	err := e.Execute(taskCtx)
 	require.NoError(t, err)
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.Visited())
 
 	// condition false
 	trkr.visited = nil
@@ -110,5 +110,5 @@ func TestCondition(t *testing.T) {
 
 	err = e.Execute(taskCtx)
 	require.NoError(t, err)
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `thirdTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `thirdTID`}, trkr.Visited())
 }

@@ -51,9 +51,10 @@ func NewEngine(d Driver, br behaviorRegistry) *Engine {
 }
 
 func (e *Engine) Execute(taskCtx *TaskCtx) error {
-	if taskCtx.Engine != nil {
-		return fmt.Errorf("taskCtx.Engine already set")
-	}
+	// todo: not sure if this is necessary
+	//if taskCtx.Engine != e {
+	//	return fmt.Errorf("taskCtx.Engine not same as engine")
+	//}
 	taskCtx.Engine = e
 
 	if taskCtx.Current.ID == `` {
