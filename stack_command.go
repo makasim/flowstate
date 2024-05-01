@@ -26,6 +26,10 @@ type StackCommand struct {
 }
 
 func (cmd *StackCommand) Prepare() error {
+	if Stacked(cmd.NextTaskCtx) {
+		return fmt.Errorf("next task already stacked")
+	}
+
 	b, err := json.Marshal(cmd.StackedTaskCtx)
 	if err != nil {
 		return fmt.Errorf("json marshal prev task ctx: %s", err)

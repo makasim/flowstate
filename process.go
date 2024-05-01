@@ -26,7 +26,7 @@ func (p *Process) Transition(id TransitionID) (Transition, error) {
 		}
 	}
 
-	return Transition{}, ErrTransitionNotFound
+	return Transition{}, fmt.Errorf("%w; ts: %s", ErrTransitionNotFound, id)
 }
 
 func (p *Process) Node(id NodeID) (Node, error) {

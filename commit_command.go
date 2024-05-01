@@ -21,10 +21,6 @@ func (cmd *CommitCommand) Prepare() error {
 		if _, ok := c.(*CommitCommand); ok {
 			return fmt.Errorf("commit command in commit command not allowed")
 		}
-
-		if err := c.Prepare(); err != nil {
-			return err
-		}
 	}
 
 	return nil
