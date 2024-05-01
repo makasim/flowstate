@@ -69,7 +69,7 @@ func TestTwoConsequentNodesWithCommit(t *testing.T) {
 
 	require.NoError(t, err)
 
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.Visited())
 	// todo: wrap memdriver with a driver that track calls ?
 	// require.Equal(t, 1, d.calls)
 }

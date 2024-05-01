@@ -141,5 +141,5 @@ func TestCallProcessWithCommit(t *testing.T) {
 		`calledEndTID`,
 		`callTID`,
 		`callEndTID`,
-	}, trkr.visited)
+	}, trkr.Visited())
 }

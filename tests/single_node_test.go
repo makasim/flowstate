@@ -55,5 +55,5 @@ func TestSingleNode(t *testing.T) {
 
 	require.NoError(t, err)
 
-	require.Equal(t, []flowstate.TransitionID{`firstTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`}, trkr.Visited())
 }

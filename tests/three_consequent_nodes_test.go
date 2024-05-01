@@ -81,5 +81,5 @@ func TestThreeConsequentNodes(t *testing.T) {
 
 	require.NoError(t, err)
 
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`, `thirdTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`, `thirdTID`}, trkr.Visited())
 }

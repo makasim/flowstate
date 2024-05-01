@@ -74,7 +74,7 @@ func TestDefer_Return(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 500)
 
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `firstTID`, `secondTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `firstTID`, `secondTID`}, trkr.Visited())
 }
 
 func TestDefer_EngineDo(t *testing.T) {
@@ -148,5 +148,5 @@ func TestDefer_EngineDo(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 500)
 
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `firstTID`, `secondTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `firstTID`, `secondTID`}, trkr.Visited())
 }

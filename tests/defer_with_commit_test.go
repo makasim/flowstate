@@ -96,7 +96,7 @@ func TestDefer_TransitWin_WithCommit(t *testing.T) {
 	time.Sleep(time.Millisecond * 500)
 
 	// no secondTID in list
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `thirdTID`, `firstTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `thirdTID`, `firstTID`}, trkr.Visited())
 }
 
 func TestDefer_DeferWin_WithCommit(t *testing.T) {
@@ -187,5 +187,5 @@ func TestDefer_DeferWin_WithCommit(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 500)
 
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `firstTID`, `secondTID`}, trkr.visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `firstTID`, `secondTID`}, trkr.Visited())
 }
