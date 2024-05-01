@@ -13,6 +13,8 @@ type Task struct {
 	DataRev int64
 
 	Transition Transition `json:"transition"`
+
+	Annotations map[string]string `json:"annotations"`
 }
 
 func (t *Task) CopyTo(to *Task) {
@@ -26,16 +28,24 @@ func (t *Task) CopyTo(to *Task) {
 	t.Transition.CopyTo(&to.Transition)
 }
 
+func (t *Task) SetAnnotation(name, value string) {
+	if t.Annotations == nil {
+		t.Annotations = make(map[string]string)
+	}
+	t.Annotations[name] = value
+}
+
 type TaskCtx struct {
-	Current   Task `json:"current"`
-	Committed Task `json:"committed"`
+	Current   Task    `json:"current"`
+	Committed Task    `json:"committed"`
+	Process   Process `json:"process"`
+	Node      Node    `json:"node"`
+	Data      Data    `json:"data"`
+
 	// Transitions between committed and current states
 	Transitions []Transition `json:"transitions"`
 
-	Process Process `json:"-"`
-	Node    Node    `json:"-"`
-	Data    Data    `json:"-"`
-	Engine  *Engine `json:"-"`
+	Engine *Engine `json:"-"`
 }
 
 func (t *TaskCtx) CopyTo(to *TaskCtx) {

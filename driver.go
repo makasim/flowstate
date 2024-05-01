@@ -1,6 +1,8 @@
 package flowstate
 
-import "errors"
+import (
+	"errors"
+)
 
 var ErrCommitConflict = errors.New("commit conflict")
 

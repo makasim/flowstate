@@ -85,43 +85,36 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 			return err
 		}
 
-		if err := cmd0.Prepare(); err != nil {
+		taskCtx, err = e.do(cmd0)
+		if err != nil {
 			return err
-		}
-
-		if cmd1, ok := cmd0.(*CommitCommand); ok {
-			if len(cmd1.Commands) > 1 {
-				return fmt.Errorf("commit command with more than one command not supported yet")
-			}
-
-			for _, cmd := range cmd1.Commands {
-				if err := cmd.Prepare(); err != nil {
-					return err
-				}
-			}
-
-			if err := e.d.Commit(cmd1.Commands...); errors.Is(err, ErrCommitConflict) {
-				return nil
-			} else if err != nil {
-				return err
-			}
-
-			cmd0 = cmd1.Commands[0]
-		}
-
-		switch cmd := cmd0.(type) {
-		case *EndCommand:
-			return nil
-		case *TransitCommand:
+		} else if taskCtx != nil {
 			continue
-		case *DeferCommand:
-			return e.Defer(cmd)
-		case *NopCommand:
-			return nil
-		default:
-			return fmt.Errorf("unknown command %T", cmd0)
+		}
+
+		return nil
+	}
+}
+
+func (e *Engine) Do(cmds ...Command) error {
+	if len(cmds) == 0 {
+		return fmt.Errorf("no commands to do")
+	}
+
+	for _, cmd := range cmds {
+		taskCtx, err := e.do(cmd)
+		if err != nil {
+			return err
+		} else if taskCtx != nil {
+			go func() {
+				if err := e.Execute(taskCtx); err != nil {
+					log.Printf("ERROR: engine: go execute: %s\n", err)
+				}
+			}()
 		}
 	}
+
+	return nil
 }
 
 func (e *Engine) Defer(cmd *DeferCommand) error {
@@ -157,4 +150,51 @@ func (e *Engine) Defer(cmd *DeferCommand) error {
 	}()
 
 	return nil
+}
+
+func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
+	if err := cmd0.Prepare(); err != nil {
+		return nil, err
+	}
+
+	if cmd1, ok := cmd0.(*CommitCommand); ok {
+		if len(cmd1.Commands) > 1 {
+			return nil, fmt.Errorf("commit command with more than one command not supported yet")
+		}
+
+		for _, cmd := range cmd1.Commands {
+			if err := cmd.Prepare(); err != nil {
+				return nil, err
+			}
+		}
+
+		if err := e.d.Commit(cmd1.Commands...); errors.Is(err, ErrCommitConflict) {
+			return nil, nil
+		} else if err != nil {
+			return nil, err
+		}
+
+		cmd0 = cmd1.Commands[0]
+	}
+
+	switch cmd := cmd0.(type) {
+	case *EndCommand:
+		return nil, nil
+	case *TransitCommand:
+		return cmd.TaskCtx, nil
+	case *DeferCommand:
+		return nil, e.Defer(cmd)
+	case *PauseCommand:
+		return nil, nil
+	case *StackCommand:
+		return nil, nil
+	case *UnstackCommand:
+		return nil, nil
+	case *ResumeCommand:
+		return cmd.TaskCtx, nil
+	case *NopCommand:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unknown command %T", cmd0)
+	}
 }
