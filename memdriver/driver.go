@@ -20,6 +20,10 @@ func (d *Driver) Commit(cmds ...flowstate.Command) error {
 	changes := make(map[flowstate.TaskID]flowstate.Task)
 
 	for _, cmd0 := range cmds {
+		if err := cmd0.Prepare(); err != nil {
+			return fmt.Errorf("%T: prepare: %w", cmd0, err)
+		}
+
 		switch cmd := cmd0.(type) {
 		case *flowstate.CommitCommand:
 			return fmt.Errorf("commit command not allowed")
@@ -62,7 +66,29 @@ func (d *Driver) Commit(cmds ...flowstate.Command) error {
 			}
 
 			d.commit(changes, taskCtx)
-		case *flowstate.NopCommand:
+		case *flowstate.PauseCommand:
+			taskCtx := cmd.TaskCtx
+
+			if taskCtx.Committed.ID == `` {
+				return fmt.Errorf("task id empty")
+			}
+			if d.s[taskCtx.Committed.ID].Rev != taskCtx.Committed.Rev {
+				return flowstate.ErrCommitConflict
+			}
+
+			d.commit(changes, taskCtx)
+		case *flowstate.ResumeCommand:
+			taskCtx := cmd.TaskCtx
+
+			if taskCtx.Committed.ID == `` {
+				return fmt.Errorf("task id empty")
+			}
+			if d.s[taskCtx.Committed.ID].Rev != taskCtx.Committed.Rev {
+				return flowstate.ErrCommitConflict
+			}
+
+			d.commit(changes, taskCtx)
+		case *flowstate.NopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand:
 			continue
 		default:
 			return fmt.Errorf("unknown command: %T", cmd0)

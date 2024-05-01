@@ -85,8 +85,11 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 			return err
 		}
 
-		taskCtx, err = e.do(cmd0)
-		if err != nil {
+		taskCtx, err = e.prepareAndDo(cmd0)
+		if errors.Is(err, ErrCommitConflict) {
+			log.Println("INFO: engine: execute: commit conflict")
+			return nil
+		} else if err != nil {
 			return err
 		} else if taskCtx != nil {
 			continue
@@ -102,7 +105,7 @@ func (e *Engine) Do(cmds ...Command) error {
 	}
 
 	for _, cmd := range cmds {
-		taskCtx, err := e.do(cmd)
+		taskCtx, err := e.prepareAndDo(cmd)
 		if err != nil {
 			return err
 		} else if taskCtx != nil {
@@ -117,64 +120,36 @@ func (e *Engine) Do(cmds ...Command) error {
 	return nil
 }
 
-func (e *Engine) Defer(cmd *DeferCommand) error {
-	if err := cmd.Prepare(); err != nil {
-		return err
-	}
-
-	// todo: replace naive implementation with real one
-	go func() {
-		t := time.NewTimer(cmd.Duration)
-		defer t.Stop()
-
-		<-t.C
-
-		if cmd.Commit {
-			transitCmd := &TransitCommand{
-				TaskCtx: cmd.DeferredTaskCtx,
-			}
-			// no need to prepare transit command, defer cmd prepare did it
-
-			if err := e.d.Commit(transitCmd); errors.Is(err, ErrCommitConflict) {
-				// ok
-				return
-			} else if err != nil {
-				log.Printf(`ERROR: engine: defer: driver: commit: %s`, err)
-				return
-			}
-		}
-
-		if err := e.Execute(cmd.DeferredTaskCtx); err != nil {
-			log.Printf(`ERROR: engine: defer: engine: execute: %s`, err)
-		}
-	}()
-
-	return nil
-}
-
-func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
+func (e *Engine) prepareAndDo(cmd0 Command) (*TaskCtx, error) {
 	if err := cmd0.Prepare(); err != nil {
 		return nil, err
 	}
 
+	return e.do(cmd0)
+}
+
+func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
 	if cmd1, ok := cmd0.(*CommitCommand); ok {
-		if len(cmd1.Commands) > 1 {
-			return nil, fmt.Errorf("commit command with more than one command not supported yet")
+		if err := e.d.Commit(cmd1.Commands...); err != nil {
+			return nil, fmt.Errorf("driver: commit: %w", err)
 		}
 
-		for _, cmd := range cmd1.Commands {
-			if err := cmd.Prepare(); err != nil {
+		var returnTaskCtx *TaskCtx
+		for _, cmd0 := range cmd1.Commands {
+			if taskCtx, err := e.do(cmd0); err != nil {
 				return nil, err
+			} else if taskCtx != nil && returnTaskCtx == nil {
+				returnTaskCtx = taskCtx
+			} else if taskCtx != nil && returnTaskCtx != nil {
+				go func() {
+					if err := e.Execute(taskCtx); err != nil {
+						log.Printf("ERROR: engine: go execute: %s\n", err)
+					}
+				}()
 			}
 		}
 
-		if err := e.d.Commit(cmd1.Commands...); errors.Is(err, ErrCommitConflict) {
-			return nil, nil
-		} else if err != nil {
-			return nil, err
-		}
-
-		cmd0 = cmd1.Commands[0]
+		return returnTaskCtx, nil
 	}
 
 	switch cmd := cmd0.(type) {
@@ -183,7 +158,19 @@ func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
 	case *TransitCommand:
 		return cmd.TaskCtx, nil
 	case *DeferCommand:
-		return nil, e.Defer(cmd)
+		// todo: replace naive implementation with real one
+		go func() {
+			t := time.NewTimer(cmd.Duration)
+			defer t.Stop()
+
+			<-t.C
+
+			if err := e.Execute(cmd.DeferredTaskCtx); err != nil {
+				log.Printf(`ERROR: engine: defer: engine: execute: %s`, err)
+			}
+		}()
+
+		return nil, nil
 	case *PauseCommand:
 		return nil, nil
 	case *StackCommand:

@@ -4,17 +4,20 @@ import (
 	"time"
 )
 
-func Defer(taskCtx *TaskCtx, dur time.Duration, commit bool) *DeferCommand {
+func Deferred(taskCtx *TaskCtx) bool {
+	return taskCtx.Current.Transition.Annotations[deferAtAnnotation] != ``
+}
+
+func Defer(taskCtx *TaskCtx, dur time.Duration) *DeferCommand {
 	return &DeferCommand{
 		OriginTaskCtx: taskCtx,
 		Duration:      dur,
-		Commit:        commit,
 	}
 
 }
 
-var DeferAtAnnotation = `flowstate.defer.at`
-var DeferDurationAnnotation = `flowstate.deferred.duration`
+var deferAtAnnotation = `flowstate.defer.at`
+var deferDurationAnnotation = `flowstate.deferred.duration`
 
 type DeferCommand struct {
 	OriginTaskCtx   *TaskCtx
@@ -33,8 +36,8 @@ func (cmd *DeferCommand) Prepare() error {
 		return err
 	}
 
-	deferredTaskCtx.Current.Transition.SetAnnotation(DeferAtAnnotation, time.Now().Format(time.RFC3339Nano))
-	deferredTaskCtx.Current.Transition.SetAnnotation(DeferDurationAnnotation, cmd.Duration.String())
+	deferredTaskCtx.Current.Transition.SetAnnotation(deferAtAnnotation, time.Now().Format(time.RFC3339Nano))
+	deferredTaskCtx.Current.Transition.SetAnnotation(deferDurationAnnotation, cmd.Duration.String())
 
 	cmd.DeferredTaskCtx = deferredTaskCtx
 
