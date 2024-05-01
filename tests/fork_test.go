@@ -68,6 +68,9 @@ func TestFork(t *testing.T) {
 
 		forkedTaskCtx = &flowstate.TaskCtx{}
 		taskCtx.CopyTo(forkedTaskCtx)
+		forkedTaskCtx.Current.ID = "forkedTID"
+		forkedTaskCtx.Current.Rev = 0
+		forkedTaskCtx.Current.CopyTo(&forkedTaskCtx.Committed)
 
 		if err := taskCtx.Engine.Do(
 			flowstate.Transit(taskCtx, `originTID`),
