@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -41,12 +42,16 @@ func (r *MapBehaviorRegistry) Behavior(id BehaviorID) (Behavior, error) {
 type Engine struct {
 	d  Driver
 	br behaviorRegistry
+
+	atomicIntsMux sync.Mutex
+	atomicInts    map[string]int64
 }
 
 func NewEngine(d Driver, br behaviorRegistry) *Engine {
 	return &Engine{
-		d:  d,
-		br: br,
+		d:          d,
+		br:         br,
+		atomicInts: make(map[string]int64),
 	}
 }
 
@@ -180,6 +185,15 @@ func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
 		return nil, nil
 	case *ResumeCommand:
 		return cmd.TaskCtx, nil
+	case *ForkCommand:
+		return nil, nil
+	case *AddAtomicInt64Command:
+
+		e.atomicIntsMux.Lock()
+		e.atomicInts[cmd.Name] += cmd.Val
+		SetAtomicInt64(cmd.Name, e.atomicInts[cmd.Name], cmd.TaskCtx)
+		e.atomicIntsMux.Unlock()
+		return nil, nil
 	case *NopCommand:
 		return nil, nil
 	default:
