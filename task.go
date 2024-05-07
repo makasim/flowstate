@@ -15,6 +15,8 @@ type Task struct {
 	Transition Transition `json:"transition"`
 
 	Annotations map[string]string `json:"annotations"`
+
+	Labels map[string]string `json:"labels"`
 }
 
 func (t *Task) CopyTo(to *Task) {
@@ -26,6 +28,13 @@ func (t *Task) CopyTo(to *Task) {
 	to.DataRev = t.DataRev
 
 	t.Transition.CopyTo(&to.Transition)
+
+	for k, v := range t.Annotations {
+		to.SetAnnotation(k, v)
+	}
+	for k, v := range t.Labels {
+		to.SetLabel(k, v)
+	}
 }
 
 func (t *Task) SetAnnotation(name, value string) {
@@ -33,6 +42,13 @@ func (t *Task) SetAnnotation(name, value string) {
 		t.Annotations = make(map[string]string)
 	}
 	t.Annotations[name] = value
+}
+
+func (t *Task) SetLabel(name, value string) {
+	if t.Labels == nil {
+		t.Labels = make(map[string]string)
+	}
+	t.Labels[name] = value
 }
 
 type TaskCtx struct {

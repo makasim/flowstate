@@ -13,7 +13,7 @@ type Driver struct {
 	s   map[flowstate.TaskID]flowstate.Task
 }
 
-func (d *Driver) Commit(cmds ...flowstate.Command) error {
+func (d *Driver) Do(cmds ...flowstate.Command) error {
 	d.mux.Lock()
 	defer d.mux.Unlock()
 
@@ -88,6 +88,8 @@ func (d *Driver) Commit(cmds ...flowstate.Command) error {
 			}
 
 			d.commit(changes, taskCtx)
+		case *flowstate.WatchCommand:
+			w :=
 		case *flowstate.NopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand:
 			continue
 		default:
