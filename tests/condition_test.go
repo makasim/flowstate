@@ -54,11 +54,12 @@ func TestCondition(t *testing.T) {
 		cond0, _ := taskCtx.Data.Get("condition")
 		cond := cond0.(bool)
 
+		tsID := flowstate.TransitionID(`thirdTID`)
 		if cond {
-			return flowstate.Transit(taskCtx, `secondTID`), nil
-		} else {
-			return flowstate.Transit(taskCtx, `thirdTID`), nil
+			tsID = `secondTID`
 		}
+
+		return flowstate.Transit(taskCtx, tsID), nil
 	}))
 	br.SetBehavior("end", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		track(taskCtx, trkr)

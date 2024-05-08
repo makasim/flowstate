@@ -75,6 +75,9 @@ func TestFork(t *testing.T) {
 		if err := taskCtx.Engine.Do(
 			flowstate.Transit(taskCtx, `originTID`),
 			flowstate.Transit(forkedTaskCtx, `forkedTID`),
+
+			flowstate.Execute(taskCtx),
+			flowstate.Execute(forkedTaskCtx),
 		); err != nil {
 			return nil, err
 		}

@@ -2,7 +2,8 @@ package flowstate
 
 func Watch(since int64, labels map[string]string) *WatchCommand {
 	return &WatchCommand{
-		Since: since,
+		Since:  since,
+		Labels: labels,
 	}
 
 }

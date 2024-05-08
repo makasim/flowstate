@@ -103,7 +103,9 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 			d.ws = append(d.ws, w)
 
 			go w.listen()
-		case *flowstate.NopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand:
+		case *flowstate.NopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand, *flowstate.ForkCommand:
+			continue
+		case *flowstate.ExecuteCommand:
 			continue
 		default:
 			return fmt.Errorf("unknown command: %T", cmd0)

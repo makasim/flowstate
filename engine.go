@@ -86,7 +86,7 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 			return err
 		}
 
-		taskCtx, err = e.prepareAndDo(cmd0)
+		taskCtx, err = e.prepareAndDo(cmd0, true)
 		if errors.Is(err, ErrCommitConflict) {
 			log.Println("INFO: engine: execute: commit conflict")
 			return nil
@@ -106,7 +106,7 @@ func (e *Engine) Do(cmds ...Command) error {
 	}
 
 	for _, cmd := range cmds {
-		taskCtx, err := e.prepareAndDo(cmd)
+		taskCtx, err := e.prepareAndDo(cmd, false)
 		if err != nil {
 			return err
 		} else if taskCtx != nil {
@@ -121,15 +121,24 @@ func (e *Engine) Do(cmds ...Command) error {
 	return nil
 }
 
-func (e *Engine) prepareAndDo(cmd0 Command) (*TaskCtx, error) {
+func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
+	cmd := Watch(rev, labels)
+	if err := e.Do(cmd); err != nil {
+		return nil, err
+	}
+
+	return cmd.Watcher, nil
+}
+
+func (e *Engine) prepareAndDo(cmd0 Command, sync bool) (*TaskCtx, error) {
 	if err := cmd0.Prepare(); err != nil {
 		return nil, err
 	}
 
-	return e.do(cmd0)
+	return e.do(cmd0, sync)
 }
 
-func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
+func (e *Engine) do(cmd0 Command, sync bool) (*TaskCtx, error) {
 	if cmd1, ok := cmd0.(*CommitCommand); ok {
 		if err := e.d.Do(cmd1.Commands...); err != nil {
 			return nil, fmt.Errorf("driver: commit: %w", err)
@@ -137,11 +146,11 @@ func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
 
 		var returnTaskCtx *TaskCtx
 		for _, cmd0 := range cmd1.Commands {
-			if taskCtx, err := e.do(cmd0); err != nil {
+			if taskCtx, err := e.do(cmd0, sync); err != nil {
 				return nil, err
-			} else if taskCtx != nil && returnTaskCtx == nil {
+			} else if sync && taskCtx != nil && returnTaskCtx == nil {
 				returnTaskCtx = taskCtx
-			} else if taskCtx != nil && returnTaskCtx != nil {
+			} else if taskCtx != nil {
 				go func() {
 					if err := e.Execute(taskCtx); err != nil {
 						log.Printf("ERROR: engine: go execute: %s\n", err)
@@ -157,7 +166,11 @@ func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
 	case *EndCommand:
 		return nil, nil
 	case *TransitCommand:
-		return cmd.TaskCtx, nil
+		if sync {
+			return cmd.TaskCtx, nil
+		}
+
+		return nil, nil
 	case *DeferCommand:
 		// todo: replace naive implementation with real one
 		go func() {
@@ -179,9 +192,22 @@ func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
 	case *UnstackCommand:
 		return nil, nil
 	case *ResumeCommand:
-		return cmd.TaskCtx, nil
+		if sync {
+			return cmd.TaskCtx, nil
+		}
+
+		return nil, nil
 	case *WatchCommand:
 		return nil, e.d.Do(cmd)
+	case *ForkCommand:
+		return nil, nil
+	case *ExecuteCommand:
+		go func() {
+			if err := e.Execute(cmd.TaskCtx); err != nil {
+				log.Printf("ERROR: engine: go execute: %s\n", err)
+			}
+		}()
+		return nil, nil
 	case *NopCommand:
 		return nil, nil
 	default:

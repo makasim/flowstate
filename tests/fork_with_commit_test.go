@@ -77,6 +77,9 @@ func TestFork_WithCommit(t *testing.T) {
 			flowstate.Commit(
 				flowstate.Transit(taskCtx, `originTID`),
 				flowstate.Transit(forkedTaskCtx, `forkedTID`),
+
+				flowstate.Execute(taskCtx),
+				flowstate.Execute(forkedTaskCtx),
 			),
 		); err != nil {
 			return nil, err
