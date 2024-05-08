@@ -131,7 +131,7 @@ func (e *Engine) prepareAndDo(cmd0 Command) (*TaskCtx, error) {
 
 func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
 	if cmd1, ok := cmd0.(*CommitCommand); ok {
-		if err := e.d.Commit(cmd1.Commands...); err != nil {
+		if err := e.d.Do(cmd1.Commands...); err != nil {
 			return nil, fmt.Errorf("driver: commit: %w", err)
 		}
 
@@ -180,6 +180,8 @@ func (e *Engine) do(cmd0 Command) (*TaskCtx, error) {
 		return nil, nil
 	case *ResumeCommand:
 		return cmd.TaskCtx, nil
+	case *WatchCommand:
+		return nil, e.d.Do(cmd)
 	case *NopCommand:
 		return nil, nil
 	default:

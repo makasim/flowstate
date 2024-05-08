@@ -15,6 +15,8 @@ type Task struct {
 	Transition Transition `json:"transition"`
 
 	Annotations map[string]string `json:"annotations"`
+
+	Labels map[string]string `json:"labels"`
 }
 
 func (t *Task) CopyTo(to *Task) {
@@ -26,6 +28,13 @@ func (t *Task) CopyTo(to *Task) {
 	to.DataRev = t.DataRev
 
 	t.Transition.CopyTo(&to.Transition)
+
+	for k, v := range t.Annotations {
+		to.SetAnnotation(k, v)
+	}
+	for k, v := range t.Labels {
+		to.SetLabel(k, v)
+	}
 }
 
 func (t *Task) SetAnnotation(name, value string) {
@@ -33,6 +42,13 @@ func (t *Task) SetAnnotation(name, value string) {
 		t.Annotations = make(map[string]string)
 	}
 	t.Annotations[name] = value
+}
+
+func (t *Task) SetLabel(name, value string) {
+	if t.Labels == nil {
+		t.Labels = make(map[string]string)
+	}
+	t.Labels[name] = value
 }
 
 type TaskCtx struct {
@@ -48,11 +64,15 @@ type TaskCtx struct {
 	Engine *Engine `json:"-"`
 }
 
-func (t *TaskCtx) CopyTo(to *TaskCtx) {
+func (t *TaskCtx) CopyTo(to *TaskCtx) *TaskCtx {
 	t.Current.CopyTo(&to.Current)
 	t.Committed.CopyTo(&to.Committed)
 
-	to.Transitions = to.Transitions[:len(t.Transitions)]
+	if cap(to.Transitions) >= len(t.Transitions) {
+		to.Transitions = to.Transitions[:len(t.Transitions)]
+	} else {
+		to.Transitions = make([]Transition, len(t.Transitions))
+	}
 	for idx := range t.Transitions {
 		t.Transitions[idx].CopyTo(&to.Transitions[idx])
 	}
@@ -65,4 +85,6 @@ func (t *TaskCtx) CopyTo(to *TaskCtx) {
 	to.Data.ID = t.Data.ID
 	to.Data.Rev = t.Data.Rev
 	to.Data.Bytes = append(to.Data.Bytes[:0], t.Data.Bytes...)
+
+	return to
 }
