@@ -88,54 +88,21 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 			d.l.Append(taskCtx)
 		case *flowstate.WatchCommand:
 			w := &Watcher{
+				since: cmd.Since,
+				// todo: copy labels
+				labels: cmd.Labels,
+
 				watchCh:  make(chan *flowstate.TaskCtx, 1),
 				changeCh: make(chan int64, 1),
 				closeCh:  make(chan struct{}),
+				l:        &d.l,
 			}
 
-			since := cmd.Since
-			// todo: copy labels
-			labels := cmd.Labels
-
+			cmd.Watcher = w
+			w.Change(cmd.Since)
 			d.ws = append(d.ws, w)
 
-			go func() {
-				var tasks []*flowstate.TaskCtx
-
-			skip:
-				for {
-					select {
-					case <-w.changeCh:
-						d.l.Lock()
-						tasks, since = d.l.Entries(since, 10)
-						d.l.Unlock()
-
-						if len(tasks) == 0 {
-							continue skip
-						}
-
-					next:
-						for _, t := range tasks {
-							for k, v := range labels {
-								if t.Committed.Labels[k] != v {
-									continue next
-								}
-							}
-
-							select {
-							case w.watchCh <- t:
-								continue next
-							case <-w.closeCh:
-								return
-							}
-						}
-					case <-w.closeCh:
-						return
-					}
-				}
-			}()
-
-			cmd.Watcher = w
+			go w.listen()
 		case *flowstate.NopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand:
 			continue
 		default:
