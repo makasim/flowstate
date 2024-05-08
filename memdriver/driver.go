@@ -87,34 +87,55 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 
 			d.l.Append(taskCtx)
 		case *flowstate.WatchCommand:
-			//w := &Watcher{
-			//	watchCh:  make(chan *flowstate.TaskCtx, 1),
-			//	changeCh: make(chan int64, 1),
-			//	closeCh:  make(chan struct{}),
-			//}
-			//
-			//go func() {
-			//	for {
-			//		select {
-			//		case rev := <-w.changeCh:
-			//			for {
-			//				var taskCtx *flowstate.TaskCtx
-			//
-			//				select {
-			//				case w.watchCh <- taskCtx:
-			//					continue
-			//				case <-w.closeCh:
-			//					return
-			//				}
-			//			}
-			//		case <-w.closeCh:
-			//			return
-			//		}
-			//
-			//	}
-			//}()
-			//
-			//cmd.Watcher = w
+			w := &Watcher{
+				watchCh:  make(chan *flowstate.TaskCtx, 1),
+				changeCh: make(chan int64, 1),
+				closeCh:  make(chan struct{}),
+			}
+
+			since := cmd.Since
+			// todo: copy labels
+			labels := cmd.Labels
+
+			d.ws = append(d.ws, w)
+
+			go func() {
+				var tasks []*flowstate.TaskCtx
+
+			skip:
+				for {
+					select {
+					case <-w.changeCh:
+						d.l.Lock()
+						tasks, since = d.l.Entries(since, 10)
+						d.l.Unlock()
+
+						if len(tasks) == 0 {
+							continue skip
+						}
+
+					next:
+						for _, t := range tasks {
+							for k, v := range labels {
+								if t.Committed.Labels[k] != v {
+									continue next
+								}
+							}
+
+							select {
+							case w.watchCh <- t:
+								continue next
+							case <-w.closeCh:
+								return
+							}
+						}
+					case <-w.closeCh:
+						return
+					}
+				}
+			}()
+
+			cmd.Watcher = w
 		case *flowstate.NopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand:
 			continue
 		default:
@@ -123,6 +144,10 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 	}
 
 	d.l.Commit()
+
+	for _, w := range d.ws {
+		w.Change(d.l.rev)
+	}
 
 	return nil
 }

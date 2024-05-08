@@ -15,3 +15,11 @@ func (w *Watcher) Watch() <-chan *flowstate.TaskCtx {
 func (w *Watcher) Close() {
 	close(w.closeCh)
 }
+
+func (w *Watcher) Change(rev int64) {
+	select {
+	case w.changeCh <- rev:
+	case <-w.changeCh:
+		w.changeCh <- rev
+	}
+}
