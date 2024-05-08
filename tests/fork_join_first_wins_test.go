@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"log"
 	"testing"
 	"time"
 
@@ -109,7 +108,6 @@ func TestForkJoin_FirstWins(t *testing.T) {
 		track(taskCtx, trkr)
 
 		if taskCtx.Current.Transition.ID != taskCtx.Committed.Transition.ID {
-			log.Println(123, taskCtx.Current.ID)
 			if err := taskCtx.Engine.Do(flowstate.Commit(
 				flowstate.Transit(taskCtx, `joinTID`),
 			)); err != nil {
