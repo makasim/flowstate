@@ -3,11 +3,12 @@ package memdriver
 import "github.com/makasim/flowstate"
 
 type Watcher struct {
-	watchCh chan []*flowstate.TaskCtx
-	closeCh chan struct{}
+	watchCh  chan *flowstate.TaskCtx
+	changeCh chan int64
+	closeCh  chan struct{}
 }
 
-func (w *Watcher) Watch() chan []*flowstate.TaskCtx {
+func (w *Watcher) Watch() <-chan *flowstate.TaskCtx {
 	return w.watchCh
 }
 

@@ -64,11 +64,15 @@ type TaskCtx struct {
 	Engine *Engine `json:"-"`
 }
 
-func (t *TaskCtx) CopyTo(to *TaskCtx) {
+func (t *TaskCtx) CopyTo(to *TaskCtx) *TaskCtx {
 	t.Current.CopyTo(&to.Current)
 	t.Committed.CopyTo(&to.Committed)
 
-	to.Transitions = to.Transitions[:len(t.Transitions)]
+	if cap(to.Transitions) >= len(t.Transitions) {
+		to.Transitions = to.Transitions[:len(t.Transitions)]
+	} else {
+		to.Transitions = make([]Transition, len(t.Transitions))
+	}
 	for idx := range t.Transitions {
 		t.Transitions[idx].CopyTo(&to.Transitions[idx])
 	}
@@ -81,4 +85,6 @@ func (t *TaskCtx) CopyTo(to *TaskCtx) {
 	to.Data.ID = t.Data.ID
 	to.Data.Rev = t.Data.Rev
 	to.Data.Bytes = append(to.Data.Bytes[:0], t.Data.Bytes...)
+
+	return to
 }

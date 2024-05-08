@@ -1,6 +1,6 @@
 package flowstate
 
 type Watcher interface {
-	Watch() chan []*TaskCtx
+	Watch() <-chan *TaskCtx
 	Close()
 }
