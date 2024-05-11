@@ -27,11 +27,11 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 		case *flowstate.TransitCommand:
 			taskCtx := cmd.TaskCtx
 
-			if taskCtx.Committed.ID == `` {
+			if taskCtx.Current.ID == `` {
 				return fmt.Errorf("task id empty")
 			}
 
-			if _, rev := d.l.Latest(taskCtx.Committed.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
 				return flowstate.ErrCommitConflict
 			}
 
@@ -39,13 +39,13 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 		case *flowstate.EndCommand:
 			taskCtx := cmd.TaskCtx
 
-			if taskCtx.Committed.ID == `` {
+			if taskCtx.Current.ID == `` {
 				return fmt.Errorf("task id empty")
 			}
 			if taskCtx.Committed.Rev == 0 {
 				return fmt.Errorf("task rev empty")
 			}
-			if _, rev := d.l.Latest(taskCtx.Committed.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
 				return flowstate.ErrCommitConflict
 			}
 
@@ -53,13 +53,13 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 		case *flowstate.DeferCommand:
 			taskCtx := cmd.DeferredTaskCtx
 
-			if taskCtx.Committed.ID == `` {
+			if taskCtx.Current.ID == `` {
 				return fmt.Errorf("task id empty")
 			}
 			if taskCtx.Committed.Rev == 0 {
 				return fmt.Errorf("task rev empty")
 			}
-			if _, rev := d.l.Latest(taskCtx.Committed.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
 				return flowstate.ErrCommitConflict
 			}
 
@@ -67,10 +67,10 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 		case *flowstate.PauseCommand:
 			taskCtx := cmd.TaskCtx
 
-			if taskCtx.Committed.ID == `` {
+			if taskCtx.Current.ID == `` {
 				return fmt.Errorf("task id empty")
 			}
-			if _, rev := d.l.Latest(taskCtx.Committed.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
 				return flowstate.ErrCommitConflict
 			}
 
@@ -78,17 +78,18 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 		case *flowstate.ResumeCommand:
 			taskCtx := cmd.TaskCtx
 
-			if taskCtx.Committed.ID == `` {
+			if taskCtx.Current.ID == `` {
 				return fmt.Errorf("task id empty")
 			}
-			if _, rev := d.l.Latest(taskCtx.Committed.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
 				return flowstate.ErrCommitConflict
 			}
 
 			d.l.Append(taskCtx)
 		case *flowstate.WatchCommand:
 			w := &Watcher{
-				since: cmd.Since,
+				sinceRev:    cmd.SinceRev,
+				sinceLatest: cmd.SinceLatest,
 				// todo: copy labels
 				labels: cmd.Labels,
 
@@ -99,7 +100,7 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 			}
 
 			cmd.Watcher = w
-			w.Change(cmd.Since)
+			w.Change(cmd.SinceRev)
 			d.ws = append(d.ws, w)
 
 			go w.listen()

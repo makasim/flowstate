@@ -1,6 +1,8 @@
 package flowstate
 
-import "fmt"
+import (
+	"fmt"
+)
 
 var ErrNodeNotFound = fmt.Errorf("node not found")
 var ErrTransitionNotFound = fmt.Errorf("transition not found")
