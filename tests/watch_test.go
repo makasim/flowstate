@@ -66,12 +66,10 @@ func TestWatch(t *testing.T) {
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	wCmd := flowstate.Watch(0, map[string]string{
+	w, err := e.Watch(0, map[string]string{
 		`theWatchLabel`: `theValue`,
 	})
-	require.NoError(t, e.Do(wCmd))
-
-	w := wCmd.Watcher
+	require.NoError(t, err)
 	defer w.Close()
 
 	taskCtx := &flowstate.TaskCtx{
@@ -89,7 +87,7 @@ func TestWatch(t *testing.T) {
 	taskCtx.Current.SetLabel("theWatchLabel", `theValue`)
 	taskCtx.Committed = taskCtx.Current
 
-	err := e.Execute(taskCtx)
+	err = e.Execute(taskCtx)
 	require.NoError(t, err)
 
 	var visited []flowstate.TransitionID

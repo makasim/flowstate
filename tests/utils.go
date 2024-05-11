@@ -30,8 +30,8 @@ func (trkr *tracker) VisitedSorted() []flowstate.TransitionID {
 	visited := trkr.Visited()
 
 	// sort to eliminate race conditions
-	sort.Slice(visited, func(i, j int) bool {
-		if string(trkr.Visited()[i]) > string(trkr.Visited()[j]) {
+	sort.SliceStable(visited, func(i, j int) bool {
+		if string(visited[i]) > string(visited[j]) {
 			return false
 		}
 		return true

@@ -92,6 +92,7 @@ func TestCallProcess(t *testing.T) {
 			flowstate.Pause(taskCtx),
 			flowstate.Stack(taskCtx, nextTaskCtx),
 			flowstate.Transit(nextTaskCtx, `calledTID`),
+			flowstate.Execute(nextTaskCtx),
 		); err != nil {
 			return nil, err
 		}
@@ -111,6 +112,7 @@ func TestCallProcess(t *testing.T) {
 			if err := taskCtx.Engine.Do(
 				flowstate.Unstack(taskCtx, callTaskCtx),
 				flowstate.Resume(callTaskCtx),
+				flowstate.Execute(callTaskCtx),
 				flowstate.End(taskCtx),
 			); err != nil {
 				return nil, err

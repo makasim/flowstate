@@ -94,22 +94,19 @@ func TestCallProcessWithWatch(t *testing.T) {
 				flowstate.Commit(
 					flowstate.Transit(taskCtx, `callTID`),
 					flowstate.Transit(nextTaskCtx, `calledTID`),
+					flowstate.Execute(nextTaskCtx),
 				),
 			); err != nil {
 				return nil, err
 			}
-
-			return flowstate.Nop(taskCtx), nil
 		}
 
-		cmd := flowstate.Watch(taskCtx.Committed.Rev, map[string]string{
+		w, err := taskCtx.Engine.Watch(taskCtx.Committed.Rev, map[string]string{
 			`theWatchLabel`: string(taskCtx.Current.ID),
 		})
-		if err := taskCtx.Engine.Do(cmd); err != nil {
+		if err != nil {
 			return nil, err
 		}
-
-		w := cmd.Watcher
 		defer w.Close()
 
 		for {
@@ -150,7 +147,6 @@ func TestCallProcessWithWatch(t *testing.T) {
 	time.Sleep(time.Second * 5)
 
 	require.Equal(t, []flowstate.TransitionID{
-		`callTID`,
 		`callTID`,
 		`calledTID`,
 		`calledEndTID`,

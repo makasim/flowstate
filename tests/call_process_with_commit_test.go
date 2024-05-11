@@ -95,6 +95,7 @@ func TestCallProcessWithCommit(t *testing.T) {
 				flowstate.Pause(taskCtx),
 				flowstate.Stack(taskCtx, nextTaskCtx),
 				flowstate.Transit(nextTaskCtx, `calledTID`),
+				flowstate.Execute(nextTaskCtx),
 			),
 		); err != nil {
 			return nil, err
@@ -104,7 +105,15 @@ func TestCallProcessWithCommit(t *testing.T) {
 	}))
 	br.SetBehavior("called", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		track(taskCtx, trkr)
-		return flowstate.Transit(taskCtx, `calledEndTID`), nil
+
+		if err := taskCtx.Engine.Do(
+			flowstate.Transit(taskCtx, `calledEndTID`),
+			flowstate.Execute(taskCtx),
+		); err != nil {
+			return nil, err
+		}
+
+		return flowstate.Nop(taskCtx), nil
 	}))
 	br.SetBehavior("end", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		track(taskCtx, trkr)
@@ -115,6 +124,7 @@ func TestCallProcessWithCommit(t *testing.T) {
 				flowstate.Commit(
 					flowstate.Unstack(taskCtx, callTaskCtx),
 					flowstate.Resume(callTaskCtx),
+					flowstate.Execute(callTaskCtx),
 					flowstate.End(taskCtx),
 				),
 			); err != nil {
