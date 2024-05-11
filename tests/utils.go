@@ -8,6 +8,9 @@ import (
 )
 
 type tracker struct {
+	IncludeTaskID bool
+	IncludeState  bool
+
 	mux     sync.Mutex
 	visited []flowstate.TransitionID
 }
@@ -16,7 +19,20 @@ func track(taskCtx *flowstate.TaskCtx, trkr *tracker) {
 	trkr.mux.Lock()
 	defer trkr.mux.Unlock()
 
-	trkr.visited = append(trkr.visited, taskCtx.Current.Transition.ID)
+	var postfix string
+
+	if trkr.IncludeState {
+		switch {
+		case flowstate.Resumed(taskCtx):
+			postfix += `:resumed`
+		}
+	}
+
+	if trkr.IncludeTaskID {
+		postfix += `:` + string(taskCtx.Current.ID)
+	}
+
+	trkr.visited = append(trkr.visited, taskCtx.Current.Transition.ID+flowstate.TransitionID(postfix))
 }
 
 func (trkr *tracker) Visited() []flowstate.TransitionID {
