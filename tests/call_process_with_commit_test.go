@@ -58,13 +58,9 @@ func TestCallProcessWithCommit(t *testing.T) {
 			Rev:        0,
 			ProcessID:  p.ID,
 			ProcessRev: p.Rev,
-
-			Transition: p.Transitions[0],
 		},
 		Process: p,
-		Node:    p.Nodes[0],
 	}
-	taskCtx.Committed = taskCtx.Current
 
 	trkr := &tracker{}
 
@@ -140,7 +136,12 @@ func TestCallProcessWithCommit(t *testing.T) {
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	err := e.Execute(taskCtx)
+	err := e.Do(flowstate.Commit(
+		flowstate.Transit(taskCtx, `callTID`),
+	))
+	require.NoError(t, err)
+
+	err = e.Execute(taskCtx)
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 5)
