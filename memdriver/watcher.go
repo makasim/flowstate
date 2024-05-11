@@ -1,10 +1,13 @@
 package memdriver
 
-import "github.com/makasim/flowstate"
+import (
+	"github.com/makasim/flowstate"
+)
 
 type Watcher struct {
-	since  int64
-	labels map[string]string
+	sinceRev    int64
+	sinceLatest bool
+	labels      map[string]string
 
 	watchCh  chan *flowstate.TaskCtx
 	changeCh chan int64
@@ -31,12 +34,19 @@ func (w *Watcher) Change(rev int64) {
 func (w *Watcher) listen() {
 	var tasks []*flowstate.TaskCtx
 
+	if w.sinceLatest {
+		w.l.Lock()
+		_, sinceRev := w.l.LatestByLabels(w.labels)
+		w.sinceRev = sinceRev - 1
+		w.l.Unlock()
+	}
+
 skip:
 	for {
 		select {
 		case <-w.changeCh:
 			w.l.Lock()
-			tasks, w.since = w.l.Entries(w.since, 10)
+			tasks, w.sinceRev = w.l.Entries(w.sinceRev, 10)
 			w.l.Unlock()
 
 			if len(tasks) == 0 {

@@ -16,7 +16,7 @@ type Log struct {
 }
 
 func (l *Log) Append(taskCtx *flowstate.TaskCtx) {
-	committedT, _ := l.Latest(taskCtx.Current.ID)
+	committedT, _ := l.LatestByID(taskCtx.Current.ID)
 	if committedT == nil {
 		committedT = &flowstate.TaskCtx{}
 	}
@@ -61,13 +61,30 @@ func (l *Log) Rollback() {
 	l.changes = l.changes[:0]
 }
 
-func (l *Log) Latest(tID flowstate.TaskID) (*flowstate.TaskCtx, int64) {
+func (l *Log) LatestByID(tID flowstate.TaskID) (*flowstate.TaskCtx, int64) {
 	var since int64
 	for i := len(l.entries) - 1; i >= 0; i-- {
 		if l.entries[i].Committed.ID == tID {
 			since = l.entries[i].Committed.Rev
 			return l.entries[i].CopyTo(&flowstate.TaskCtx{}), since
 		}
+	}
+
+	return nil, since
+}
+
+func (l *Log) LatestByLabels(labels map[string]string) (*flowstate.TaskCtx, int64) {
+	var since int64
+next:
+	for i := len(l.entries) - 1; i >= 0; i-- {
+		for k, v := range labels {
+			if l.entries[i].Committed.Labels[k] != v {
+				continue next
+			}
+		}
+
+		since = l.entries[i].Committed.Rev
+		return l.entries[i].CopyTo(&flowstate.TaskCtx{}), since
 	}
 
 	return nil, since

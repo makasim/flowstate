@@ -89,7 +89,7 @@ func TestCallProcess(t *testing.T) {
 		}
 
 		if err := taskCtx.Engine.Do(
-			flowstate.Pause(taskCtx),
+			flowstate.Pause(taskCtx, taskCtx.Current.Transition.ID),
 			flowstate.Stack(taskCtx, nextTaskCtx),
 			flowstate.Transit(nextTaskCtx, `calledTID`),
 			flowstate.Execute(nextTaskCtx),
