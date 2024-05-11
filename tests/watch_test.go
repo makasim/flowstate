@@ -78,14 +78,15 @@ func TestWatch(t *testing.T) {
 			Rev:        0,
 			ProcessID:  p.ID,
 			ProcessRev: p.Rev,
-
-			Transition: p.Transitions[0],
 		},
 		Process: p,
-		Node:    p.Nodes[0],
 	}
 	taskCtx.Current.SetLabel("theWatchLabel", `theValue`)
-	taskCtx.Committed = taskCtx.Current
+
+	err = e.Do(flowstate.Commit(
+		flowstate.Transit(taskCtx, `firstTID`),
+	))
+	require.NoError(t, err)
 
 	err = e.Execute(taskCtx)
 	require.NoError(t, err)
@@ -107,6 +108,6 @@ loop:
 		}
 	}
 
-	require.Equal(t, []flowstate.TransitionID{`secondTID`, `thirdTID`, `thirdTID`}, visited)
+	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`, `thirdTID`}, visited)
 
 }

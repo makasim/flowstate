@@ -57,16 +57,16 @@ func TestTwoConsequentNodesWithCommit(t *testing.T) {
 			Rev:        0,
 			ProcessID:  p.ID,
 			ProcessRev: p.Rev,
-
-			Transition: p.Transitions[0],
 		},
 		Process: p,
-		Node:    p.Nodes[0],
 	}
-	taskCtx.Committed = taskCtx.Current
 
-	err := e.Execute(taskCtx)
+	err := e.Do(flowstate.Commit(
+		flowstate.Transit(taskCtx, `firstTID`),
+	))
+	require.NoError(t, err)
 
+	err = e.Execute(taskCtx)
 	require.NoError(t, err)
 
 	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.Visited())
