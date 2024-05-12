@@ -32,7 +32,9 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 			}
 
 			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
-				return flowstate.ErrCommitConflict
+				conflictErr := &flowstate.ErrCommitConflict{}
+				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				return conflictErr
 			}
 
 			d.l.Append(taskCtx)
@@ -46,7 +48,9 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 				return fmt.Errorf("task rev empty")
 			}
 			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
-				return flowstate.ErrCommitConflict
+				conflictErr := &flowstate.ErrCommitConflict{}
+				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				return conflictErr
 			}
 
 			d.l.Append(taskCtx)
@@ -60,7 +64,9 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 				return fmt.Errorf("task rev empty")
 			}
 			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
-				return flowstate.ErrCommitConflict
+				conflictErr := &flowstate.ErrCommitConflict{}
+				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				return conflictErr
 			}
 
 			d.l.Append(taskCtx)
@@ -71,7 +77,9 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 				return fmt.Errorf("task id empty")
 			}
 			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
-				return flowstate.ErrCommitConflict
+				conflictErr := &flowstate.ErrCommitConflict{}
+				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				return conflictErr
 			}
 
 			d.l.Append(taskCtx)
@@ -82,7 +90,9 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 				return fmt.Errorf("task id empty")
 			}
 			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
-				return flowstate.ErrCommitConflict
+				conflictErr := &flowstate.ErrCommitConflict{}
+				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				return conflictErr
 			}
 
 			d.l.Append(taskCtx)
