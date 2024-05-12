@@ -183,7 +183,7 @@ func TestDefer_DeferWin_WithCommit(t *testing.T) {
 	taskCtx.Current.CopyTo(&taskCtx.Committed)
 
 	err := e.Execute(taskCtx)
-	require.NoError(t, err)
+	require.EqualError(t, err, `driver: commit: conflict; cmd: *flowstate.TransitCommand tid: aTID; err: rev mismatch;`)
 
 	time.Sleep(time.Millisecond * 500)
 
