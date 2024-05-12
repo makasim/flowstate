@@ -1,6 +1,8 @@
 package flowstate
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func Commit(cmds ...Command) *CommitCommand {
 	return &CommitCommand{

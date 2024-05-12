@@ -86,8 +86,10 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 			return err
 		}
 
+		conflictErr := &ErrCommitConflict{}
+
 		taskCtx, err = e.prepareAndDo(cmd0, true)
-		if errors.Is(err, ErrCommitConflict) {
+		if errors.As(err, conflictErr) {
 			log.Println("INFO: engine: execute: commit conflict")
 			return nil
 		} else if err != nil {
