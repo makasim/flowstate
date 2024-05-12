@@ -6,6 +6,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.17.1
 	github.com/tidwall/sjson v1.2.5
+	golang.org/x/time v0.5.0
 )
 
 require (
