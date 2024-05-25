@@ -10,18 +10,18 @@ import (
 type Log struct {
 	sync.Mutex
 	rev     int64
-	entries []*flowstate.TaskCtx
+	entries []*flowstate.StateCtx
 
-	changes []*flowstate.TaskCtx
+	changes []*flowstate.StateCtx
 }
 
-func (l *Log) Append(taskCtx *flowstate.TaskCtx) {
-	committedT, _ := l.LatestByID(taskCtx.Current.ID)
+func (l *Log) Append(stateCtx *flowstate.StateCtx) {
+	committedT, _ := l.LatestByID(stateCtx.Current.ID)
 	if committedT == nil {
-		committedT = &flowstate.TaskCtx{}
+		committedT = &flowstate.StateCtx{}
 	}
 
-	taskCtx.CopyTo(committedT)
+	stateCtx.CopyTo(committedT)
 	committedT.Current.CopyTo(&committedT.Committed)
 	committedT.Transitions = committedT.Transitions[:0]
 
@@ -32,17 +32,17 @@ func (l *Log) Append(taskCtx *flowstate.TaskCtx) {
 	l.changes = append(l.changes, committedT)
 
 	// todo: find a better place for this
-	committedT.Committed.CopyTo(&taskCtx.Current)
-	committedT.Committed.CopyTo(&taskCtx.Committed)
-	taskCtx.Transitions = taskCtx.Transitions[:0]
+	committedT.Committed.CopyTo(&stateCtx.Current)
+	committedT.Committed.CopyTo(&stateCtx.Committed)
+	stateCtx.Transitions = stateCtx.Transitions[:0]
 }
 
 func (l *Log) Commit() {
-	slices.CompactFunc(l.changes, func(l, r *flowstate.TaskCtx) bool {
+	slices.CompactFunc(l.changes, func(l, r *flowstate.StateCtx) bool {
 		return l.Committed.ID == r.Committed.ID
 	})
 
-	slices.SortFunc(l.changes, func(l, r *flowstate.TaskCtx) int {
+	slices.SortFunc(l.changes, func(l, r *flowstate.StateCtx) int {
 		if l.Committed.Rev < r.Committed.Rev {
 			return -1
 		}
@@ -50,8 +50,8 @@ func (l *Log) Commit() {
 		return 1
 	})
 
-	for _, taskCtx := range l.changes {
-		l.entries = append(l.entries, taskCtx)
+	for _, stateCtx := range l.changes {
+		l.entries = append(l.entries, stateCtx)
 	}
 
 	l.changes = l.changes[:0]
@@ -61,19 +61,19 @@ func (l *Log) Rollback() {
 	l.changes = l.changes[:0]
 }
 
-func (l *Log) LatestByID(tID flowstate.TaskID) (*flowstate.TaskCtx, int64) {
+func (l *Log) LatestByID(tID flowstate.StateID) (*flowstate.StateCtx, int64) {
 	var since int64
 	for i := len(l.entries) - 1; i >= 0; i-- {
 		if l.entries[i].Committed.ID == tID {
 			since = l.entries[i].Committed.Rev
-			return l.entries[i].CopyTo(&flowstate.TaskCtx{}), since
+			return l.entries[i].CopyTo(&flowstate.StateCtx{}), since
 		}
 	}
 
 	return nil, since
 }
 
-func (l *Log) LatestByLabels(labels map[string]string) (*flowstate.TaskCtx, int64) {
+func (l *Log) LatestByLabels(labels map[string]string) (*flowstate.StateCtx, int64) {
 	var since int64
 next:
 	for i := len(l.entries) - 1; i >= 0; i-- {
@@ -84,24 +84,24 @@ next:
 		}
 
 		since = l.entries[i].Committed.Rev
-		return l.entries[i].CopyTo(&flowstate.TaskCtx{}), since
+		return l.entries[i].CopyTo(&flowstate.StateCtx{}), since
 	}
 
 	return nil, since
 }
 
-func (l *Log) Entries(since int64, limit int) ([]*flowstate.TaskCtx, int64) {
+func (l *Log) Entries(since int64, limit int) ([]*flowstate.StateCtx, int64) {
 	if limit == 0 {
 		return nil, since
 	}
 
-	var entries []*flowstate.TaskCtx
+	var entries []*flowstate.StateCtx
 	for i := 0; i < len(l.entries); i++ {
 		if l.entries[i].Committed.Rev <= since {
 			continue
 		}
 
-		to := l.entries[i].CopyTo(&flowstate.TaskCtx{})
+		to := l.entries[i].CopyTo(&flowstate.StateCtx{})
 		since = to.Committed.Rev
 
 		entries = append(entries, to)

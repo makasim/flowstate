@@ -15,7 +15,7 @@ type tracker2 struct {
 	visited []string
 }
 
-func track2(taskCtx *flowstate.TaskCtx, trkr *tracker2) {
+func track2(stateCtx *flowstate.StateCtx, trkr *tracker2) {
 	trkr.mux.Lock()
 	defer trkr.mux.Unlock()
 
@@ -23,18 +23,18 @@ func track2(taskCtx *flowstate.TaskCtx, trkr *tracker2) {
 
 	if trkr.IncludeState {
 		switch {
-		case flowstate.Resumed(taskCtx):
+		case flowstate.Resumed(stateCtx):
 			postfix += `:resumed`
-		case flowstate.Paused(taskCtx):
+		case flowstate.Paused(stateCtx):
 			postfix += `:paused`
 		}
 	}
 
 	if trkr.IncludeTaskID {
-		postfix += `:` + string(taskCtx.Current.ID)
+		postfix += `:` + string(stateCtx.Current.ID)
 	}
 
-	trkr.visited = append(trkr.visited, string(taskCtx.Current.Transition.ToID)+postfix)
+	trkr.visited = append(trkr.visited, string(stateCtx.Current.Transition.ToID)+postfix)
 }
 
 func (trkr *tracker2) Visited() []string {

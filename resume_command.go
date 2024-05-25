@@ -2,32 +2,32 @@ package flowstate
 
 var resumedAnnotation = `flowstate.resumed`
 
-func Resumed(taskCtx *TaskCtx) bool {
-	return taskCtx.Current.Transition.Annotations[resumedAnnotation] == `true`
+func Resumed(stateCtx *StateCtx) bool {
+	return stateCtx.Current.Transition.Annotations[resumedAnnotation] == `true`
 }
 
-func Resume(taskCtx *TaskCtx) *ResumeCommand {
+func Resume(stateCtx *StateCtx) *ResumeCommand {
 	return &ResumeCommand{
-		TaskCtx: taskCtx,
+		StateCtx: stateCtx,
 	}
 
 }
 
 type ResumeCommand struct {
-	TaskCtx *TaskCtx
+	StateCtx *StateCtx
 }
 
 func (cmd *ResumeCommand) Prepare() error {
-	cmd.TaskCtx.Transitions = append(cmd.TaskCtx.Transitions, cmd.TaskCtx.Current.Transition)
+	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
-		FromID:      cmd.TaskCtx.Current.Transition.ToID,
-		ToID:        cmd.TaskCtx.Current.Transition.ToID,
+		FromID:      cmd.StateCtx.Current.Transition.ToID,
+		ToID:        cmd.StateCtx.Current.Transition.ToID,
 		Annotations: nil,
 	}
 	nextTs.SetAnnotation(resumedAnnotation, `true`)
 
-	cmd.TaskCtx.Current.Transition = nextTs
+	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
 }

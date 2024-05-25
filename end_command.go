@@ -2,31 +2,31 @@ package flowstate
 
 var endedAnnotation = `flowstate.ended`
 
-func Ended(taskCtx *TaskCtx) bool {
-	return taskCtx.Current.Transition.Annotations[endedAnnotation] == `true`
+func Ended(stateCtx *StateCtx) bool {
+	return stateCtx.Current.Transition.Annotations[endedAnnotation] == `true`
 }
 
-func End(taskCtx *TaskCtx) *EndCommand {
+func End(stateCtx *StateCtx) *EndCommand {
 	return &EndCommand{
-		TaskCtx: taskCtx,
+		StateCtx: stateCtx,
 	}
 }
 
 type EndCommand struct {
-	TaskCtx *TaskCtx
+	StateCtx *StateCtx
 }
 
 func (cmd *EndCommand) Prepare() error {
-	cmd.TaskCtx.Transitions = append(cmd.TaskCtx.Transitions, cmd.TaskCtx.Current.Transition)
+	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
-		FromID:      cmd.TaskCtx.Current.Transition.ToID,
+		FromID:      cmd.StateCtx.Current.Transition.ToID,
 		ToID:        ``,
 		Annotations: nil,
 	}
 	nextTs.SetAnnotation(endedAnnotation, `true`)
 
-	cmd.TaskCtx.Current.Transition = nextTs
+	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
 }

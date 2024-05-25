@@ -10,9 +10,9 @@ import (
 )
 
 func TestCallProcessWithWatch(t *testing.T) {
-	var nextTaskCtx *flowstate.TaskCtx
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	var nextStateCtx *flowstate.StateCtx
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTID",
 		},
 	}
@@ -21,34 +21,34 @@ func TestCallProcessWithWatch(t *testing.T) {
 
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("call", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		if taskCtx.Current.Annotations[`called`] == `` {
-			nextTaskCtx = &flowstate.TaskCtx{
-				Current: flowstate.Task{
+		if stateCtx.Current.Annotations[`called`] == `` {
+			nextStateCtx = &flowstate.StateCtx{
+				Current: flowstate.State{
 					ID: "aNextTID",
 				},
 			}
-			nextTaskCtx.Committed = nextTaskCtx.Current
-			nextTaskCtx.Current.SetLabel("theWatchLabel", string(taskCtx.Current.ID))
+			nextStateCtx.Committed = nextStateCtx.Current
+			nextStateCtx.Current.SetLabel("theWatchLabel", string(stateCtx.Current.ID))
 
-			taskCtx.Current.SetAnnotation("called", `true`)
+			stateCtx.Current.SetAnnotation("called", `true`)
 
-			if err := taskCtx.Engine.Do(
+			if err := e.Do(
 				flowstate.Commit(
-					flowstate.Transit(taskCtx, `call`),
-					flowstate.Transit(nextTaskCtx, `called`),
-					flowstate.Execute(nextTaskCtx),
+					flowstate.Transit(stateCtx, `call`),
+					flowstate.Transit(nextStateCtx, `called`),
+					flowstate.Execute(nextStateCtx),
 				),
 			); err != nil {
 				return nil, err
 			}
 		}
 
-		w, err := taskCtx.Engine.Watch(taskCtx.Committed.Rev, map[string]string{
-			`theWatchLabel`: string(taskCtx.Current.ID),
+		w, err := e.Watch(stateCtx.Committed.Rev, map[string]string{
+			`theWatchLabel`: string(stateCtx.Current.ID),
 		})
 		if err != nil {
 			return nil, err
@@ -57,39 +57,39 @@ func TestCallProcessWithWatch(t *testing.T) {
 
 		for {
 			select {
-			// todo: case <-taskCtx.Done()
-			case nextTaskCtx := <-w.Watch():
-				if !flowstate.Ended(nextTaskCtx) {
+			// todo: case <-stateCtx.Done()
+			case nextStateCtx := <-w.Watch():
+				if !flowstate.Ended(nextStateCtx) {
 					continue
 				}
 
-				delete(taskCtx.Current.Annotations, `called`)
+				delete(stateCtx.Current.Annotations, `called`)
 
 				return flowstate.Commit(
-					flowstate.Transit(taskCtx, `callEnd`),
+					flowstate.Transit(stateCtx, `callEnd`),
 				), nil
 			}
 		}
 
 	}))
-	br.SetBehavior("called", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.Transit(taskCtx, `calledEnd`), nil
+	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	br.SetBehavior("calledEnd", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
 		return flowstate.Commit(
-			flowstate.End(taskCtx),
+			flowstate.End(stateCtx),
 		), nil
 	}))
-	br.SetBehavior("callEnd", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
 		close(endedCh)
 
 		return flowstate.Commit(
-			flowstate.End(taskCtx),
+			flowstate.End(stateCtx),
 		), nil
 	}))
 
@@ -97,11 +97,11 @@ func TestCallProcessWithWatch(t *testing.T) {
 	e := flowstate.NewEngine(d, br)
 
 	err := e.Do(flowstate.Commit(
-		flowstate.Transit(taskCtx, `call`),
+		flowstate.Transit(stateCtx, `call`),
 	))
 	require.NoError(t, err)
 
-	err = e.Execute(taskCtx)
+	err = e.Execute(stateCtx)
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {

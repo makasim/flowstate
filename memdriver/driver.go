@@ -25,77 +25,77 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 		case *flowstate.CommitCommand:
 			return fmt.Errorf("commit command not allowed")
 		case *flowstate.TransitCommand:
-			taskCtx := cmd.TaskCtx
+			stateCtx := cmd.StateCtx
 
-			if taskCtx.Current.ID == `` {
-				return fmt.Errorf("task id empty")
+			if stateCtx.Current.ID == `` {
+				return fmt.Errorf("state id empty")
 			}
 
-			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
 				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
 				return conflictErr
 			}
 
-			d.l.Append(taskCtx)
+			d.l.Append(stateCtx)
 		case *flowstate.EndCommand:
-			taskCtx := cmd.TaskCtx
+			stateCtx := cmd.StateCtx
 
-			if taskCtx.Current.ID == `` {
-				return fmt.Errorf("task id empty")
+			if stateCtx.Current.ID == `` {
+				return fmt.Errorf("state id empty")
 			}
-			if taskCtx.Committed.Rev == 0 {
-				return fmt.Errorf("task rev empty")
+			if stateCtx.Committed.Rev == 0 {
+				return fmt.Errorf("state rev empty")
 			}
-			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
 				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
 				return conflictErr
 			}
 
-			d.l.Append(taskCtx)
+			d.l.Append(stateCtx)
 		case *flowstate.DeferCommand:
-			taskCtx := cmd.DeferredTaskCtx
+			stateCtx := cmd.DeferredStateCtx
 
-			if taskCtx.Current.ID == `` {
-				return fmt.Errorf("task id empty")
+			if stateCtx.Current.ID == `` {
+				return fmt.Errorf("state id empty")
 			}
-			if taskCtx.Committed.Rev == 0 {
-				return fmt.Errorf("task rev empty")
+			if stateCtx.Committed.Rev == 0 {
+				return fmt.Errorf("state rev empty")
 			}
-			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
 				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
 				return conflictErr
 			}
 
-			d.l.Append(taskCtx)
+			d.l.Append(stateCtx)
 		case *flowstate.PauseCommand:
-			taskCtx := cmd.TaskCtx
+			stateCtx := cmd.StateCtx
 
-			if taskCtx.Current.ID == `` {
-				return fmt.Errorf("task id empty")
+			if stateCtx.Current.ID == `` {
+				return fmt.Errorf("state id empty")
 			}
-			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
 				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
 				return conflictErr
 			}
 
-			d.l.Append(taskCtx)
+			d.l.Append(stateCtx)
 		case *flowstate.ResumeCommand:
-			taskCtx := cmd.TaskCtx
+			stateCtx := cmd.StateCtx
 
-			if taskCtx.Current.ID == `` {
-				return fmt.Errorf("task id empty")
+			if stateCtx.Current.ID == `` {
+				return fmt.Errorf("state id empty")
 			}
-			if _, rev := d.l.LatestByID(taskCtx.Current.ID); rev != taskCtx.Committed.Rev {
+			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
 				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), taskCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
 				return conflictErr
 			}
 
-			d.l.Append(taskCtx)
+			d.l.Append(stateCtx)
 		case *flowstate.WatchCommand:
 			w := &Watcher{
 				sinceRev:    cmd.SinceRev,
@@ -103,7 +103,7 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 				// todo: copy labels
 				labels: cmd.Labels,
 
-				watchCh:  make(chan *flowstate.TaskCtx, 1),
+				watchCh:  make(chan *flowstate.StateCtx, 1),
 				changeCh: make(chan int64, 1),
 				closeCh:  make(chan struct{}),
 				l:        &d.l,

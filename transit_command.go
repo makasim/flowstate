@@ -1,27 +1,27 @@
 package flowstate
 
-func Transit(taskCtx *TaskCtx, bID BehaviorID) *TransitCommand {
+func Transit(stateCtx *StateCtx, fID FlowID) *TransitCommand {
 	return &TransitCommand{
-		TaskCtx:    taskCtx,
-		BehaviorID: bID,
+		StateCtx: stateCtx,
+		FlowID:   fID,
 	}
 }
 
 type TransitCommand struct {
-	TaskCtx    *TaskCtx
-	BehaviorID BehaviorID
+	StateCtx *StateCtx
+	FlowID   FlowID
 }
 
 func (cmd *TransitCommand) Prepare() error {
-	cmd.TaskCtx.Transitions = append(cmd.TaskCtx.Transitions, cmd.TaskCtx.Current.Transition)
+	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
-		FromID:      cmd.TaskCtx.Current.Transition.ToID,
-		ToID:        cmd.BehaviorID,
+		FromID:      cmd.StateCtx.Current.Transition.ToID,
+		ToID:        cmd.FlowID,
 		Annotations: nil,
 	}
 
-	cmd.TaskCtx.Current.Transition = nextTs
+	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
 }

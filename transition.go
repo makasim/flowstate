@@ -1,8 +1,8 @@
 package flowstate
 
 type Transition struct {
-	FromID      BehaviorID        `json:"from"`
-	ToID        BehaviorID        `json:"to"`
+	FromID      FlowID            `json:"from"`
+	ToID        FlowID            `json:"to"`
 	Annotations map[string]string `json:"annotations"`
 }
 

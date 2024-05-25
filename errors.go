@@ -1,9 +1,9 @@
 package flowstate
 
 type ErrCommitConflict struct {
-	cmds    []string
-	taskIDs []TaskID
-	errs    []error
+	cmds     []string
+	stateIDs []StateID
+	errs     []error
 }
 
 func (err ErrCommitConflict) As(target interface{}) bool {
@@ -18,7 +18,7 @@ func (err ErrCommitConflict) As(target interface{}) bool {
 func (err ErrCommitConflict) Error() string {
 	msg := "conflict;"
 	for i := range err.cmds {
-		msg += " cmd: " + err.cmds[i] + " tid: " + string(err.taskIDs[i]) + ";"
+		msg += " cmd: " + err.cmds[i] + " tid: " + string(err.stateIDs[i]) + ";"
 		if err.errs[i] != nil {
 			msg += " err: " + err.errs[i].Error() + ";"
 		}
@@ -27,18 +27,18 @@ func (err ErrCommitConflict) Error() string {
 	return msg
 }
 
-func (err *ErrCommitConflict) Add(cmd string, tid TaskID, cmdErr error) {
+func (err *ErrCommitConflict) Add(cmd string, sID StateID, cmdErr error) {
 	err.cmds = append(err.cmds, cmd)
-	err.taskIDs = append(err.taskIDs, tid)
+	err.stateIDs = append(err.stateIDs, sID)
 	err.errs = append(err.errs, cmdErr)
 }
 
-func (err *ErrCommitConflict) TaskIDs() []TaskID {
-	return err.taskIDs
+func (err *ErrCommitConflict) TaskIDs() []StateID {
+	return err.stateIDs
 }
 
-func (err *ErrCommitConflict) Contains(tid TaskID) bool {
-	for _, t := range err.taskIDs {
+func (err *ErrCommitConflict) Contains(tid StateID) bool {
+	for _, t := range err.stateIDs {
 		if t == tid {
 			return true
 		}

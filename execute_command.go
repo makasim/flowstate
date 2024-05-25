@@ -1,13 +1,13 @@
 package flowstate
 
-func Execute(taskCtx *TaskCtx) *ExecuteCommand {
+func Execute(stateCtx *StateCtx) *ExecuteCommand {
 	return &ExecuteCommand{
-		TaskCtx: taskCtx,
+		StateCtx: stateCtx,
 	}
 }
 
 type ExecuteCommand struct {
-	TaskCtx *TaskCtx
+	StateCtx *StateCtx
 }
 
 func (cmd *ExecuteCommand) Prepare() error {

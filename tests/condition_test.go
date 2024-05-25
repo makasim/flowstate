@@ -11,32 +11,32 @@ import (
 func TestCondition(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		bID := flowstate.BehaviorID(`third`)
-		if taskCtx.Current.Annotations["condition"] == "true" {
+		bID := flowstate.FlowID(`third`)
+		if stateCtx.Current.Annotations["condition"] == "true" {
 			bID = `second`
 		}
 
-		return flowstate.Transit(taskCtx, bID), nil
+		return flowstate.Transit(stateCtx, bID), nil
 	}))
-	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
+	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
 	}))
-	br.SetBehavior("third", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
+	br.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
 	// condition true
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTrueTID",
 			Annotations: map[string]string{
 				"condition": "true",
@@ -44,15 +44,15 @@ func TestCondition(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `first`)))
-	require.NoError(t, e.Execute(taskCtx))
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
+	require.NoError(t, e.Execute(stateCtx))
 	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
 
 	// condition false
 	trkr.visited = nil
 
-	taskCtx1 := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	stateCtx1 := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aFalseTID",
 			Annotations: map[string]string{
 				"condition": "false",
@@ -60,7 +60,7 @@ func TestCondition(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, e.Do(flowstate.Transit(taskCtx1, `first`)))
-	require.NoError(t, e.Execute(taskCtx1))
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx1, `first`)))
+	require.NoError(t, e.Execute(stateCtx1))
 	require.Equal(t, []string{`first`, `third`}, trkr.Visited())
 }

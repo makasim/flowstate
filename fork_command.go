@@ -2,30 +2,30 @@ package flowstate
 
 import "fmt"
 
-func Fork(taskCtx, forkedTaskCtx *TaskCtx) *ForkCommand {
+func Fork(stateCtx, forkedStateCtx *StateCtx) *ForkCommand {
 	return &ForkCommand{
-		TaskCtx:       taskCtx,
-		ForkedTaskCtx: forkedTaskCtx,
+		StateCtx:       stateCtx,
+		ForkedStateCtx: forkedStateCtx,
 	}
 
 }
 
 type ForkCommand struct {
-	TaskCtx       *TaskCtx
-	ForkedTaskCtx *TaskCtx
+	StateCtx       *StateCtx
+	ForkedStateCtx *StateCtx
 }
 
 func (cmd *ForkCommand) Prepare() error {
-	tID := cmd.ForkedTaskCtx.Current.ID
+	tID := cmd.ForkedStateCtx.Current.ID
 
-	cmd.TaskCtx.CopyTo(cmd.ForkedTaskCtx)
+	cmd.StateCtx.CopyTo(cmd.ForkedStateCtx)
 
-	cmd.ForkedTaskCtx.Current.ID = tID
-	cmd.ForkedTaskCtx.Current.Rev = 0
-	//cmd.ForkedTaskCtx.Current.CopyTo(&forkedTaskCtx.Committed)
+	cmd.ForkedStateCtx.Current.ID = tID
+	cmd.ForkedStateCtx.Current.Rev = 0
+	//cmd.StateTaskCtx.Current.CopyTo(&forkedTaskCtx.Committed)
 
-	if cmd.ForkedTaskCtx.Current.ID == `` {
-		return fmt.Errorf(`forked task ID empty`)
+	if cmd.ForkedStateCtx.Current.ID == `` {
+		return fmt.Errorf(`forked state ID empty`)
 	}
 
 	return nil

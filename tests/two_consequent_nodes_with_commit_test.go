@@ -11,30 +11,30 @@ import (
 func TestTwoConsequentNodesWithCommit(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.Commit(flowstate.Transit(taskCtx, `second`)), nil
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.Commit(flowstate.Transit(stateCtx, `second`)), nil
 	}))
-	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
+	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID:  "aTID",
 			Rev: 0,
 		},
 	}
 
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Transit(taskCtx, `first`),
+		flowstate.Transit(stateCtx, `first`),
 	)))
-	require.NoError(t, e.Execute(taskCtx))
+	require.NoError(t, e.Execute(stateCtx))
 
 	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
 }

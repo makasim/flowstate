@@ -7,32 +7,32 @@ import (
 	"time"
 )
 
-var ErrBehaviorNotFound = errors.New("behavior not found")
+var ErrFlowNotFound = errors.New("flow not found")
 
-type behaviorRegistry interface {
-	Behavior(id BehaviorID) (Behavior, error)
+type flowRegistry interface {
+	Flow(id FlowID) (Flow, error)
 }
 
-type MapBehaviorRegistry struct {
-	behaviors map[BehaviorID]Behavior
+type MapFlowRegistry struct {
+	flows map[FlowID]Flow
 }
 
-func (r *MapBehaviorRegistry) SetBehavior(id BehaviorID, b Behavior) {
-	if r.behaviors == nil {
-		r.behaviors = make(map[BehaviorID]Behavior)
+func (r *MapFlowRegistry) SetFlow(id FlowID, b Flow) {
+	if r.flows == nil {
+		r.flows = make(map[FlowID]Flow)
 	}
 
-	r.behaviors[id] = b
+	r.flows[id] = b
 }
 
-func (r *MapBehaviorRegistry) Behavior(id BehaviorID) (Behavior, error) {
-	if r.behaviors == nil {
-		return nil, ErrBehaviorNotFound
+func (r *MapFlowRegistry) Flow(id FlowID) (Flow, error) {
+	if r.flows == nil {
+		return nil, ErrFlowNotFound
 	}
 
-	b, ok := r.behaviors[id]
+	b, ok := r.flows[id]
 	if !ok {
-		return nil, ErrBehaviorNotFound
+		return nil, ErrFlowNotFound
 	}
 
 	return b, nil
@@ -40,51 +40,45 @@ func (r *MapBehaviorRegistry) Behavior(id BehaviorID) (Behavior, error) {
 
 type Engine struct {
 	d  Driver
-	br behaviorRegistry
+	br flowRegistry
 }
 
-func NewEngine(d Driver, br behaviorRegistry) *Engine {
+func NewEngine(d Driver, br flowRegistry) *Engine {
 	return &Engine{
 		d:  d,
 		br: br,
 	}
 }
 
-func (e *Engine) Execute(taskCtx *TaskCtx) error {
-	// todo: not sure if this is necessary
-	//if taskCtx.Engine != e {
-	//	return fmt.Errorf("taskCtx.Engine not same as engine")
-	//}
-	taskCtx.Engine = e
-
-	if taskCtx.Current.ID == `` {
-		return fmt.Errorf(`taskCtx.ID empty`)
+func (e *Engine) Execute(stateCtx *StateCtx) error {
+	if stateCtx.Current.ID == `` {
+		return fmt.Errorf(`state id empty`)
 	}
 
 	for {
-		if taskCtx.Current.Transition.ToID == `` {
+		if stateCtx.Current.Transition.ToID == `` {
 			return fmt.Errorf(`transition to id empty`)
 		}
 
-		b, err := e.br.Behavior(taskCtx.Current.Transition.ToID)
+		b, err := e.br.Flow(stateCtx.Current.Transition.ToID)
 		if err != nil {
 			return err
 		}
 
-		cmd0, err := b.Execute(taskCtx)
+		cmd0, err := b.Execute(stateCtx, e)
 		if err != nil {
 			return err
 		}
 
 		conflictErr := &ErrCommitConflict{}
 
-		taskCtx, err = e.prepareAndDo(cmd0, true)
+		stateCtx, err = e.prepareAndDo(cmd0, true)
 		if errors.As(err, conflictErr) {
 			log.Printf("INFO: engine: execute: %s\n", conflictErr)
 			return nil
 		} else if err != nil {
 			return err
-		} else if taskCtx != nil {
+		} else if stateCtx != nil {
 			continue
 		}
 
@@ -98,12 +92,12 @@ func (e *Engine) Do(cmds ...Command) error {
 	}
 
 	for _, cmd := range cmds {
-		taskCtx, err := e.prepareAndDo(cmd, false)
+		stateCtx, err := e.prepareAndDo(cmd, false)
 		if err != nil {
 			return err
-		} else if taskCtx != nil {
+		} else if stateCtx != nil {
 			go func() {
-				if err := e.Execute(taskCtx); err != nil {
+				if err := e.Execute(stateCtx); err != nil {
 					log.Printf("ERROR: engine: go execute: %s\n", err)
 				}
 			}()
@@ -122,7 +116,7 @@ func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
 	return cmd.Watcher, nil
 }
 
-func (e *Engine) prepareAndDo(cmd0 Command, sync bool) (*TaskCtx, error) {
+func (e *Engine) prepareAndDo(cmd0 Command, sync bool) (*StateCtx, error) {
 	if err := cmd0.Prepare(); err != nil {
 		return nil, err
 	}
@@ -130,28 +124,28 @@ func (e *Engine) prepareAndDo(cmd0 Command, sync bool) (*TaskCtx, error) {
 	return e.do(cmd0, sync)
 }
 
-func (e *Engine) do(cmd0 Command, sync bool) (*TaskCtx, error) {
+func (e *Engine) do(cmd0 Command, sync bool) (*StateCtx, error) {
 	if cmd1, ok := cmd0.(*CommitCommand); ok {
 		if err := e.d.Do(cmd1.Commands...); err != nil {
 			return nil, fmt.Errorf("driver: commit: %w", err)
 		}
 
-		var returnTaskCtx *TaskCtx
+		var returnStateCtx *StateCtx
 		for _, cmd0 := range cmd1.Commands {
-			if taskCtx, err := e.do(cmd0, sync); err != nil {
+			if stateCtx, err := e.do(cmd0, sync); err != nil {
 				return nil, err
-			} else if sync && taskCtx != nil && returnTaskCtx == nil {
-				returnTaskCtx = taskCtx
-			} else if taskCtx != nil {
+			} else if sync && stateCtx != nil && returnStateCtx == nil {
+				returnStateCtx = stateCtx
+			} else if stateCtx != nil {
 				go func() {
-					if err := e.Execute(taskCtx); err != nil {
+					if err := e.Execute(stateCtx); err != nil {
 						log.Printf("ERROR: engine: go execute: %s\n", err)
 					}
 				}()
 			}
 		}
 
-		return returnTaskCtx, nil
+		return returnStateCtx, nil
 	}
 
 	switch cmd := cmd0.(type) {
@@ -159,7 +153,7 @@ func (e *Engine) do(cmd0 Command, sync bool) (*TaskCtx, error) {
 		return nil, nil
 	case *TransitCommand:
 		if sync {
-			return cmd.TaskCtx, nil
+			return cmd.StateCtx, nil
 		}
 
 		return nil, nil
@@ -171,7 +165,7 @@ func (e *Engine) do(cmd0 Command, sync bool) (*TaskCtx, error) {
 
 			<-t.C
 
-			if err := e.Execute(cmd.DeferredTaskCtx); err != nil {
+			if err := e.Execute(cmd.DeferredStateCtx); err != nil {
 				log.Printf(`ERROR: engine: defer: engine: execute: %s`, err)
 			}
 		}()
@@ -185,7 +179,7 @@ func (e *Engine) do(cmd0 Command, sync bool) (*TaskCtx, error) {
 		return nil, nil
 	case *ResumeCommand:
 		if sync {
-			return cmd.TaskCtx, nil
+			return cmd.StateCtx, nil
 		}
 
 		return nil, nil
@@ -195,7 +189,7 @@ func (e *Engine) do(cmd0 Command, sync bool) (*TaskCtx, error) {
 		return nil, nil
 	case *ExecuteCommand:
 		go func() {
-			if err := e.Execute(cmd.TaskCtx); err != nil {
+			if err := e.Execute(cmd.StateCtx); err != nil {
 				log.Printf("ERROR: engine: go execute: %s\n", err)
 			}
 		}()

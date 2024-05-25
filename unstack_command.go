@@ -6,23 +6,23 @@ import (
 	"fmt"
 )
 
-func Unstack(taskCtx, unstackTaskCtx *TaskCtx) *UnstackCommand {
+func Unstack(stateCtx, unstackStateCtx *StateCtx) *UnstackCommand {
 	return &UnstackCommand{
-		TaskCtx:        taskCtx,
-		UnstackTaskCtx: unstackTaskCtx,
+		StateCtx:        stateCtx,
+		UnstackStateCtx: unstackStateCtx,
 	}
 
 }
 
 type UnstackCommand struct {
-	TaskCtx        *TaskCtx
-	UnstackTaskCtx *TaskCtx
+	StateCtx        *StateCtx
+	UnstackStateCtx *StateCtx
 }
 
 func (cmd *UnstackCommand) Prepare() error {
-	stackedTask := cmd.TaskCtx.Current.Annotations[stackedAnnotation]
+	stackedTask := cmd.StateCtx.Current.Annotations[stackedAnnotation]
 	if stackedTask == `` {
-		return fmt.Errorf("no task to unstack; the annotation not set")
+		return fmt.Errorf("no state to unstack; the annotation not set")
 	}
 
 	b, err := base64.StdEncoding.DecodeString(stackedTask)
@@ -30,11 +30,11 @@ func (cmd *UnstackCommand) Prepare() error {
 		return fmt.Errorf("base64 decode: %s", err)
 	}
 
-	if err := json.Unmarshal(b, cmd.UnstackTaskCtx); err != nil {
+	if err := json.Unmarshal(b, cmd.UnstackStateCtx); err != nil {
 		return fmt.Errorf("json unmarshal: %s", err)
 	}
 
-	cmd.TaskCtx.Current.Annotations[stackedAnnotation] = ``
+	cmd.StateCtx.Current.Annotations[stackedAnnotation] = ``
 
 	return nil
 }
