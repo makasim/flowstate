@@ -11,57 +11,14 @@ import (
 )
 
 func TestQueue(t *testing.T) {
-	pQueue := flowstate.Process{
-		ID:  "queuePID",
-		Rev: 1,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "queueNID",
-				BehaviorID: "queue",
-			},
-			{
-				ID:         "dequeuedNID",
-				BehaviorID: "dequeued",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:   "queue",
-				ToID: "queueNID",
-			},
-			{
-				ID:     "dequeued",
-				FromID: `queueNID`,
-				ToID:   "dequeuedNID",
-			},
-		},
-	}
-
-	p := flowstate.Process{
-		ID:  "enqueuePID",
-		Rev: 2,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "enqueueNID",
-				BehaviorID: "enqueue",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:   "enqueue",
-				ToID: `enqueueNID`,
-			},
-		},
-	}
-
-	trkr := &tracker{
+	trkr := &tracker2{
 		IncludeTaskID: true,
 		IncludeState:  true,
 	}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("queue", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 		if flowstate.Resumed(taskCtx) {
 			return flowstate.Transit(taskCtx, `dequeued`), nil
 		}
@@ -69,11 +26,11 @@ func TestQueue(t *testing.T) {
 		taskCtx.Current.SetLabel("queue", "theName")
 
 		return flowstate.Commit(
-			flowstate.Pause(taskCtx, taskCtx.Current.Transition.ID),
+			flowstate.Pause(taskCtx, taskCtx.Current.Transition.ToID),
 		), nil
 	}))
 	br.SetBehavior("enqueue", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 
 		w, err := taskCtx.Engine.Watch(0, map[string]string{
 			"queue": "theName",
@@ -96,7 +53,7 @@ func TestQueue(t *testing.T) {
 		}
 	}))
 	br.SetBehavior("dequeued", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 		return flowstate.Commit(
 			flowstate.End(taskCtx),
 		), nil
@@ -108,12 +65,8 @@ func TestQueue(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		taskCtx := &flowstate.TaskCtx{
 			Current: flowstate.Task{
-				ID:         flowstate.TaskID(fmt.Sprintf("aTID%d", i)),
-				Rev:        0,
-				ProcessID:  pQueue.ID,
-				ProcessRev: pQueue.Rev,
+				ID: flowstate.TaskID(fmt.Sprintf("aTID%d", i)),
 			},
-			Process: pQueue,
 		}
 
 		err := e.Do(flowstate.Commit(
@@ -127,11 +80,8 @@ func TestQueue(t *testing.T) {
 
 	enqueueTaskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "enqueueTID",
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
+			ID: "enqueueTID",
 		},
-		Process: p,
 	}
 	err := e.Do(flowstate.Commit(
 		flowstate.Transit(enqueueTaskCtx, `enqueue`),
@@ -143,7 +93,7 @@ func TestQueue(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 500)
 
-	require.Equal(t, []flowstate.TransitionID{
+	require.Equal(t, []string{
 		"queue:aTID0",
 		"queue:aTID1",
 		"queue:aTID2",

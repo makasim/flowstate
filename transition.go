@@ -1,11 +1,8 @@
 package flowstate
 
-type TransitionID string
-
 type Transition struct {
-	ID          TransitionID      `json:"id"`
-	FromID      NodeID            `json:"from"`
-	ToID        NodeID            `json:"to"`
+	FromID      BehaviorID        `json:"from"`
+	ToID        BehaviorID        `json:"to"`
 	Annotations map[string]string `json:"annotations"`
 }
 
@@ -17,7 +14,6 @@ func (ts *Transition) SetAnnotation(name, value string) {
 }
 
 func (ts *Transition) CopyTo(to *Transition) {
-	to.ID = ts.ID
 	to.FromID = ts.FromID
 	to.ToID = ts.ToID
 
@@ -30,4 +26,8 @@ func (ts *Transition) CopyTo(to *Transition) {
 			to.Annotations[k] = v
 		}
 	}
+}
+
+func (ts *Transition) String() string {
+	return string(ts.FromID) + `->` + string(ts.ToID)
 }

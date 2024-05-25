@@ -9,42 +9,15 @@ import (
 )
 
 func TestTwoConsequentNodesWithCommit(t *testing.T) {
-	p := flowstate.Process{
-		ID:  "simplePID",
-		Rev: 1,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "firstNID",
-				BehaviorID: "first",
-			},
-			{
-				ID:         "secondNID",
-				BehaviorID: "second",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:     "firstTID",
-				FromID: "",
-				ToID:   "firstNID",
-			},
-			{
-				ID:     "secondTID",
-				FromID: "firstNID",
-				ToID:   "secondNID",
-			},
-		},
-	}
-
-	trkr := &tracker{}
+	trkr := &tracker2{}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
-		return flowstate.Commit(flowstate.Transit(taskCtx, `secondTID`)), nil
+		track2(taskCtx, trkr)
+		return flowstate.Commit(flowstate.Transit(taskCtx, `second`)), nil
 	}))
 	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 		return flowstate.End(taskCtx), nil
 	}))
 
@@ -53,23 +26,15 @@ func TestTwoConsequentNodesWithCommit(t *testing.T) {
 
 	taskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "aTID",
-			Rev:        0,
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
+			ID:  "aTID",
+			Rev: 0,
 		},
-		Process: p,
 	}
 
-	err := e.Do(flowstate.Commit(
-		flowstate.Transit(taskCtx, `firstTID`),
-	))
-	require.NoError(t, err)
+	require.NoError(t, e.Do(flowstate.Commit(
+		flowstate.Transit(taskCtx, `first`),
+	)))
+	require.NoError(t, e.Execute(taskCtx))
 
-	err = e.Execute(taskCtx)
-	require.NoError(t, err)
-
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.Visited())
-	// todo: wrap memdriver with a driver that track calls ?
-	// require.Equal(t, 1, d.calls)
+	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
 }

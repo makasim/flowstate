@@ -1,5 +1,7 @@
 package flowstate
 
+var resumedAnnotation = `flowstate.resumed`
+
 func Resumed(taskCtx *TaskCtx) bool {
 	return taskCtx.Current.Transition.Annotations[resumedAnnotation] == `true`
 }
@@ -11,17 +13,21 @@ func Resume(taskCtx *TaskCtx) *ResumeCommand {
 
 }
 
-var resumedAnnotation = `flowstate.resumed`
-
 type ResumeCommand struct {
 	TaskCtx *TaskCtx
 }
 
 func (cmd *ResumeCommand) Prepare() error {
-	if err := Transit(cmd.TaskCtx, cmd.TaskCtx.Current.Transition.ID).Prepare(); err != nil {
-		return err
-	}
+	cmd.TaskCtx.Transitions = append(cmd.TaskCtx.Transitions, cmd.TaskCtx.Current.Transition)
 
-	cmd.TaskCtx.Current.Transition.SetAnnotation(resumedAnnotation, `true`)
+	nextTs := Transition{
+		FromID:      cmd.TaskCtx.Current.Transition.ToID,
+		ToID:        cmd.TaskCtx.Current.Transition.ToID,
+		Annotations: nil,
+	}
+	nextTs.SetAnnotation(resumedAnnotation, `true`)
+
+	cmd.TaskCtx.Current.Transition = nextTs
+
 	return nil
 }

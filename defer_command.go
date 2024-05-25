@@ -4,6 +4,9 @@ import (
 	"time"
 )
 
+var deferAtAnnotation = `flowstate.defer.at`
+var deferDurationAnnotation = `flowstate.deferred.duration`
+
 func Deferred(taskCtx *TaskCtx) bool {
 	return taskCtx.Current.Transition.Annotations[deferAtAnnotation] != ``
 }
@@ -16,9 +19,6 @@ func Defer(taskCtx *TaskCtx, dur time.Duration) *DeferCommand {
 
 }
 
-var deferAtAnnotation = `flowstate.defer.at`
-var deferDurationAnnotation = `flowstate.deferred.duration`
-
 type DeferCommand struct {
 	OriginTaskCtx   *TaskCtx
 	DeferredTaskCtx *TaskCtx
@@ -30,14 +30,17 @@ func (cmd *DeferCommand) Prepare() error {
 	deferredTaskCtx := &TaskCtx{}
 	cmd.OriginTaskCtx.CopyTo(deferredTaskCtx)
 
-	deferredTaskCtx.Engine = nil
+	deferredTaskCtx.Transitions = append(deferredTaskCtx.Transitions, deferredTaskCtx.Current.Transition)
 
-	if err := Transit(deferredTaskCtx, deferredTaskCtx.Current.Transition.ID).Prepare(); err != nil {
-		return err
+	nextTs := Transition{
+		FromID:      deferredTaskCtx.Current.Transition.ToID,
+		ToID:        deferredTaskCtx.Current.Transition.ToID,
+		Annotations: nil,
 	}
+	nextTs.SetAnnotation(deferAtAnnotation, time.Now().Format(time.RFC3339Nano))
+	nextTs.SetAnnotation(deferDurationAnnotation, cmd.Duration.String())
 
-	deferredTaskCtx.Current.Transition.SetAnnotation(deferAtAnnotation, time.Now().Format(time.RFC3339Nano))
-	deferredTaskCtx.Current.Transition.SetAnnotation(deferDurationAnnotation, cmd.Duration.String())
+	deferredTaskCtx.Current.Transition = nextTs
 
 	cmd.DeferredTaskCtx = deferredTaskCtx
 

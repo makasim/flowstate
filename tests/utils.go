@@ -7,15 +7,15 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-type tracker struct {
+type tracker2 struct {
 	IncludeTaskID bool
 	IncludeState  bool
 
 	mux     sync.Mutex
-	visited []flowstate.TransitionID
+	visited []string
 }
 
-func track(taskCtx *flowstate.TaskCtx, trkr *tracker) {
+func track2(taskCtx *flowstate.TaskCtx, trkr *tracker2) {
 	trkr.mux.Lock()
 	defer trkr.mux.Unlock()
 
@@ -25,6 +25,8 @@ func track(taskCtx *flowstate.TaskCtx, trkr *tracker) {
 		switch {
 		case flowstate.Resumed(taskCtx):
 			postfix += `:resumed`
+		case flowstate.Paused(taskCtx):
+			postfix += `:paused`
 		}
 	}
 
@@ -32,22 +34,22 @@ func track(taskCtx *flowstate.TaskCtx, trkr *tracker) {
 		postfix += `:` + string(taskCtx.Current.ID)
 	}
 
-	trkr.visited = append(trkr.visited, taskCtx.Current.Transition.ID+flowstate.TransitionID(postfix))
+	trkr.visited = append(trkr.visited, string(taskCtx.Current.Transition.ToID)+postfix)
 }
 
-func (trkr *tracker) Visited() []flowstate.TransitionID {
+func (trkr *tracker2) Visited() []string {
 	trkr.mux.Lock()
 	defer trkr.mux.Unlock()
 
-	return append([]flowstate.TransitionID(nil), trkr.visited...)
+	return append([]string(nil), trkr.visited...)
 }
 
-func (trkr *tracker) VisitedSorted() []flowstate.TransitionID {
+func (trkr *tracker2) VisitedSorted() []string {
 	visited := trkr.Visited()
 
 	// sort to eliminate race conditions
 	sort.SliceStable(visited, func(i, j int) bool {
-		if string(visited[i]) > string(visited[j]) {
+		if visited[i] > visited[j] {
 			return false
 		}
 		return true
