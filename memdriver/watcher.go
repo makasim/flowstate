@@ -9,13 +9,13 @@ type Watcher struct {
 	sinceLatest bool
 	labels      map[string]string
 
-	watchCh  chan *flowstate.TaskCtx
+	watchCh  chan *flowstate.StateCtx
 	changeCh chan int64
 	closeCh  chan struct{}
 	l        *Log
 }
 
-func (w *Watcher) Watch() <-chan *flowstate.TaskCtx {
+func (w *Watcher) Watch() <-chan *flowstate.StateCtx {
 	return w.watchCh
 }
 
@@ -32,7 +32,7 @@ func (w *Watcher) Change(rev int64) {
 }
 
 func (w *Watcher) listen() {
-	var tasks []*flowstate.TaskCtx
+	var states []*flowstate.StateCtx
 
 	if w.sinceLatest {
 		w.l.Lock()
@@ -46,15 +46,15 @@ skip:
 		select {
 		case <-w.changeCh:
 			w.l.Lock()
-			tasks, w.sinceRev = w.l.Entries(w.sinceRev, 10)
+			states, w.sinceRev = w.l.Entries(w.sinceRev, 10)
 			w.l.Unlock()
 
-			if len(tasks) == 0 {
+			if len(states) == 0 {
 				continue skip
 			}
 
 		next:
-			for _, t := range tasks {
+			for _, t := range states {
 				for k, v := range w.labels {
 					if t.Committed.Labels[k] != v {
 						continue next

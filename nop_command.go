@@ -1,13 +1,13 @@
 package flowstate
 
-func Nop(taskCtx *TaskCtx) *NopCommand {
+func Nop(stateCtx *StateCtx) *NopCommand {
 	return &NopCommand{
-		TaskCtx: taskCtx,
+		StateCtx: stateCtx,
 	}
 }
 
 type NopCommand struct {
-	TaskCtx *TaskCtx
+	StateCtx *StateCtx
 }
 
 func (cmd *NopCommand) Prepare() error {

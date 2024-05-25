@@ -10,20 +10,20 @@ import (
 )
 
 func TestWatch(t *testing.T) {
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return flowstate.Commit(
-			flowstate.Transit(taskCtx, `second`),
+			flowstate.Transit(stateCtx, `second`),
 		), nil
 	}))
-	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return flowstate.Commit(
-			flowstate.Transit(taskCtx, `third`),
+			flowstate.Transit(stateCtx, `third`),
 		), nil
 	}))
-	br.SetBehavior("third", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+	br.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return flowstate.Commit(
-			flowstate.End(taskCtx),
+			flowstate.End(stateCtx),
 		), nil
 	}))
 
@@ -36,29 +36,29 @@ func TestWatch(t *testing.T) {
 	require.NoError(t, err)
 	defer w.Close()
 
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTID",
 		},
 	}
-	taskCtx.Current.SetLabel("theWatchLabel", `theValue`)
+	stateCtx.Current.SetLabel("theWatchLabel", `theValue`)
 
 	err = e.Do(flowstate.Commit(
-		flowstate.Transit(taskCtx, `first`),
+		flowstate.Transit(stateCtx, `first`),
 	))
 	require.NoError(t, err)
 
-	err = e.Execute(taskCtx)
+	err = e.Execute(stateCtx)
 	require.NoError(t, err)
 
-	var visited []flowstate.BehaviorID
+	var visited []flowstate.FlowID
 	timeoutT := time.NewTimer(time.Second * 3)
 
 loop:
 	for {
 		select {
-		case taskCtx := <-w.Watch():
-			visited = append(visited, taskCtx.Current.Transition.ToID)
+		case stateCtx := <-w.Watch():
+			visited = append(visited, stateCtx.Current.Transition.ToID)
 
 			if len(visited) >= 3 {
 				break loop
@@ -68,6 +68,6 @@ loop:
 		}
 	}
 
-	require.Equal(t, []flowstate.BehaviorID{`first`, `second`, `third`}, visited)
+	require.Equal(t, []flowstate.FlowID{`first`, `second`, `third`}, visited)
 
 }

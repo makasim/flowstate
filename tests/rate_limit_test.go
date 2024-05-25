@@ -13,19 +13,19 @@ import (
 )
 
 func TestRateLimit(t *testing.T) {
-	// todo: workaround till taskCtx does not implement context.Context
+	// todo: workaround till stateCtx does not implement context.Context
 	closeCh := make(chan struct{})
 
 	trkr := &tracker2{
 		IncludeState: true,
 	}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("limiter", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
-		w, err := taskCtx.Engine.Watch(0, map[string]string{"limiter": "theName"})
+		w, err := e.Watch(0, map[string]string{"limiter": "theName"})
 		if err != nil {
 			return nil, err
 		}
@@ -33,72 +33,72 @@ func TestRateLimit(t *testing.T) {
 
 		for {
 			select {
-			case limitedTaskCtx := <-w.Watch():
+			case limitedStateCtx := <-w.Watch():
 				ctx, _ := context.WithTimeout(context.Background(), time.Second)
 				if err := l.Wait(ctx); err != nil {
 					return nil, err
 				}
 
-				if !(limitedTaskCtx.Current.Transition.ToID == `limited` && flowstate.Paused(limitedTaskCtx)) {
+				if !(limitedStateCtx.Current.Transition.ToID == `limited` && flowstate.Paused(limitedStateCtx)) {
 					continue
 				}
-				delete(limitedTaskCtx.Current.Labels, "limiter")
-				if err := taskCtx.Engine.Do(flowstate.Commit(
-					flowstate.Resume(limitedTaskCtx),
-					flowstate.Execute(limitedTaskCtx),
+				delete(limitedStateCtx.Current.Labels, "limiter")
+				if err := e.Do(flowstate.Commit(
+					flowstate.Resume(limitedStateCtx),
+					flowstate.Execute(limitedStateCtx),
 				)); err != nil {
 					return nil, err
 				}
 			case <-closeCh:
-				return flowstate.Nop(taskCtx), nil
+				return flowstate.Nop(stateCtx), nil
 			}
 		}
 	}))
-	br.SetBehavior("limited", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		if flowstate.Resumed(taskCtx) {
+		if flowstate.Resumed(stateCtx) {
 			return flowstate.Commit(
-				flowstate.End(taskCtx),
+				flowstate.End(stateCtx),
 			), nil
 		}
 
-		taskCtx.Current.SetLabel("limiter", "theName")
+		stateCtx.Current.SetLabel("limiter", "theName")
 		return flowstate.Commit(
-			flowstate.Pause(taskCtx, taskCtx.Current.Transition.ToID),
+			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
 		), nil
 	}))
 
-	limiterTaskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	limiterStateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID:  "aLimiterTID",
 			Rev: 0,
 		},
 	}
 
-	var tasks []*flowstate.TaskCtx
+	var states []*flowstate.StateCtx
 	for i := 0; i < 10; i++ {
-		taskCtx := &flowstate.TaskCtx{
-			Current: flowstate.Task{
-				ID:  flowstate.TaskID(fmt.Sprintf("aTID%d", i)),
+		stateCtx := &flowstate.StateCtx{
+			Current: flowstate.State{
+				ID:  flowstate.StateID(fmt.Sprintf("aTID%d", i)),
 				Rev: 0,
 			},
 		}
-		tasks = append(tasks, taskCtx)
+		states = append(states, stateCtx)
 	}
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Transit(limiterTaskCtx, `limiter`),
-		flowstate.Execute(limiterTaskCtx),
+		flowstate.Transit(limiterStateCtx, `limiter`),
+		flowstate.Execute(limiterStateCtx),
 	)))
 
-	for _, taskCtx := range tasks {
+	for _, stateCtx := range states {
 		require.NoError(t, e.Do(flowstate.Commit(
-			flowstate.Transit(taskCtx, `limited`),
-			flowstate.Execute(taskCtx),
+			flowstate.Transit(stateCtx, `limited`),
+			flowstate.Execute(stateCtx),
 		)))
 	}
 

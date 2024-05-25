@@ -16,23 +16,23 @@ func TestQueue(t *testing.T) {
 		IncludeState:  true,
 	}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("queue", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		if flowstate.Resumed(taskCtx) {
-			return flowstate.Transit(taskCtx, `dequeued`), nil
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		if flowstate.Resumed(stateCtx) {
+			return flowstate.Transit(stateCtx, `dequeued`), nil
 		}
 
-		taskCtx.Current.SetLabel("queue", "theName")
+		stateCtx.Current.SetLabel("queue", "theName")
 
 		return flowstate.Commit(
-			flowstate.Pause(taskCtx, taskCtx.Current.Transition.ToID),
+			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
 		), nil
 	}))
-	br.SetBehavior("enqueue", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		w, err := taskCtx.Engine.Watch(0, map[string]string{
+		w, err := e.Watch(0, map[string]string{
 			"queue": "theName",
 		})
 		if err != nil {
@@ -42,20 +42,20 @@ func TestQueue(t *testing.T) {
 
 		for {
 			select {
-			case queuedTaskCtx := <-w.Watch():
-				delete(queuedTaskCtx.Current.Labels, "queue")
+			case queuedStateCtx := <-w.Watch():
+				delete(queuedStateCtx.Current.Labels, "queue")
 
 				return flowstate.Commit(
-					flowstate.Resume(queuedTaskCtx),
-					flowstate.End(taskCtx),
+					flowstate.Resume(queuedStateCtx),
+					flowstate.End(stateCtx),
 				), nil
 			}
 		}
 	}))
-	br.SetBehavior("dequeued", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 		return flowstate.Commit(
-			flowstate.End(taskCtx),
+			flowstate.End(stateCtx),
 		), nil
 	}))
 
@@ -63,32 +63,32 @@ func TestQueue(t *testing.T) {
 	e := flowstate.NewEngine(d, br)
 
 	for i := 0; i < 3; i++ {
-		taskCtx := &flowstate.TaskCtx{
-			Current: flowstate.Task{
-				ID: flowstate.TaskID(fmt.Sprintf("aTID%d", i)),
+		stateCtx := &flowstate.StateCtx{
+			Current: flowstate.State{
+				ID: flowstate.StateID(fmt.Sprintf("aTID%d", i)),
 			},
 		}
 
 		err := e.Do(flowstate.Commit(
-			flowstate.Transit(taskCtx, `queue`),
+			flowstate.Transit(stateCtx, `queue`),
 		))
 		require.NoError(t, err)
 
-		err = e.Execute(taskCtx)
+		err = e.Execute(stateCtx)
 		require.NoError(t, err)
 	}
 
-	enqueueTaskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	enqueueStateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "enqueueTID",
 		},
 	}
 	err := e.Do(flowstate.Commit(
-		flowstate.Transit(enqueueTaskCtx, `enqueue`),
+		flowstate.Transit(enqueueStateCtx, `enqueue`),
 	))
 	require.NoError(t, err)
 
-	err = e.Execute(enqueueTaskCtx)
+	err = e.Execute(enqueueStateCtx)
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 500)

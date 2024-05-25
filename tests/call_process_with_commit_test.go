@@ -10,9 +10,9 @@ import (
 )
 
 func TestCallProcessWithCommit(t *testing.T) {
-	var nextTaskCtx *flowstate.TaskCtx
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	var nextStateCtx *flowstate.StateCtx
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTID",
 		},
 	}
@@ -20,83 +20,83 @@ func TestCallProcessWithCommit(t *testing.T) {
 	endedCh := make(chan struct{})
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("call", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		if flowstate.Resumed(taskCtx) {
-			return flowstate.Transit(taskCtx, `callEnd`), nil
+		if flowstate.Resumed(stateCtx) {
+			return flowstate.Transit(stateCtx, `callEnd`), nil
 		}
 
-		nextTaskCtx = &flowstate.TaskCtx{
-			Current: flowstate.Task{
+		nextStateCtx = &flowstate.StateCtx{
+			Current: flowstate.State{
 				ID: "aNextTID",
 			},
 		}
 
-		if err := taskCtx.Engine.Do(
+		if err := e.Do(
 			flowstate.Commit(
-				flowstate.Pause(taskCtx, taskCtx.Current.Transition.ToID),
-				flowstate.Stack(taskCtx, nextTaskCtx),
-				flowstate.Transit(nextTaskCtx, `called`),
-				flowstate.Execute(nextTaskCtx),
+				flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
+				flowstate.Stack(stateCtx, nextStateCtx),
+				flowstate.Transit(nextStateCtx, `called`),
+				flowstate.Execute(nextStateCtx),
 			),
 		); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Nop(taskCtx), nil
+		return flowstate.Nop(stateCtx), nil
 	}))
-	br.SetBehavior("called", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		if err := taskCtx.Engine.Do(
-			flowstate.Transit(taskCtx, `calledEnd`),
-			flowstate.Execute(taskCtx),
+		if err := e.Do(
+			flowstate.Transit(stateCtx, `calledEnd`),
+			flowstate.Execute(stateCtx),
 		); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Nop(taskCtx), nil
+		return flowstate.Nop(stateCtx), nil
 	}))
-	br.SetBehavior("calledEnd", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		if flowstate.Stacked(taskCtx) {
-			callTaskCtx := &flowstate.TaskCtx{}
+	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		if flowstate.Stacked(stateCtx) {
+			callStateCtx := &flowstate.StateCtx{}
 
-			if err := taskCtx.Engine.Do(
+			if err := e.Do(
 				flowstate.Commit(
-					flowstate.Unstack(taskCtx, callTaskCtx),
-					flowstate.Resume(callTaskCtx),
-					flowstate.Execute(callTaskCtx),
-					flowstate.End(taskCtx),
+					flowstate.Unstack(stateCtx, callStateCtx),
+					flowstate.Resume(callStateCtx),
+					flowstate.Execute(callStateCtx),
+					flowstate.End(stateCtx),
 				),
 			); err != nil {
 				return nil, err
 			}
 
-			return flowstate.Nop(taskCtx), nil
+			return flowstate.Nop(stateCtx), nil
 		}
 
-		return flowstate.End(taskCtx), nil
+		return flowstate.End(stateCtx), nil
 	}))
-	br.SetBehavior("callEnd", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
 		close(endedCh)
 
-		return flowstate.End(taskCtx), nil
+		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
 	err := e.Do(flowstate.Commit(
-		flowstate.Transit(taskCtx, `call`),
+		flowstate.Transit(stateCtx, `call`),
 	))
 	require.NoError(t, err)
 
-	err = e.Execute(taskCtx)
+	err = e.Execute(stateCtx)
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {

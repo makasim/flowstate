@@ -16,14 +16,12 @@ func TestMutex(t *testing.T) {
 
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("mutex", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("mutex", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must not be called; mutex is always paused")
 	}))
-	br.SetBehavior("lock", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-
-		e := taskCtx.Engine
+	br.SetFlow("lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
 		wCmd := flowstate.Watch(0, map[string]string{"mutex": "theName"})
 		wCmd.SinceLatest = true
@@ -34,25 +32,25 @@ func TestMutex(t *testing.T) {
 		w := wCmd.Watcher
 		defer w.Close()
 
-		var mutexTaskCtx *flowstate.TaskCtx
+		var mutexStateCtx *flowstate.StateCtx
 
 		for {
-			if mutexTaskCtx != nil && mutexTaskCtx.Current.Transition.ToID == "unlocked" {
-				copyTaskCtx := &flowstate.TaskCtx{}
-				taskCtx.CopyTo(copyTaskCtx)
+			if mutexStateCtx != nil && mutexStateCtx.Current.Transition.ToID == "unlocked" {
+				copyStateCtx := &flowstate.StateCtx{}
+				stateCtx.CopyTo(copyStateCtx)
 
-				copyMutexTaskCtx := &flowstate.TaskCtx{}
-				mutexTaskCtx.CopyTo(copyMutexTaskCtx)
+				copyMutexStateCtx := &flowstate.StateCtx{}
+				mutexStateCtx.CopyTo(copyMutexStateCtx)
 
 				conflictErr := &flowstate.ErrCommitConflict{}
 
 				if err := e.Do(flowstate.Commit(
-					flowstate.Pause(copyMutexTaskCtx, `locked`),
-					flowstate.Stack(copyMutexTaskCtx, copyTaskCtx),
-					flowstate.Transit(copyTaskCtx, `protected`),
+					flowstate.Pause(copyMutexStateCtx, `locked`),
+					flowstate.Stack(copyMutexStateCtx, copyStateCtx),
+					flowstate.Transit(copyStateCtx, `protected`),
 				)); errors.As(err, conflictErr) {
-					if conflictErr.Contains(mutexTaskCtx.Current.ID) {
-						mutexTaskCtx = nil
+					if conflictErr.Contains(mutexStateCtx.Current.ID) {
+						mutexStateCtx = nil
 						continue
 					}
 
@@ -61,41 +59,41 @@ func TestMutex(t *testing.T) {
 					return nil, err
 				}
 
-				return flowstate.Execute(copyTaskCtx), nil
+				return flowstate.Execute(copyStateCtx), nil
 			}
 
 			select {
-			case mutexTaskCtx = <-w.Watch():
+			case mutexStateCtx = <-w.Watch():
 				continue
 				// TODO: handle shutdown, timeout and other cases
 			}
 
 		}
 	}))
-	br.SetBehavior("protected", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("protected", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
 		raceDetector += 1
-		return flowstate.Transit(taskCtx, `unlock`), nil
+		return flowstate.Transit(stateCtx, `unlock`), nil
 	}))
-	br.SetBehavior("unlock", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("unlock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		mutexTaskCtx := &flowstate.TaskCtx{}
+		mutexStateCtx := &flowstate.StateCtx{}
 
-		if err := taskCtx.Engine.Do(flowstate.Commit(
-			flowstate.Unstack(taskCtx, mutexTaskCtx),
-			flowstate.Pause(mutexTaskCtx, `unlocked`),
-			flowstate.End(taskCtx),
+		if err := e.Do(flowstate.Commit(
+			flowstate.Unstack(stateCtx, mutexStateCtx),
+			flowstate.Pause(mutexStateCtx, `unlocked`),
+			flowstate.End(stateCtx),
 		)); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Nop(taskCtx), nil
+		return flowstate.Nop(stateCtx), nil
 	}))
 
-	mutexTaskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	mutexStateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aMutexTID",
 			Labels: map[string]string{
 				"mutex": "theName",
@@ -103,28 +101,28 @@ func TestMutex(t *testing.T) {
 		},
 	}
 
-	var tasks []*flowstate.TaskCtx
+	var states []*flowstate.StateCtx
 	for i := 0; i < 3; i++ {
-		taskCtx := &flowstate.TaskCtx{
-			Current: flowstate.Task{
-				ID: flowstate.TaskID(fmt.Sprintf("aTID%d", i)),
+		statesCtx := &flowstate.StateCtx{
+			Current: flowstate.State{
+				ID: flowstate.StateID(fmt.Sprintf("aTID%d", i)),
 			},
 		}
-		tasks = append(tasks, taskCtx)
+		states = append(states, statesCtx)
 	}
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
 	err := e.Do(flowstate.Commit(
-		flowstate.Pause(mutexTaskCtx, `unlocked`),
+		flowstate.Pause(mutexStateCtx, `unlocked`),
 	))
 	require.NoError(t, err)
 
-	for _, taskCtx := range tasks {
+	for _, stateCtx := range states {
 		err = e.Do(flowstate.Commit(
-			flowstate.Transit(taskCtx, `lock`),
-			flowstate.Execute(taskCtx),
+			flowstate.Transit(stateCtx, `lock`),
+			flowstate.Execute(stateCtx),
 		))
 		require.NoError(t, err)
 	}

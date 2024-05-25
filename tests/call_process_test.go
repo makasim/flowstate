@@ -10,9 +10,9 @@ import (
 )
 
 func TestCallProcess(t *testing.T) {
-	var nextTaskCtx *flowstate.TaskCtx
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	var nextStateCtx *flowstate.StateCtx
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTID",
 		},
 	}
@@ -20,69 +20,69 @@ func TestCallProcess(t *testing.T) {
 	endedCh := make(chan struct{})
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("call", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		if flowstate.Resumed(taskCtx) {
-			return flowstate.Transit(taskCtx, `callEnd`), nil
+		if flowstate.Resumed(stateCtx) {
+			return flowstate.Transit(stateCtx, `callEnd`), nil
 		}
 
-		nextTaskCtx = &flowstate.TaskCtx{
-			Current: flowstate.Task{
+		nextStateCtx = &flowstate.StateCtx{
+			Current: flowstate.State{
 				ID: "aTID",
 			},
 		}
 
-		if err := taskCtx.Engine.Do(
-			flowstate.Pause(taskCtx, taskCtx.Current.Transition.ToID),
-			flowstate.Stack(taskCtx, nextTaskCtx),
-			flowstate.Transit(nextTaskCtx, `called`),
-			flowstate.Execute(nextTaskCtx),
+		if err := e.Do(
+			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
+			flowstate.Stack(stateCtx, nextStateCtx),
+			flowstate.Transit(nextStateCtx, `called`),
+			flowstate.Execute(nextStateCtx),
 		); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Nop(taskCtx), nil
+		return flowstate.Nop(stateCtx), nil
 	}))
-	br.SetBehavior("called", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.Transit(taskCtx, `calledEnd`), nil
+	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	br.SetBehavior("calledEnd", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		if flowstate.Stacked(taskCtx) {
-			callTaskCtx := &flowstate.TaskCtx{}
+		if flowstate.Stacked(stateCtx) {
+			callStateCtx := &flowstate.StateCtx{}
 
-			if err := taskCtx.Engine.Do(
-				flowstate.Unstack(taskCtx, callTaskCtx),
-				flowstate.Resume(callTaskCtx),
-				flowstate.Execute(callTaskCtx),
-				flowstate.End(taskCtx),
+			if err := e.Do(
+				flowstate.Unstack(stateCtx, callStateCtx),
+				flowstate.Resume(callStateCtx),
+				flowstate.Execute(callStateCtx),
+				flowstate.End(stateCtx),
 			); err != nil {
 				return nil, err
 			}
 
-			return flowstate.Nop(taskCtx), nil
+			return flowstate.Nop(stateCtx), nil
 		}
 
-		return flowstate.End(taskCtx), nil
+		return flowstate.End(stateCtx), nil
 	}))
 
-	br.SetBehavior("callEnd", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
 		close(endedCh)
 
-		return flowstate.End(taskCtx), nil
+		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `call`)))
-	require.NoError(t, e.Execute(taskCtx))
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `call`)))
+	require.NoError(t, e.Execute(stateCtx))
 
 	require.Eventually(t, func() bool {
 		select {

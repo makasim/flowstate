@@ -12,46 +12,46 @@ import (
 func TestDefer_TransitWin_WithCommit(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		if flowstate.Deferred(taskCtx) {
+		if flowstate.Deferred(stateCtx) {
 			return flowstate.Commit(
-				flowstate.Transit(taskCtx, `second`),
+				flowstate.Transit(stateCtx, `second`),
 			), nil
 		}
 
-		if err := taskCtx.Engine.Do(
-			flowstate.Defer(taskCtx, time.Millisecond*200),
+		if err := e.Do(
+			flowstate.Defer(stateCtx, time.Millisecond*200),
 		); err != nil {
 			return nil, err
 		}
 
 		return flowstate.Commit(
-			flowstate.Transit(taskCtx, `third`),
+			flowstate.Transit(stateCtx, `third`),
 		), nil
 	}))
-	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
+	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
 	}))
-	br.SetBehavior("third", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
+	br.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTID",
 		},
 	}
 
-	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `first`)))
-	require.NoError(t, e.Execute(taskCtx))
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
+	require.NoError(t, e.Execute(stateCtx))
 
 	time.Sleep(time.Millisecond * 500)
 

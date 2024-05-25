@@ -2,33 +2,33 @@ package flowstate
 
 var pausedAnnotation = `flowstate.paused`
 
-func Paused(taskCtx *TaskCtx) bool {
-	return taskCtx.Current.Transition.Annotations[pausedAnnotation] == `true`
+func Paused(stateCtx *StateCtx) bool {
+	return stateCtx.Current.Transition.Annotations[pausedAnnotation] == `true`
 }
 
-func Pause(taskCtx *TaskCtx, bID BehaviorID) *PauseCommand {
+func Pause(stateCtx *StateCtx, fID FlowID) *PauseCommand {
 	return &PauseCommand{
-		TaskCtx:    taskCtx,
-		BehaviorID: bID,
+		StateCtx: stateCtx,
+		FlowID:   fID,
 	}
 }
 
 type PauseCommand struct {
-	TaskCtx    *TaskCtx
-	BehaviorID BehaviorID
+	StateCtx *StateCtx
+	FlowID   FlowID
 }
 
 func (cmd *PauseCommand) Prepare() error {
-	cmd.TaskCtx.Transitions = append(cmd.TaskCtx.Transitions, cmd.TaskCtx.Current.Transition)
+	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
-		FromID:      cmd.TaskCtx.Current.Transition.ToID,
-		ToID:        cmd.BehaviorID,
+		FromID:      cmd.StateCtx.Current.Transition.ToID,
+		ToID:        cmd.FlowID,
 		Annotations: nil,
 	}
 	nextTs.SetAnnotation(pausedAnnotation, `true`)
 
-	cmd.TaskCtx.Current.Transition = nextTs
+	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
 }

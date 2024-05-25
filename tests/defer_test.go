@@ -12,31 +12,31 @@ import (
 func TestDefer_Return(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		if flowstate.Deferred(taskCtx) {
-			return flowstate.Transit(taskCtx, `second`), nil
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		if flowstate.Deferred(stateCtx) {
+			return flowstate.Transit(stateCtx, `second`), nil
 		}
 
-		return flowstate.Defer(taskCtx, time.Millisecond*200), nil
+		return flowstate.Defer(stateCtx, time.Millisecond*200), nil
 	}))
-	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
+	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTID",
 		},
 	}
 
-	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `first`)))
-	require.NoError(t, e.Execute(taskCtx))
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
+	require.NoError(t, e.Execute(stateCtx))
 
 	time.Sleep(time.Millisecond * 500)
 
@@ -46,37 +46,37 @@ func TestDefer_Return(t *testing.T) {
 func TestDefer_EngineDo(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		if flowstate.Deferred(taskCtx) {
-			return flowstate.Transit(taskCtx, `second`), nil
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		if flowstate.Deferred(stateCtx) {
+			return flowstate.Transit(stateCtx, `second`), nil
 		}
 
-		if err := taskCtx.Engine.Do(
-			flowstate.Defer(taskCtx, time.Millisecond*200),
+		if err := e.Do(
+			flowstate.Defer(stateCtx, time.Millisecond*200),
 		); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Nop(taskCtx), nil
+		return flowstate.Nop(stateCtx), nil
 	}))
-	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
+	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTID",
 		},
 	}
 
-	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `first`)))
-	require.NoError(t, e.Execute(taskCtx))
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
+	require.NoError(t, e.Execute(stateCtx))
 
 	time.Sleep(time.Millisecond * 500)
 

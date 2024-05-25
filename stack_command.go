@@ -6,14 +6,14 @@ import (
 	"fmt"
 )
 
-func Stacked(taskCtx *TaskCtx) bool {
-	return taskCtx.Current.Annotations[stackedAnnotation] != ``
+func Stacked(stateCtx *StateCtx) bool {
+	return stateCtx.Current.Annotations[stackedAnnotation] != ``
 }
 
-func Stack(stackedTaskCtx, nextTaskCtx *TaskCtx) *StackCommand {
+func Stack(stackedStateCtx, nextStateCtx *StateCtx) *StackCommand {
 	return &StackCommand{
-		StackedTaskCtx: stackedTaskCtx,
-		NextTaskCtx:    nextTaskCtx,
+		StackedStateCtx: stackedStateCtx,
+		NextStateCtx:    nextStateCtx,
 	}
 
 }
@@ -21,23 +21,23 @@ func Stack(stackedTaskCtx, nextTaskCtx *TaskCtx) *StackCommand {
 var stackedAnnotation = `flowstate.stacked`
 
 type StackCommand struct {
-	StackedTaskCtx *TaskCtx
-	NextTaskCtx    *TaskCtx
+	StackedStateCtx *StateCtx
+	NextStateCtx    *StateCtx
 }
 
 func (cmd *StackCommand) Prepare() error {
-	if Stacked(cmd.NextTaskCtx) {
-		return fmt.Errorf("next task already stacked")
+	if Stacked(cmd.NextStateCtx) {
+		return fmt.Errorf("next state already stacked")
 	}
 
-	b, err := json.Marshal(cmd.StackedTaskCtx)
+	b, err := json.Marshal(cmd.StackedStateCtx)
 	if err != nil {
-		return fmt.Errorf("json marshal prev task ctx: %s", err)
+		return fmt.Errorf("json marshal prev state ctx: %s", err)
 	}
 
 	stacked := base64.StdEncoding.EncodeToString(b)
 
-	cmd.NextTaskCtx.Current.SetAnnotation(stackedAnnotation, stacked)
+	cmd.NextStateCtx.Current.SetAnnotation(stackedAnnotation, stacked)
 
 	return nil
 }

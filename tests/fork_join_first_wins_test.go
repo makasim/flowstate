@@ -10,60 +10,60 @@ import (
 )
 
 func TestForkJoin_FirstWins(t *testing.T) {
-	var forkedTaskCtx *flowstate.TaskCtx
-	var forkedTwoTaskCtx *flowstate.TaskCtx
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
+	var forkedStateCtx *flowstate.StateCtx
+	var forkedTwoStateCtx *flowstate.StateCtx
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
 			ID: "aTID",
 		},
 	}
 
 	trkr := &tracker2{}
 
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("fork", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br := &flowstate.MapFlowRegistry{}
+	br.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		taskCtx.Current.SetLabel(`theForkJoinLabel`, string(taskCtx.Current.ID))
+		stateCtx.Current.SetLabel(`theForkJoinLabel`, string(stateCtx.Current.ID))
 
-		forkedTaskCtx = &flowstate.TaskCtx{}
-		forkedTaskCtx.Current.ID = "forkedTID"
-		forkedTaskCtx.Committed.ID = "forkedTID"
+		forkedStateCtx = &flowstate.StateCtx{}
+		forkedStateCtx.Current.ID = "forkedTID"
+		forkedStateCtx.Committed.ID = "forkedTID"
 
-		forkedTwoTaskCtx = &flowstate.TaskCtx{}
-		forkedTwoTaskCtx.Current.ID = "forkedTwoTID"
-		forkedTwoTaskCtx.Committed.ID = "forkedTwoTID"
+		forkedTwoStateCtx = &flowstate.StateCtx{}
+		forkedTwoStateCtx.Current.ID = "forkedTwoTID"
+		forkedTwoStateCtx.Committed.ID = "forkedTwoTID"
 
-		if err := taskCtx.Engine.Do(flowstate.Commit(
-			flowstate.Fork(taskCtx, forkedTaskCtx),
-			flowstate.Fork(taskCtx, forkedTwoTaskCtx),
+		if err := e.Do(flowstate.Commit(
+			flowstate.Fork(stateCtx, forkedStateCtx),
+			flowstate.Fork(stateCtx, forkedTwoStateCtx),
 
-			flowstate.Transit(taskCtx, `forked`),
-			flowstate.Transit(forkedTaskCtx, `forked`),
-			flowstate.Transit(forkedTwoTaskCtx, `forked`),
+			flowstate.Transit(stateCtx, `forked`),
+			flowstate.Transit(forkedStateCtx, `forked`),
+			flowstate.Transit(forkedTwoStateCtx, `forked`),
 
-			flowstate.Execute(taskCtx),
-			flowstate.Execute(forkedTaskCtx),
-			flowstate.Execute(forkedTwoTaskCtx),
+			flowstate.Execute(stateCtx),
+			flowstate.Execute(forkedStateCtx),
+			flowstate.Execute(forkedTwoStateCtx),
 		)); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Nop(taskCtx), nil
+		return flowstate.Nop(stateCtx), nil
 	}))
-	br.SetBehavior("join", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
+	br.SetFlow("join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
 
-		if taskCtx.Committed.Transition.ToID != `join` {
-			if err := taskCtx.Engine.Do(flowstate.Commit(
-				flowstate.Transit(taskCtx, `join`),
+		if stateCtx.Committed.Transition.ToID != `join` {
+			if err := e.Do(flowstate.Commit(
+				flowstate.Transit(stateCtx, `join`),
 			)); err != nil {
 				return nil, err
 			}
 		}
 
-		w, err := taskCtx.Engine.Watch(0, map[string]string{
-			`theForkJoinLabel`: taskCtx.Current.Labels[`theForkJoinLabel`],
+		w, err := e.Watch(0, map[string]string{
+			`theForkJoinLabel`: stateCtx.Current.Labels[`theForkJoinLabel`],
 		})
 		if err != nil {
 			return nil, err
@@ -73,45 +73,45 @@ func TestForkJoin_FirstWins(t *testing.T) {
 		cnt := 0
 		for {
 			select {
-			case changedTaskCtx := <-w.Watch():
-				if changedTaskCtx.Current.Transition.ToID != `join` {
+			case changedStateCtx := <-w.Watch():
+				if changedStateCtx.Current.Transition.ToID != `join` {
 					continue
 				}
 				cnt++
 
-				if changedTaskCtx.Current.ID != taskCtx.Current.ID {
+				if changedStateCtx.Current.ID != stateCtx.Current.ID {
 					continue
 				}
 
 				if cnt == 1 {
 					return flowstate.Commit(
-						flowstate.Transit(taskCtx, `joined`),
+						flowstate.Transit(stateCtx, `joined`),
 					), nil
 				}
 
 				return flowstate.Commit(
-					flowstate.End(taskCtx),
+					flowstate.End(stateCtx),
 				), nil
 
 			}
 		}
 	}))
 
-	br.SetBehavior("forked", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.Transit(taskCtx, `join`), nil
+	br.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.Transit(stateCtx, `join`), nil
 	}))
 
-	br.SetBehavior("joined", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
+	br.SetFlow("joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		track2(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `fork`)))
-	require.NoError(t, e.Execute(taskCtx))
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))
+	require.NoError(t, e.Execute(stateCtx))
 
 	time.Sleep(time.Millisecond * 100)
 
