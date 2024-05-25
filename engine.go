@@ -62,21 +62,11 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 	}
 
 	for {
-		if _, err := taskCtx.Process.Transition(taskCtx.Current.Transition.ID); err != nil {
-			return err
+		if taskCtx.Current.Transition.ToID == `` {
+			return fmt.Errorf(`transition to id empty`)
 		}
 
-		n, err := taskCtx.Process.Node(taskCtx.Current.Transition.ToID)
-		if err != nil {
-			return err
-		}
-		taskCtx.Node = n
-
-		if n.BehaviorID == `` {
-			return fmt.Errorf("behavior id empty")
-		}
-
-		b, err := e.br.Behavior(n.BehaviorID)
+		b, err := e.br.Behavior(taskCtx.Current.Transition.ToID)
 		if err != nil {
 			return err
 		}
@@ -90,7 +80,7 @@ func (e *Engine) Execute(taskCtx *TaskCtx) error {
 
 		taskCtx, err = e.prepareAndDo(cmd0, true)
 		if errors.As(err, conflictErr) {
-			log.Println("INFO: engine: execute: commit conflict")
+			log.Printf("INFO: engine: execute: %s\n", conflictErr)
 			return nil
 		} else if err != nil {
 			return err

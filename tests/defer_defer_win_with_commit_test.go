@@ -9,48 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDefer_Return(t *testing.T) {
+func TestDefer_DeferWin_WithCommit(t *testing.T) {
 	trkr := &tracker2{}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		track2(taskCtx, trkr)
+
 		if flowstate.Deferred(taskCtx) {
-			return flowstate.Transit(taskCtx, `second`), nil
-		}
-
-		return flowstate.Defer(taskCtx, time.Millisecond*200), nil
-	}))
-	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		return flowstate.End(taskCtx), nil
-	}))
-
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
-
-	taskCtx := &flowstate.TaskCtx{
-		Current: flowstate.Task{
-			ID: "aTID",
-		},
-	}
-
-	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `first`)))
-	require.NoError(t, e.Execute(taskCtx))
-
-	time.Sleep(time.Millisecond * 500)
-
-	require.Equal(t, []string{`first`, `first`, `second`}, trkr.Visited())
-}
-
-func TestDefer_EngineDo(t *testing.T) {
-	trkr := &tracker2{}
-
-	br := &flowstate.MapBehaviorRegistry{}
-	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track2(taskCtx, trkr)
-		if flowstate.Deferred(taskCtx) {
-			return flowstate.Transit(taskCtx, `second`), nil
+			return flowstate.Commit(
+				flowstate.Transit(taskCtx, `second`),
+			), nil
 		}
 
 		if err := taskCtx.Engine.Do(
@@ -59,9 +28,17 @@ func TestDefer_EngineDo(t *testing.T) {
 			return nil, err
 		}
 
-		return flowstate.Nop(taskCtx), nil
+		time.Sleep(time.Millisecond * 300)
+
+		return flowstate.Commit(
+			flowstate.Transit(taskCtx, `third`),
+		), nil
 	}))
 	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+		track2(taskCtx, trkr)
+		return flowstate.End(taskCtx), nil
+	}))
+	br.SetBehavior("third", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		track2(taskCtx, trkr)
 		return flowstate.End(taskCtx), nil
 	}))
@@ -74,11 +51,13 @@ func TestDefer_EngineDo(t *testing.T) {
 			ID: "aTID",
 		},
 	}
+	taskCtx.Current.CopyTo(&taskCtx.Committed)
 
 	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `first`)))
 	require.NoError(t, e.Execute(taskCtx))
 
 	time.Sleep(time.Millisecond * 500)
 
+	// no third in list
 	require.Equal(t, []string{`first`, `first`, `second`}, trkr.Visited())
 }

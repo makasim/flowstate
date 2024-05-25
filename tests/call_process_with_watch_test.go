@@ -10,76 +10,26 @@ import (
 )
 
 func TestCallProcessWithWatch(t *testing.T) {
-	p := flowstate.Process{
-		ID:  "simplePID",
-		Rev: 1,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "callNID",
-				BehaviorID: "call",
-			},
-			{
-				ID:         "calledNID",
-				BehaviorID: "called",
-			},
-			{
-				ID:         "endNID",
-				BehaviorID: "end",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:     "callTID",
-				FromID: "",
-				ToID:   "callNID",
-			},
-			{
-				ID:     "calledTID",
-				FromID: "",
-				ToID:   "calledNID",
-			},
-			{
-				ID:     "callEndTID",
-				FromID: "callNID",
-				ToID:   "endNID",
-			},
-			{
-				ID:     "calledEndTID",
-				FromID: "calledNID",
-				ToID:   "endNID",
-			},
-		},
-	}
-
 	var nextTaskCtx *flowstate.TaskCtx
 	taskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "aTID",
-			Rev:        0,
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
+			ID: "aTID",
 		},
-		Process: p,
 	}
 
-	trkr := &tracker{}
+	endedCh := make(chan struct{})
+
+	trkr := &tracker2{}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("call", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 
 		if taskCtx.Current.Annotations[`called`] == `` {
 			nextTaskCtx = &flowstate.TaskCtx{
 				Current: flowstate.Task{
-					ID:         "aNextTID",
-					Rev:        0,
-					ProcessID:  p.ID,
-					ProcessRev: p.Rev,
-
-					Transition: p.Transitions[1],
+					ID: "aNextTID",
 				},
-				Process: p,
-				Node:    p.Nodes[1],
 			}
 			nextTaskCtx.Committed = nextTaskCtx.Current
 			nextTaskCtx.Current.SetLabel("theWatchLabel", string(taskCtx.Current.ID))
@@ -88,8 +38,8 @@ func TestCallProcessWithWatch(t *testing.T) {
 
 			if err := taskCtx.Engine.Do(
 				flowstate.Commit(
-					flowstate.Transit(taskCtx, `callTID`),
-					flowstate.Transit(nextTaskCtx, `calledTID`),
+					flowstate.Transit(taskCtx, `call`),
+					flowstate.Transit(nextTaskCtx, `called`),
 					flowstate.Execute(nextTaskCtx),
 				),
 			); err != nil {
@@ -116,18 +66,27 @@ func TestCallProcessWithWatch(t *testing.T) {
 				delete(taskCtx.Current.Annotations, `called`)
 
 				return flowstate.Commit(
-					flowstate.Transit(taskCtx, `callEndTID`),
+					flowstate.Transit(taskCtx, `callEnd`),
 				), nil
 			}
 		}
 
 	}))
 	br.SetBehavior("called", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
-		return flowstate.Transit(taskCtx, `calledEndTID`), nil
+		track2(taskCtx, trkr)
+		return flowstate.Transit(taskCtx, `calledEnd`), nil
 	}))
-	br.SetBehavior("end", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+	br.SetBehavior("calledEnd", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+		track2(taskCtx, trkr)
+
+		return flowstate.Commit(
+			flowstate.End(taskCtx),
+		), nil
+	}))
+	br.SetBehavior("callEnd", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+		track2(taskCtx, trkr)
+
+		close(endedCh)
 
 		return flowstate.Commit(
 			flowstate.End(taskCtx),
@@ -138,19 +97,26 @@ func TestCallProcessWithWatch(t *testing.T) {
 	e := flowstate.NewEngine(d, br)
 
 	err := e.Do(flowstate.Commit(
-		flowstate.Transit(taskCtx, `callTID`),
+		flowstate.Transit(taskCtx, `call`),
 	))
 	require.NoError(t, err)
 
 	err = e.Execute(taskCtx)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 5)
+	require.Eventually(t, func() bool {
+		select {
+		case <-endedCh:
+			return true
+		default:
+			return false
+		}
+	}, time.Second*5, time.Millisecond*50)
 
-	require.Equal(t, []flowstate.TransitionID{
-		`callTID`,
-		`calledTID`,
-		`calledEndTID`,
-		`callEndTID`,
+	require.Equal(t, []string{
+		`call`,
+		`called`,
+		`calledEnd`,
+		`callEnd`,
 	}, trkr.Visited())
 }

@@ -9,42 +9,42 @@ import (
 )
 
 func TestTwoConsequentNodes(t *testing.T) {
-	p := flowstate.Process{
-		ID:  "simplePID",
-		Rev: 1,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "firstNID",
-				BehaviorID: "first",
-			},
-			{
-				ID:         "secondNID",
-				BehaviorID: "second",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:     "firstTID",
-				FromID: "",
-				ToID:   "firstNID",
-			},
-			{
-				ID:     "secondTID",
-				FromID: "firstNID",
-				ToID:   "secondNID",
-			},
-		},
-	}
+	//p := flowstate.Process{
+	//	ID:  "simplePID",
+	//	Rev: 1,
+	//	Nodes: []flowstate.Node{
+	//		{
+	//			ID:         "firstNID",
+	//			BehaviorID: "first",
+	//		},
+	//		{
+	//			ID:         "secondNID",
+	//			BehaviorID: "second",
+	//		},
+	//	},
+	//	Transitions: []flowstate.Transition{
+	//		{
+	//			ID:     "firstTID",
+	//			FromID: "",
+	//			ToID:   "firstNID",
+	//		},
+	//		{
+	//			ID:     "secondTID",
+	//			FromID: "firstNID",
+	//			ToID:   "secondNID",
+	//		},
+	//	},
+	//}
 
-	trkr := &tracker{}
+	trkr := &tracker2{}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
-		return flowstate.Transit(taskCtx, `secondTID`), nil
+		track2(taskCtx, trkr)
+		return flowstate.Transit(taskCtx, `second`), nil
 	}))
 	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 		return flowstate.End(taskCtx), nil
 	}))
 
@@ -53,19 +53,14 @@ func TestTwoConsequentNodes(t *testing.T) {
 
 	taskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "aTID",
-			Rev:        0,
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
-
-			Transition: p.Transitions[0],
+			ID:  "aTID",
+			Rev: 0,
 		},
-		Process: p,
-		Node:    p.Nodes[0],
 	}
 
+	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `first`)))
 	err := e.Execute(taskCtx)
 
 	require.NoError(t, err)
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.Visited())
+	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
 }

@@ -10,62 +10,18 @@ import (
 )
 
 func TestFork_WithCommit(t *testing.T) {
-	p := flowstate.Process{
-		ID:  "simplePID",
-		Rev: 1,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "firstNID",
-				BehaviorID: "fork",
-			},
-			{
-				ID:         "forkedNID",
-				BehaviorID: "end",
-			},
-			{
-				ID:         "originNID",
-				BehaviorID: "end",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:     "firstTID",
-				FromID: "",
-				ToID:   "firstNID",
-			},
-			{
-				ID:     "forkedTID",
-				FromID: "firstNID",
-				ToID:   "forkedNID",
-			},
-			{
-				ID:     "originTID",
-				FromID: "firstNID",
-				ToID:   "originNID",
-			},
-		},
-	}
-
 	var forkedTaskCtx *flowstate.TaskCtx
 	taskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "aTID",
-			Rev:        0,
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
-
-			Transition: p.Transitions[0],
+			ID: "aTID",
 		},
-		Process: p,
-		Node:    p.Nodes[0],
 	}
-	taskCtx.Current.CopyTo(&taskCtx.Committed)
 
-	trkr := &tracker{}
+	trkr := &tracker2{}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("fork", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 
 		forkedTaskCtx = &flowstate.TaskCtx{}
 		taskCtx.CopyTo(forkedTaskCtx)
@@ -75,8 +31,8 @@ func TestFork_WithCommit(t *testing.T) {
 
 		if err := taskCtx.Engine.Do(
 			flowstate.Commit(
-				flowstate.Transit(taskCtx, `originTID`),
-				flowstate.Transit(forkedTaskCtx, `forkedTID`),
+				flowstate.Transit(taskCtx, `origin`),
+				flowstate.Transit(forkedTaskCtx, `forked`),
 
 				flowstate.Execute(taskCtx),
 				flowstate.Execute(forkedTaskCtx),
@@ -87,22 +43,27 @@ func TestFork_WithCommit(t *testing.T) {
 
 		return flowstate.Nop(taskCtx), nil
 	}))
-	br.SetBehavior("end", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+	br.SetBehavior("forked", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+		track2(taskCtx, trkr)
+		return flowstate.End(taskCtx), nil
+	}))
+
+	br.SetBehavior("origin", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+		track2(taskCtx, trkr)
 		return flowstate.End(taskCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	err := e.Execute(taskCtx)
-	require.NoError(t, err)
+	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `fork`)))
+	require.NoError(t, e.Execute(taskCtx))
 
 	time.Sleep(time.Millisecond * 100)
 
-	require.Equal(t, []flowstate.TransitionID{
-		`firstTID`,
-		`forkedTID`,
-		`originTID`,
+	require.Equal(t, []string{
+		`fork`,
+		`forked`,
+		`origin`,
 	}, trkr.VisitedSorted())
 }

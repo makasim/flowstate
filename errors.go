@@ -6,6 +6,15 @@ type ErrCommitConflict struct {
 	errs    []error
 }
 
+func (err ErrCommitConflict) As(target interface{}) bool {
+	if targetErr, ok := target.(*ErrCommitConflict); ok {
+		*targetErr = err
+		return true
+	}
+
+	return false
+}
+
 func (err ErrCommitConflict) Error() string {
 	msg := "conflict;"
 	for i := range err.cmds {

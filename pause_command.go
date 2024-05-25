@@ -1,24 +1,34 @@
 package flowstate
 
-func Pause(taskCtx *TaskCtx, tsID TransitionID) *PauseCommand {
+var pausedAnnotation = `flowstate.paused`
+
+func Paused(taskCtx *TaskCtx) bool {
+	return taskCtx.Current.Transition.Annotations[pausedAnnotation] == `true`
+}
+
+func Pause(taskCtx *TaskCtx, bID BehaviorID) *PauseCommand {
 	return &PauseCommand{
-		TaskCtx:      taskCtx,
-		TransitionID: tsID,
+		TaskCtx:    taskCtx,
+		BehaviorID: bID,
 	}
 }
 
-var PausedAnnotation = `flowstate.paused`
-
 type PauseCommand struct {
-	TaskCtx      *TaskCtx
-	TransitionID TransitionID
+	TaskCtx    *TaskCtx
+	BehaviorID BehaviorID
 }
 
 func (cmd *PauseCommand) Prepare() error {
-	if err := Transit(cmd.TaskCtx, cmd.TransitionID).Prepare(); err != nil {
-		return err
-	}
+	cmd.TaskCtx.Transitions = append(cmd.TaskCtx.Transitions, cmd.TaskCtx.Current.Transition)
 
-	cmd.TaskCtx.Current.Transition.SetAnnotation(PausedAnnotation, `true`)
+	nextTs := Transition{
+		FromID:      cmd.TaskCtx.Current.Transition.ToID,
+		ToID:        cmd.BehaviorID,
+		Annotations: nil,
+	}
+	nextTs.SetAnnotation(pausedAnnotation, `true`)
+
+	cmd.TaskCtx.Current.Transition = nextTs
+
 	return nil
 }

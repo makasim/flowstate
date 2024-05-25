@@ -10,51 +10,15 @@ import (
 )
 
 func TestWatch(t *testing.T) {
-	p := flowstate.Process{
-		ID:  "simplePID",
-		Rev: 1,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "firstNID",
-				BehaviorID: "first",
-			},
-			{
-				ID:         "secondNID",
-				BehaviorID: "second",
-			},
-			{
-				ID:         "thirdNID",
-				BehaviorID: "third",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:     "firstTID",
-				FromID: "",
-				ToID:   "firstNID",
-			},
-			{
-				ID:     "secondTID",
-				FromID: "firstNID",
-				ToID:   "secondNID",
-			},
-			{
-				ID:     "thirdTID",
-				FromID: "secondNID",
-				ToID:   "thirdNID",
-			},
-		},
-	}
-
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		return flowstate.Commit(
-			flowstate.Transit(taskCtx, `secondTID`),
+			flowstate.Transit(taskCtx, `second`),
 		), nil
 	}))
 	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		return flowstate.Commit(
-			flowstate.Transit(taskCtx, `thirdTID`),
+			flowstate.Transit(taskCtx, `third`),
 		), nil
 	}))
 	br.SetBehavior("third", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
@@ -74,31 +38,27 @@ func TestWatch(t *testing.T) {
 
 	taskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "aTID",
-			Rev:        0,
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
+			ID: "aTID",
 		},
-		Process: p,
 	}
 	taskCtx.Current.SetLabel("theWatchLabel", `theValue`)
 
 	err = e.Do(flowstate.Commit(
-		flowstate.Transit(taskCtx, `firstTID`),
+		flowstate.Transit(taskCtx, `first`),
 	))
 	require.NoError(t, err)
 
 	err = e.Execute(taskCtx)
 	require.NoError(t, err)
 
-	var visited []flowstate.TransitionID
+	var visited []flowstate.BehaviorID
 	timeoutT := time.NewTimer(time.Second * 3)
 
 loop:
 	for {
 		select {
 		case taskCtx := <-w.Watch():
-			visited = append(visited, taskCtx.Current.Transition.ID)
+			visited = append(visited, taskCtx.Current.Transition.ToID)
 
 			if len(visited) >= 3 {
 				break loop
@@ -108,6 +68,6 @@ loop:
 		}
 	}
 
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`, `thirdTID`}, visited)
+	require.Equal(t, []flowstate.BehaviorID{`first`, `second`, `third`}, visited)
 
 }

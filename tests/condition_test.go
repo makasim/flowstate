@@ -9,60 +9,25 @@ import (
 )
 
 func TestCondition(t *testing.T) {
-	p := flowstate.Process{
-		ID:  "simplePID",
-		Rev: 1,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "firstNID",
-				BehaviorID: "first",
-			},
-			{
-				ID:         "secondNID",
-				BehaviorID: "end",
-			},
-			{
-				ID:         "thirdNID",
-				BehaviorID: "end",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:     "firstTID",
-				FromID: "",
-				ToID:   "firstNID",
-			},
-			{
-				ID:     "secondTID",
-				FromID: "firstNID",
-				ToID:   "secondNID",
-			},
-			{
-				ID:     "thirdTID",
-				FromID: "firstNID",
-				ToID:   "thirdNID",
-			},
-		},
-	}
-
-	trkr := &tracker{}
+	trkr := &tracker2{}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("first", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 
-		cond0, _ := taskCtx.Data.Get("condition")
-		cond := cond0.(bool)
-
-		tsID := flowstate.TransitionID(`thirdTID`)
-		if cond {
-			tsID = `secondTID`
+		bID := flowstate.BehaviorID(`third`)
+		if taskCtx.Current.Annotations["condition"] == "true" {
+			bID = `second`
 		}
 
-		return flowstate.Transit(taskCtx, tsID), nil
+		return flowstate.Transit(taskCtx, bID), nil
 	}))
-	br.SetBehavior("end", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+	br.SetBehavior("second", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+		track2(taskCtx, trkr)
+		return flowstate.End(taskCtx), nil
+	}))
+	br.SetBehavior("third", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
+		track2(taskCtx, trkr)
 		return flowstate.End(taskCtx), nil
 	}))
 
@@ -72,44 +37,30 @@ func TestCondition(t *testing.T) {
 	// condition true
 	taskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "aTID",
-			Rev:        0,
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
-
-			Transition: p.Transitions[0],
-		},
-		Process: p,
-		Node:    p.Nodes[0],
-		Data: flowstate.Data{
-			Bytes: []byte(`{"condition": true}`),
+			ID: "aTrueTID",
+			Annotations: map[string]string{
+				"condition": "true",
+			},
 		},
 	}
 
-	err := e.Execute(taskCtx)
-	require.NoError(t, err)
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `secondTID`}, trkr.Visited())
+	require.NoError(t, e.Do(flowstate.Transit(taskCtx, `first`)))
+	require.NoError(t, e.Execute(taskCtx))
+	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
 
 	// condition false
 	trkr.visited = nil
 
-	taskCtx = &flowstate.TaskCtx{
+	taskCtx1 := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "aTID",
-			Rev:        0,
-			ProcessID:  p.ID,
-			ProcessRev: p.Rev,
-
-			Transition: p.Transitions[0],
-		},
-		Process: p,
-		Node:    p.Nodes[0],
-		Data: flowstate.Data{
-			Bytes: []byte(`{"condition": false}`),
+			ID: "aFalseTID",
+			Annotations: map[string]string{
+				"condition": "false",
+			},
 		},
 	}
 
-	err = e.Execute(taskCtx)
-	require.NoError(t, err)
-	require.Equal(t, []flowstate.TransitionID{`firstTID`, `thirdTID`}, trkr.Visited())
+	require.NoError(t, e.Do(flowstate.Transit(taskCtx1, `first`)))
+	require.NoError(t, e.Execute(taskCtx1))
+	require.Equal(t, []string{`first`, `third`}, trkr.Visited())
 }

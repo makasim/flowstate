@@ -12,72 +12,16 @@ import (
 )
 
 func TestMutex(t *testing.T) {
-	pMutex := flowstate.Process{
-		ID:  "mutexPID",
-		Rev: 123,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "mutexNID",
-				BehaviorID: "mutex",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:   "locked",
-				ToID: "mutexNID",
-			},
-			{
-				ID:   "unlocked",
-				ToID: "mutexNID",
-			},
-		},
-	}
-
-	p := flowstate.Process{
-		ID:  "simplePID",
-		Rev: 1,
-		Nodes: []flowstate.Node{
-			{
-				ID:         "lockNID",
-				BehaviorID: "lock",
-			},
-			{
-				ID:         "protectedNID",
-				BehaviorID: "protected",
-			},
-			{
-				ID:         "unlockNID",
-				BehaviorID: "unlock",
-			},
-		},
-		Transitions: []flowstate.Transition{
-			{
-				ID:   "lock",
-				ToID: `lockNID`,
-			},
-			{
-				ID:     `protected`,
-				FromID: `lockNID`,
-				ToID:   `protectedNID`,
-			},
-			{
-				ID:     `unlock`,
-				FromID: `protectedNID`,
-				ToID:   `unlockNID`,
-			},
-		},
-	}
-
 	var raceDetector int
 
-	trkr := &tracker{}
+	trkr := &tracker2{}
 
 	br := &flowstate.MapBehaviorRegistry{}
 	br.SetBehavior("mutex", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must not be called; mutex is always paused")
 	}))
 	br.SetBehavior("lock", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 
 		e := taskCtx.Engine
 
@@ -93,7 +37,7 @@ func TestMutex(t *testing.T) {
 		var mutexTaskCtx *flowstate.TaskCtx
 
 		for {
-			if mutexTaskCtx != nil && mutexTaskCtx.Current.Transition.ID == "unlocked" {
+			if mutexTaskCtx != nil && mutexTaskCtx.Current.Transition.ToID == "unlocked" {
 				copyTaskCtx := &flowstate.TaskCtx{}
 				taskCtx.CopyTo(copyTaskCtx)
 
@@ -129,13 +73,13 @@ func TestMutex(t *testing.T) {
 		}
 	}))
 	br.SetBehavior("protected", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 
 		raceDetector += 1
 		return flowstate.Transit(taskCtx, `unlock`), nil
 	}))
 	br.SetBehavior("unlock", flowstate.BehaviorFunc(func(taskCtx *flowstate.TaskCtx) (flowstate.Command, error) {
-		track(taskCtx, trkr)
+		track2(taskCtx, trkr)
 
 		mutexTaskCtx := &flowstate.TaskCtx{}
 
@@ -152,27 +96,19 @@ func TestMutex(t *testing.T) {
 
 	mutexTaskCtx := &flowstate.TaskCtx{
 		Current: flowstate.Task{
-			ID:         "aMutexTID",
-			Rev:        0,
-			ProcessID:  pMutex.ID,
-			ProcessRev: pMutex.Rev,
+			ID: "aMutexTID",
 			Labels: map[string]string{
 				"mutex": "theName",
 			},
 		},
-		Process: pMutex,
 	}
 
 	var tasks []*flowstate.TaskCtx
 	for i := 0; i < 3; i++ {
 		taskCtx := &flowstate.TaskCtx{
 			Current: flowstate.Task{
-				ID:         flowstate.TaskID(fmt.Sprintf("aTID%d", i)),
-				Rev:        0,
-				ProcessID:  p.ID,
-				ProcessRev: p.Rev,
+				ID: flowstate.TaskID(fmt.Sprintf("aTID%d", i)),
 			},
-			Process: p,
 		}
 		tasks = append(tasks, taskCtx)
 	}
@@ -195,15 +131,15 @@ func TestMutex(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 500)
 
-	//require.Equal(t, []flowstate.TransitionID{
-	//	"lock",
-	//	"lock",
-	//	"lock",
-	//	"protected",
-	//	"unlock",
-	//	"protected",
-	//	"unlock",
-	//	"protected",
-	//	"unlock",
-	//}, trkr.Visited())
+	require.Equal(t, []string{
+		"lock",
+		"lock",
+		"lock",
+		"protected",
+		"unlock",
+		"protected",
+		"unlock",
+		"protected",
+		"unlock",
+	}, trkr.Visited())
 }

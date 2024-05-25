@@ -17,6 +17,16 @@ type EndCommand struct {
 }
 
 func (cmd *EndCommand) Prepare() error {
-	cmd.TaskCtx.Current.Transition.SetAnnotation(endedAnnotation, `true`)
+	cmd.TaskCtx.Transitions = append(cmd.TaskCtx.Transitions, cmd.TaskCtx.Current.Transition)
+
+	nextTs := Transition{
+		FromID:      cmd.TaskCtx.Current.Transition.ToID,
+		ToID:        ``,
+		Annotations: nil,
+	}
+	nextTs.SetAnnotation(endedAnnotation, `true`)
+
+	cmd.TaskCtx.Current.Transition = nextTs
+
 	return nil
 }
