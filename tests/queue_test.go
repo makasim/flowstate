@@ -45,10 +45,17 @@ func TestQueue(t *testing.T) {
 			case queuedStateCtx := <-w.Watch():
 				delete(queuedStateCtx.Current.Labels, "queue")
 
-				return flowstate.Commit(
-					flowstate.Resume(queuedStateCtx),
-					flowstate.End(stateCtx),
-				), nil
+				if err := e.Do(
+					flowstate.Commit(
+						flowstate.Resume(queuedStateCtx),
+						flowstate.End(stateCtx),
+					),
+					flowstate.Execute(queuedStateCtx),
+				); err != nil {
+					return nil, err
+				}
+
+				return flowstate.Nop(stateCtx), nil
 			}
 		}
 	}))

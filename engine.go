@@ -70,15 +70,23 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 			return err
 		}
 
+		if cmd, ok := cmd0.(*ExecuteCommand); ok {
+			cmd.sync = true
+		}
+
 		conflictErr := &ErrCommitConflict{}
 
-		stateCtx, err = e.prepareAndDo(cmd0, true)
-		if errors.As(err, conflictErr) {
+		if err = e.prepareAndDo(cmd0); errors.As(err, conflictErr) {
 			log.Printf("INFO: engine: execute: %s\n", conflictErr)
 			return nil
 		} else if err != nil {
 			return err
-		} else if stateCtx != nil {
+		}
+
+		if nextStateCtx, err := e.continueExecution(cmd0); err != nil {
+			return err
+		} else if nextStateCtx != nil {
+			stateCtx = nextStateCtx
 			continue
 		}
 
@@ -92,15 +100,8 @@ func (e *Engine) Do(cmds ...Command) error {
 	}
 
 	for _, cmd := range cmds {
-		stateCtx, err := e.prepareAndDo(cmd, false)
-		if err != nil {
+		if err := e.prepareAndDo(cmd); err != nil {
 			return err
-		} else if stateCtx != nil {
-			go func() {
-				if err := e.Execute(stateCtx); err != nil {
-					log.Printf("ERROR: engine: go execute: %s\n", err)
-				}
-			}()
 		}
 	}
 
@@ -116,47 +117,34 @@ func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
 	return cmd.Watcher, nil
 }
 
-func (e *Engine) prepareAndDo(cmd0 Command, sync bool) (*StateCtx, error) {
+func (e *Engine) prepareAndDo(cmd0 Command) error {
 	if err := cmd0.Prepare(); err != nil {
-		return nil, err
+		return err
 	}
 
-	return e.do(cmd0, sync)
+	return e.do(cmd0)
 }
 
-func (e *Engine) do(cmd0 Command, sync bool) (*StateCtx, error) {
+func (e *Engine) do(cmd0 Command) error {
 	if cmd1, ok := cmd0.(*CommitCommand); ok {
 		if err := e.d.Do(cmd1.Commands...); err != nil {
-			return nil, fmt.Errorf("driver: commit: %w", err)
+			return fmt.Errorf("driver: commit: %w", err)
 		}
 
-		var returnStateCtx *StateCtx
 		for _, cmd0 := range cmd1.Commands {
-			if stateCtx, err := e.do(cmd0, sync); err != nil {
-				return nil, err
-			} else if sync && stateCtx != nil && returnStateCtx == nil {
-				returnStateCtx = stateCtx
-			} else if stateCtx != nil {
-				go func() {
-					if err := e.Execute(stateCtx); err != nil {
-						log.Printf("ERROR: engine: go execute: %s\n", err)
-					}
-				}()
+			if err := e.do(cmd0); err != nil {
+				return err
 			}
 		}
 
-		return returnStateCtx, nil
+		return nil
 	}
 
 	switch cmd := cmd0.(type) {
 	case *EndCommand:
-		return nil, nil
+		return nil
 	case *TransitCommand:
-		if sync {
-			return cmd.StateCtx, nil
-		}
-
-		return nil, nil
+		return nil
 	case *DeferCommand:
 		// todo: replace naive implementation with real one
 		go func() {
@@ -170,33 +158,60 @@ func (e *Engine) do(cmd0 Command, sync bool) (*StateCtx, error) {
 			}
 		}()
 
-		return nil, nil
+		return nil
 	case *PauseCommand:
-		return nil, nil
+		return nil
 	case *StackCommand:
-		return nil, nil
+		return nil
 	case *UnstackCommand:
-		return nil, nil
+		return nil
 	case *ResumeCommand:
-		if sync {
-			return cmd.StateCtx, nil
+		return nil
+	case *WatchCommand:
+		return e.d.Do(cmd)
+	case *ForkCommand:
+		return nil
+	case *ExecuteCommand:
+		if cmd.sync {
+			return nil
 		}
 
-		return nil, nil
-	case *WatchCommand:
-		return nil, e.d.Do(cmd)
-	case *ForkCommand:
-		return nil, nil
-	case *ExecuteCommand:
 		go func() {
 			if err := e.Execute(cmd.StateCtx); err != nil {
 				log.Printf("ERROR: engine: go execute: %s\n", err)
 			}
 		}()
+		return nil
+	case *NopCommand:
+		return nil
+	default:
+		return fmt.Errorf("unknown command %T", cmd0)
+	}
+}
+
+func (e *Engine) continueExecution(cmd0 Command) (*StateCtx, error) {
+	switch cmd := cmd0.(type) {
+	case *CommitCommand:
+		if len(cmd.Commands) != 1 {
+			return nil, fmt.Errorf("commit command must have exactly one command")
+		}
+
+		return e.continueExecution(cmd.Commands[0])
+	case *ExecuteCommand:
+		return cmd.StateCtx, nil
+	case *TransitCommand:
+		return cmd.StateCtx, nil
+	case *ResumeCommand:
+		return cmd.StateCtx, nil
+	case *PauseCommand:
+		return nil, nil
+	case *DeferCommand:
+		return nil, nil
+	case *EndCommand:
 		return nil, nil
 	case *NopCommand:
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("unknown command %T", cmd0)
+		return nil, fmt.Errorf("unknown command 123 %T", cmd0)
 	}
 }
