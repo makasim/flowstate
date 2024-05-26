@@ -20,8 +20,8 @@ func TestRateLimit(t *testing.T) {
 		IncludeState: true,
 	}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr := memdriver.NewFlowRegistry()
+	fr.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
@@ -57,7 +57,7 @@ func TestRateLimit(t *testing.T) {
 			}
 		}
 	}))
-	br.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx) {
@@ -91,7 +91,7 @@ func TestRateLimit(t *testing.T) {
 	}
 
 	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d, fr)
 
 	require.NoError(t, e.Do(
 		flowstate.Commit(
@@ -135,5 +135,5 @@ func TestRateLimit(t *testing.T) {
 		"limited:resumed",
 		"limited:resumed",
 		"limited:resumed",
-	}, trkr.Visited())
+	}, visited)
 }

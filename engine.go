@@ -13,40 +13,15 @@ type flowRegistry interface {
 	Flow(id FlowID) (Flow, error)
 }
 
-type MapFlowRegistry struct {
-	flows map[FlowID]Flow
-}
-
-func (r *MapFlowRegistry) SetFlow(id FlowID, b Flow) {
-	if r.flows == nil {
-		r.flows = make(map[FlowID]Flow)
-	}
-
-	r.flows[id] = b
-}
-
-func (r *MapFlowRegistry) Flow(id FlowID) (Flow, error) {
-	if r.flows == nil {
-		return nil, ErrFlowNotFound
-	}
-
-	b, ok := r.flows[id]
-	if !ok {
-		return nil, ErrFlowNotFound
-	}
-
-	return b, nil
-}
-
 type Engine struct {
 	d  Driver
-	br flowRegistry
+	fr flowRegistry
 }
 
-func NewEngine(d Driver, br flowRegistry) *Engine {
+func NewEngine(d Driver, fr flowRegistry) *Engine {
 	return &Engine{
 		d:  d,
-		br: br,
+		fr: fr,
 	}
 }
 
@@ -60,12 +35,12 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 			return fmt.Errorf(`transition to id empty`)
 		}
 
-		b, err := e.br.Flow(stateCtx.Current.Transition.ToID)
+		f, err := e.getFlow(stateCtx)
 		if err != nil {
 			return err
 		}
 
-		cmd0, err := b.Execute(stateCtx, e)
+		cmd0, err := f.Execute(stateCtx, e)
 		if err != nil {
 			return err
 		}
@@ -182,9 +157,31 @@ func (e *Engine) do(cmd0 Command) error {
 		return nil
 	case *NopCommand:
 		return nil
+	case *GetFlowCommand:
+		if cmd.StateCtx.Current.Transition.ToID == "" {
+			return fmt.Errorf("transition flow to is empty")
+		}
+
+		f, err := e.fr.Flow(cmd.StateCtx.Current.Transition.ToID)
+		if err != nil {
+			return err
+		}
+
+		cmd.Flow = f
+
+		return nil
 	default:
 		return fmt.Errorf("unknown command %T", cmd0)
 	}
+}
+
+func (e *Engine) getFlow(stateCtx *StateCtx) (Flow, error) {
+	cmd := GetFlow(stateCtx)
+	if err := e.Do(cmd); err != nil {
+		return nil, err
+	}
+
+	return cmd.Flow, nil
 }
 
 func (e *Engine) continueExecution(cmd0 Command) (*StateCtx, error) {
