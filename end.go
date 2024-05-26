@@ -16,7 +16,19 @@ type EndCommand struct {
 	StateCtx *StateCtx
 }
 
-func (cmd *EndCommand) Prepare() error {
+type Ender struct {
+}
+
+func NewEnder() *Ender {
+	return &Ender{}
+}
+
+func (d *Ender) Do(cmd0 Command) (*StateCtx, error) {
+	cmd, ok := cmd0.(*EndCommand)
+	if !ok {
+		return nil, ErrCommandNotSupported
+	}
+
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
@@ -28,5 +40,5 @@ func (cmd *EndCommand) Prepare() error {
 
 	cmd.StateCtx.Current.Transition = nextTs
 
-	return nil
+	return nil, nil
 }

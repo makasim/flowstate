@@ -10,30 +10,30 @@ import (
 )
 
 func TestWatch(t *testing.T) {
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		return flowstate.Commit(
 			flowstate.Transit(stateCtx, `second`),
 		), nil
 	}))
-	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		return flowstate.Commit(
 			flowstate.Transit(stateCtx, `third`),
 		), nil
 	}))
-	br.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		return flowstate.Commit(
 			flowstate.End(stateCtx),
 		), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d)
 
-	w, err := e.Watch(0, map[string]string{
+	wCmd := flowstate.Watch(0, map[string]string{
 		`theWatchLabel`: `theValue`,
 	})
-	require.NoError(t, err)
+	require.NoError(t, e.Do(wCmd))
+	w := wCmd.Listener
 	defer w.Close()
 
 	stateCtx := &flowstate.StateCtx{
@@ -43,7 +43,7 @@ func TestWatch(t *testing.T) {
 	}
 	stateCtx.Current.SetLabel("theWatchLabel", `theValue`)
 
-	err = e.Do(flowstate.Commit(
+	err := e.Do(flowstate.Commit(
 		flowstate.Transit(stateCtx, `first`),
 	))
 	require.NoError(t, err)

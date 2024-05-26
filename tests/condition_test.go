@@ -12,7 +12,7 @@ func TestCondition(t *testing.T) {
 	trkr := &tracker2{}
 
 	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		bID := flowstate.FlowID(`third`)
@@ -22,11 +22,11 @@ func TestCondition(t *testing.T) {
 
 		return flowstate.Transit(stateCtx, bID), nil
 	}))
-	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
-	br.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

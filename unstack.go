@@ -20,21 +20,38 @@ type UnstackCommand struct {
 }
 
 func (cmd *UnstackCommand) Prepare() error {
+
+	return nil
+}
+
+type Unstacker struct {
+}
+
+func NewUnstacker() *Unstacker {
+	return &Unstacker{}
+}
+
+func (d *Unstacker) Do(cmd0 Command) (*StateCtx, error) {
+	cmd, ok := cmd0.(*UnstackCommand)
+	if !ok {
+		return nil, ErrCommandNotSupported
+	}
+
 	stackedTask := cmd.StateCtx.Current.Annotations[stackedAnnotation]
 	if stackedTask == `` {
-		return fmt.Errorf("no state to unstack; the annotation not set")
+		return nil, fmt.Errorf("no state to unstack; the annotation not set")
 	}
 
 	b, err := base64.StdEncoding.DecodeString(stackedTask)
 	if err != nil {
-		return fmt.Errorf("base64 decode: %s", err)
+		return nil, fmt.Errorf("base64 decode: %s", err)
 	}
 
 	if err := json.Unmarshal(b, cmd.UnstackStateCtx); err != nil {
-		return fmt.Errorf("json unmarshal: %s", err)
+		return nil, fmt.Errorf("json unmarshal: %s", err)
 	}
 
 	cmd.StateCtx.Current.Annotations[stackedAnnotation] = ``
 
-	return nil
+	return nil, nil
 }

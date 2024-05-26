@@ -21,7 +21,7 @@ func TestCallProcessWithCommit(t *testing.T) {
 	trkr := &tracker2{}
 
 	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx) {
@@ -45,9 +45,9 @@ func TestCallProcessWithCommit(t *testing.T) {
 			return nil, err
 		}
 
-		return flowstate.Nop(stateCtx), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
-	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if err := e.Do(
@@ -57,9 +57,9 @@ func TestCallProcessWithCommit(t *testing.T) {
 			return nil, err
 		}
 
-		return flowstate.Nop(stateCtx), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
-	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		if flowstate.Stacked(stateCtx) {
 			callStateCtx := &flowstate.StateCtx{}
@@ -75,12 +75,12 @@ func TestCallProcessWithCommit(t *testing.T) {
 				return nil, err
 			}
 
-			return flowstate.Nop(stateCtx), nil
+			return flowstate.Noop(stateCtx), nil
 		}
 
 		return flowstate.End(stateCtx), nil
 	}))
-	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		close(endedCh)

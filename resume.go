@@ -17,7 +17,19 @@ type ResumeCommand struct {
 	StateCtx *StateCtx
 }
 
-func (cmd *ResumeCommand) Prepare() error {
+type Resumer struct {
+}
+
+func NewResumer() *Resumer {
+	return &Resumer{}
+}
+
+func (d *Resumer) Do(cmd0 Command) (*StateCtx, error) {
+	cmd, ok := cmd0.(*ResumeCommand)
+	if !ok {
+		return nil, ErrCommandNotSupported
+	}
+
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
@@ -29,5 +41,5 @@ func (cmd *ResumeCommand) Prepare() error {
 
 	cmd.StateCtx.Current.Transition = nextTs
 
-	return nil
+	return cmd.StateCtx, nil
 }

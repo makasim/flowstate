@@ -22,7 +22,7 @@ func TestCallProcessWithWatch(t *testing.T) {
 	trkr := &tracker2{}
 
 	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if stateCtx.Current.Annotations[`called`] == `` {
@@ -72,18 +72,18 @@ func TestCallProcessWithWatch(t *testing.T) {
 		}
 
 	}))
-	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		return flowstate.Commit(
 			flowstate.End(stateCtx),
 		), nil
 	}))
-	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		close(endedCh)

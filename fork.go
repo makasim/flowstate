@@ -1,6 +1,8 @@
 package flowstate
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func Fork(stateCtx, forkedStateCtx *StateCtx) *ForkCommand {
 	return &ForkCommand{
@@ -16,6 +18,23 @@ type ForkCommand struct {
 }
 
 func (cmd *ForkCommand) Prepare() error {
+
+	return nil
+}
+
+type Forker struct {
+}
+
+func NewForker() *Forker {
+	return &Forker{}
+}
+
+func (d *Forker) Do(cmd0 Command) (*StateCtx, error) {
+	cmd, ok := cmd0.(*ForkCommand)
+	if !ok {
+		return nil, ErrCommandNotSupported
+	}
+
 	tID := cmd.ForkedStateCtx.Current.ID
 
 	cmd.StateCtx.CopyTo(cmd.ForkedStateCtx)
@@ -25,8 +44,8 @@ func (cmd *ForkCommand) Prepare() error {
 	//cmd.StateTaskCtx.Current.CopyTo(&forkedTaskCtx.Committed)
 
 	if cmd.ForkedStateCtx.Current.ID == `` {
-		return fmt.Errorf(`forked state ID empty`)
+		return nil, fmt.Errorf(`forked state ID empty`)
 	}
 
-	return nil
+	return nil, nil
 }

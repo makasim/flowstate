@@ -21,7 +21,7 @@ func TestRateLimit(t *testing.T) {
 	}
 
 	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
@@ -50,11 +50,11 @@ func TestRateLimit(t *testing.T) {
 					return nil, err
 				}
 			case <-closeCh:
-				return flowstate.Nop(stateCtx), nil
+				return flowstate.Noop(stateCtx), nil
 			}
 		}
 	}))
-	br.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	br.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx) {

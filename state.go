@@ -44,6 +44,8 @@ type StateCtx struct {
 
 	// Transitions between committed and current states
 	Transitions []Transition `json:"transitions2"`
+
+	Doer Doer `json:"-"`
 }
 
 func (t *StateCtx) CopyTo(to *StateCtx) *StateCtx {

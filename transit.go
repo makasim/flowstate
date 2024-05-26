@@ -12,7 +12,19 @@ type TransitCommand struct {
 	FlowID   FlowID
 }
 
-func (cmd *TransitCommand) Prepare() error {
+type Transiter struct {
+}
+
+func NewTransiter() *Transiter {
+	return &Transiter{}
+}
+
+func (d *Transiter) Do(cmd0 Command) (*StateCtx, error) {
+	cmd, ok := cmd0.(*TransitCommand)
+	if !ok {
+		return nil, ErrCommandNotSupported
+	}
+
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
@@ -23,5 +35,5 @@ func (cmd *TransitCommand) Prepare() error {
 
 	cmd.StateCtx.Current.Transition = nextTs
 
-	return nil
+	return cmd.StateCtx, nil
 }

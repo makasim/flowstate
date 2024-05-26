@@ -16,8 +16,8 @@ func TestQueue(t *testing.T) {
 		IncludeState:  true,
 	}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		if flowstate.Resumed(stateCtx) {
 			return flowstate.Transit(stateCtx, `dequeued`), nil
@@ -29,7 +29,7 @@ func TestQueue(t *testing.T) {
 			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
 		), nil
 	}))
-	br.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		w, err := e.Watch(0, map[string]string{
@@ -52,15 +52,14 @@ func TestQueue(t *testing.T) {
 			}
 		}
 	}))
-	br.SetFlow("dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.End(stateCtx),
 		), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d)
 
 	for i := 0; i < 3; i++ {
 		stateCtx := &flowstate.StateCtx{

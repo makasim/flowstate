@@ -20,8 +20,8 @@ func TestForkJoin_LastWins(t *testing.T) {
 
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		stateCtx.Current.SetLabel(`theForkJoinLabel`, string(stateCtx.Current.ID))
@@ -34,24 +34,24 @@ func TestForkJoin_LastWins(t *testing.T) {
 		forkedTwoStateCtx.Current.ID = "forkedTwoTID"
 		forkedTwoStateCtx.Committed.ID = "forkedTwoTID"
 
-		if err := e.Do(flowstate.Commit(
-			flowstate.Fork(stateCtx, forkedStateCtx),
-			flowstate.Fork(stateCtx, forkedTwoStateCtx),
+		if err := e.Do(
+			flowstate.Commit(
+				flowstate.Fork(stateCtx, forkedStateCtx),
+				flowstate.Fork(stateCtx, forkedTwoStateCtx),
 
-			flowstate.Transit(stateCtx, `forked`),
-			flowstate.Transit(forkedStateCtx, `forked`),
-			flowstate.Transit(forkedTwoStateCtx, `forked`),
-
+				flowstate.Transit(stateCtx, `forked`),
+				flowstate.Transit(forkedStateCtx, `forked`),
+				flowstate.Transit(forkedTwoStateCtx, `forked`),
+			),
 			flowstate.Execute(stateCtx),
 			flowstate.Execute(forkedStateCtx),
-			flowstate.Execute(forkedTwoStateCtx),
-		)); err != nil {
+			flowstate.Execute(forkedTwoStateCtx)); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Nop(stateCtx), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
-	br.SetFlow("join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if stateCtx.Committed.Transition.ToID != `join` {
@@ -97,18 +97,17 @@ func TestForkJoin_LastWins(t *testing.T) {
 		}
 	}))
 
-	br.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `join`), nil
 	}))
 
-	br.SetFlow("joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d)
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))
 	require.NoError(t, e.Execute(stateCtx))

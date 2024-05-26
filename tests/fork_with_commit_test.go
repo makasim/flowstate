@@ -19,8 +19,8 @@ func TestFork_WithCommit(t *testing.T) {
 
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		forkedStateCtx = &flowstate.StateCtx{}
@@ -33,28 +33,26 @@ func TestFork_WithCommit(t *testing.T) {
 			flowstate.Commit(
 				flowstate.Transit(stateCtx, `origin`),
 				flowstate.Transit(forkedStateCtx, `forked`),
-
-				flowstate.Execute(stateCtx),
-				flowstate.Execute(forkedStateCtx),
 			),
+			flowstate.Execute(stateCtx),
+			flowstate.Execute(forkedStateCtx),
 		); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Nop(stateCtx), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
-	br.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
-	br.SetFlow("origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d)
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))
 	require.NoError(t, e.Execute(stateCtx))

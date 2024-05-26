@@ -1,133 +1,59 @@
 package memdriver
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/makasim/flowstate"
 )
 
 type Driver struct {
-	l  Log
-	ws []*Watcher
+	*FlowRegistry
+	*Log
+	doers []flowstate.Doer
 }
 
-func (d *Driver) Do(cmds ...flowstate.Command) error {
-	d.l.Lock()
-	defer d.l.Unlock()
-	defer d.l.Rollback()
+func New() *Driver {
+	fr := NewFlowRegistry()
+	l := &Log{}
 
-	for _, cmd0 := range cmds {
-		if err := cmd0.Prepare(); err != nil {
-			return fmt.Errorf("%T: prepare: %w", cmd0, err)
-		}
-
-		switch cmd := cmd0.(type) {
-		case *flowstate.CommitCommand:
-			return fmt.Errorf("commit command not allowed")
-		case *flowstate.TransitCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
-		case *flowstate.EndCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if stateCtx.Committed.Rev == 0 {
-				return fmt.Errorf("state rev empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
-		case *flowstate.DeferCommand:
-			stateCtx := cmd.DeferredStateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if stateCtx.Committed.Rev == 0 {
-				return fmt.Errorf("state rev empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
-		case *flowstate.PauseCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
-		case *flowstate.ResumeCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
-		case *flowstate.WatchCommand:
-			w := &Watcher{
-				sinceRev:    cmd.SinceRev,
-				sinceLatest: cmd.SinceLatest,
-				// todo: copy labels
-				labels: cmd.Labels,
-
-				watchCh:  make(chan *flowstate.StateCtx, 1),
-				changeCh: make(chan int64, 1),
-				closeCh:  make(chan struct{}),
-				l:        &d.l,
-			}
-
-			cmd.Watcher = w
-			w.Change(cmd.SinceRev)
-			d.ws = append(d.ws, w)
-
-			go w.listen()
-		case *flowstate.NopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand, *flowstate.ForkCommand:
-			continue
-		case *flowstate.ExecuteCommand:
-			continue
-		default:
-			return fmt.Errorf("unknown command: %T", cmd0)
-		}
+	d := &Driver{
+		Log:          l,
+		FlowRegistry: fr,
 	}
 
-	d.l.Commit()
+	doers := []flowstate.Doer{
+		flowstate.NewTransiter(),
+		flowstate.NewPauser(),
+		flowstate.NewResumer(),
+		flowstate.NewEnder(),
+		flowstate.NewNooper(),
+		flowstate.NewForker(),
+		flowstate.NewStacker(),
+		flowstate.NewUnstacker(),
+		flowstate.NewExecutor(d),
 
-	for _, w := range d.ws {
-		w.Change(d.l.rev)
+		fr,
+		NewCommiter(l, d),
+		NewWatcher(l),
+		NewDeferer(d),
+	}
+	d.doers = doers
+
+	return d
+}
+
+func (d *Driver) Do(cmd0 flowstate.Command) (*flowstate.StateCtx, error) {
+	for _, doer := range d.doers {
+		nextStateCtx, err := doer.Do(cmd0)
+		if errors.Is(err, flowstate.ErrCommandNotSupported) {
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("%T: do: %w", doer, err)
+		}
+
+		return nextStateCtx, nil
 	}
 
-	return nil
+	return nil, fmt.Errorf("no doer for command %T", cmd0)
 }

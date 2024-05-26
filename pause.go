@@ -18,7 +18,19 @@ type PauseCommand struct {
 	FlowID   FlowID
 }
 
-func (cmd *PauseCommand) Prepare() error {
+type Pauser struct {
+}
+
+func NewPauser() *Pauser {
+	return &Pauser{}
+}
+
+func (d *Pauser) Do(cmd0 Command) (*StateCtx, error) {
+	cmd, ok := cmd0.(*PauseCommand)
+	if !ok {
+		return nil, ErrCommandNotSupported
+	}
+
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
@@ -30,5 +42,5 @@ func (cmd *PauseCommand) Prepare() error {
 
 	cmd.StateCtx.Current.Transition = nextTs
 
-	return nil
+	return nil, nil
 }

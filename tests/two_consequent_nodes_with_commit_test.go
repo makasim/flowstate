@@ -11,18 +11,19 @@ import (
 func TestTwoConsequentNodesWithCommit(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
-		return flowstate.Commit(flowstate.Transit(stateCtx, `second`)), nil
+		return flowstate.Commit(
+			flowstate.Transit(stateCtx, `second`),
+		), nil
 	}))
-	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d)
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{

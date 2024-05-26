@@ -16,11 +16,11 @@ func TestMutex(t *testing.T) {
 
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("mutex", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("mutex", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must not be called; mutex is always paused")
 	}))
-	br.SetFlow("lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		wCmd := flowstate.Watch(0, map[string]string{"mutex": "theName"})
@@ -29,7 +29,7 @@ func TestMutex(t *testing.T) {
 		if err := e.Do(wCmd); err != nil {
 			return nil, err
 		}
-		w := wCmd.Watcher
+		w := wCmd.Listener
 		defer w.Close()
 
 		var mutexStateCtx *flowstate.StateCtx
@@ -70,13 +70,13 @@ func TestMutex(t *testing.T) {
 
 		}
 	}))
-	br.SetFlow("protected", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("protected", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		raceDetector += 1
 		return flowstate.Transit(stateCtx, `unlock`), nil
 	}))
-	br.SetFlow("unlock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("unlock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		mutexStateCtx := &flowstate.StateCtx{}
@@ -89,7 +89,7 @@ func TestMutex(t *testing.T) {
 			return nil, err
 		}
 
-		return flowstate.Nop(stateCtx), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
 
 	mutexStateCtx := &flowstate.StateCtx{
@@ -111,8 +111,7 @@ func TestMutex(t *testing.T) {
 		states = append(states, statesCtx)
 	}
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d)
 
 	err := e.Do(flowstate.Commit(
 		flowstate.Pause(mutexStateCtx, `unlocked`),
@@ -120,10 +119,12 @@ func TestMutex(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, stateCtx := range states {
-		err = e.Do(flowstate.Commit(
-			flowstate.Transit(stateCtx, `lock`),
+		err = e.Do(
+			flowstate.Commit(
+				flowstate.Transit(stateCtx, `lock`),
+			),
 			flowstate.Execute(stateCtx),
-		))
+		)
 		require.NoError(t, err)
 	}
 

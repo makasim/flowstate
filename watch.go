@@ -1,5 +1,10 @@
 package flowstate
 
+type WatchListener interface {
+	Watch() <-chan *StateCtx
+	Close()
+}
+
 func Watch(sinceRev int64, labels map[string]string) *WatchCommand {
 	return &WatchCommand{
 		SinceRev: sinceRev,
@@ -12,9 +17,7 @@ type WatchCommand struct {
 	SinceLatest bool
 	Labels      map[string]string
 
-	Watcher Watcher
+	Listener WatchListener
 }
 
-func (cmd *WatchCommand) Prepare() error {
-	return nil
-}
+// A driver must implement a command doer.

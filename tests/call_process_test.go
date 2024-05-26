@@ -20,8 +20,8 @@ func TestCallProcess(t *testing.T) {
 	endedCh := make(chan struct{})
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx) {
@@ -43,13 +43,13 @@ func TestCallProcess(t *testing.T) {
 			return nil, err
 		}
 
-		return flowstate.Nop(stateCtx), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
-	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if flowstate.Stacked(stateCtx) {
@@ -64,13 +64,13 @@ func TestCallProcess(t *testing.T) {
 				return nil, err
 			}
 
-			return flowstate.Nop(stateCtx), nil
+			return flowstate.Noop(stateCtx), nil
 		}
 
 		return flowstate.End(stateCtx), nil
 	}))
 
-	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		close(endedCh)
@@ -78,8 +78,7 @@ func TestCallProcess(t *testing.T) {
 		return flowstate.End(stateCtx), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d)
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `call`)))
 	require.NoError(t, e.Execute(stateCtx))

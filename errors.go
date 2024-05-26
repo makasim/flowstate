@@ -1,5 +1,9 @@
 package flowstate
 
+import "errors"
+
+var ErrFlowNotFound = errors.New("flow not found")
+
 type ErrCommitConflict struct {
 	cmds     []string
 	stateIDs []StateID

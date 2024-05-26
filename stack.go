@@ -25,19 +25,31 @@ type StackCommand struct {
 	NextStateCtx    *StateCtx
 }
 
-func (cmd *StackCommand) Prepare() error {
+type Stacker struct {
+}
+
+func NewStacker() *Stacker {
+	return &Stacker{}
+}
+
+func (d *Stacker) Do(cmd0 Command) (*StateCtx, error) {
+	cmd, ok := cmd0.(*StackCommand)
+	if !ok {
+		return nil, ErrCommandNotSupported
+	}
+
 	if Stacked(cmd.NextStateCtx) {
-		return fmt.Errorf("next state already stacked")
+		return nil, fmt.Errorf("next state already stacked")
 	}
 
 	b, err := json.Marshal(cmd.StackedStateCtx)
 	if err != nil {
-		return fmt.Errorf("json marshal prev state ctx: %s", err)
+		return nil, fmt.Errorf("json marshal prev state ctx: %s", err)
 	}
 
 	stacked := base64.StdEncoding.EncodeToString(b)
 
 	cmd.NextStateCtx.Current.SetAnnotation(stackedAnnotation, stacked)
 
-	return nil
+	return nil, nil
 }

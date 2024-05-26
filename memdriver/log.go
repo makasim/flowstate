@@ -1,6 +1,7 @@
 package memdriver
 
 import (
+	"fmt"
 	"slices"
 	"sync"
 
@@ -13,6 +14,8 @@ type Log struct {
 	entries []*flowstate.StateCtx
 
 	changes []*flowstate.StateCtx
+
+	listeners []chan int64
 }
 
 func (l *Log) Append(stateCtx *flowstate.StateCtx) {
@@ -55,6 +58,14 @@ func (l *Log) Commit() {
 	}
 
 	l.changes = l.changes[:0]
+
+	for _, ch := range l.listeners {
+		select {
+		case ch <- l.rev:
+		case <-ch:
+			ch <- l.rev
+		}
+	}
 }
 
 func (l *Log) Rollback() {
@@ -111,4 +122,28 @@ func (l *Log) Entries(since int64, limit int) ([]*flowstate.StateCtx, int64) {
 	}
 
 	return entries, since
+}
+
+func (l *Log) SubscribeCommit(notifyCh chan int64) error {
+	if cap(notifyCh) == 0 {
+		return fmt.Errorf("notify channel is not buffered")
+	}
+
+	l.Lock()
+	defer l.Unlock()
+
+	l.listeners = append(l.listeners, notifyCh)
+	return nil
+}
+
+func (l *Log) UnsubscribeCommit(notifyCh chan int64) {
+	l.Lock()
+	defer l.Unlock()
+
+	for i, ch := range l.listeners {
+		if ch == notifyCh {
+			l.listeners = append(l.listeners[:i], l.listeners[i+1:]...)
+			return
+		}
+	}
 }
