@@ -34,18 +34,19 @@ func TestForkJoin_LastWins(t *testing.T) {
 		forkedTwoStateCtx.Current.ID = "forkedTwoTID"
 		forkedTwoStateCtx.Committed.ID = "forkedTwoTID"
 
-		if err := e.Do(flowstate.Commit(
-			flowstate.Fork(stateCtx, forkedStateCtx),
-			flowstate.Fork(stateCtx, forkedTwoStateCtx),
+		if err := e.Do(
+			flowstate.Commit(
+				flowstate.Fork(stateCtx, forkedStateCtx),
+				flowstate.Fork(stateCtx, forkedTwoStateCtx),
 
-			flowstate.Transit(stateCtx, `forked`),
-			flowstate.Transit(forkedStateCtx, `forked`),
-			flowstate.Transit(forkedTwoStateCtx, `forked`),
-
+				flowstate.Transit(stateCtx, `forked`),
+				flowstate.Transit(forkedStateCtx, `forked`),
+				flowstate.Transit(forkedTwoStateCtx, `forked`),
+			),
 			flowstate.Execute(stateCtx),
 			flowstate.Execute(forkedStateCtx),
 			flowstate.Execute(forkedTwoStateCtx),
-		)); err != nil {
+		); err != nil {
 			return nil, err
 		}
 
