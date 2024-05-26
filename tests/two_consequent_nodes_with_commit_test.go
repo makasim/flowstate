@@ -14,7 +14,9 @@ func TestTwoConsequentNodesWithCommit(t *testing.T) {
 	br := &flowstate.MapFlowRegistry{}
 	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
-		return flowstate.Commit(flowstate.Transit(stateCtx, `second`)), nil
+		return flowstate.Commit(
+			flowstate.Transit(stateCtx, `second`),
+		), nil
 	}))
 	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)

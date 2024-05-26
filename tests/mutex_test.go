@@ -120,10 +120,12 @@ func TestMutex(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, stateCtx := range states {
-		err = e.Do(flowstate.Commit(
-			flowstate.Transit(stateCtx, `lock`),
+		err = e.Do(
+			flowstate.Commit(
+				flowstate.Transit(stateCtx, `lock`),
+			),
 			flowstate.Execute(stateCtx),
-		))
+		)
 		require.NoError(t, err)
 	}
 

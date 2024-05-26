@@ -39,8 +39,8 @@ func TestCallProcessWithCommit(t *testing.T) {
 				flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
 				flowstate.Stack(stateCtx, nextStateCtx),
 				flowstate.Transit(nextStateCtx, `called`),
-				flowstate.Execute(nextStateCtx),
 			),
+			flowstate.Execute(nextStateCtx),
 		); err != nil {
 			return nil, err
 		}
@@ -68,9 +68,9 @@ func TestCallProcessWithCommit(t *testing.T) {
 				flowstate.Commit(
 					flowstate.Unstack(stateCtx, callStateCtx),
 					flowstate.Resume(callStateCtx),
-					flowstate.Execute(callStateCtx),
 					flowstate.End(stateCtx),
 				),
+				flowstate.Execute(callStateCtx),
 			); err != nil {
 				return nil, err
 			}

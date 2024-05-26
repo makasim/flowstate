@@ -44,10 +44,12 @@ func TestRateLimit(t *testing.T) {
 				}
 
 				delete(limitedStateCtx.Current.Labels, "limiter")
-				if err := e.Do(flowstate.Commit(
-					flowstate.Resume(limitedStateCtx),
+				if err := e.Do(
+					flowstate.Commit(
+						flowstate.Resume(limitedStateCtx),
+					),
 					flowstate.Execute(limitedStateCtx),
-				)); err != nil {
+				); err != nil {
 					return nil, err
 				}
 			case <-closeCh:
@@ -91,16 +93,20 @@ func TestRateLimit(t *testing.T) {
 	d := &memdriver.Driver{}
 	e := flowstate.NewEngine(d, br)
 
-	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Transit(limiterStateCtx, `limiter`),
+	require.NoError(t, e.Do(
+		flowstate.Commit(
+			flowstate.Transit(limiterStateCtx, `limiter`),
+		),
 		flowstate.Execute(limiterStateCtx),
-	)))
+	))
 
 	for _, stateCtx := range states {
-		require.NoError(t, e.Do(flowstate.Commit(
-			flowstate.Transit(stateCtx, `limited`),
+		require.NoError(t, e.Do(
+			flowstate.Commit(
+				flowstate.Transit(stateCtx, `limited`),
+			),
 			flowstate.Execute(stateCtx),
-		)))
+		))
 	}
 
 	var visited []string

@@ -126,21 +126,19 @@ func (e *Engine) prepareAndDo(cmd0 Command) error {
 }
 
 func (e *Engine) do(cmd0 Command) error {
-	if cmd1, ok := cmd0.(*CommitCommand); ok {
-		if err := e.d.Do(cmd1.Commands...); err != nil {
+	switch cmd := cmd0.(type) {
+	case *CommitCommand:
+		if err := e.d.Do(cmd.Commands...); err != nil {
 			return fmt.Errorf("driver: commit: %w", err)
 		}
 
-		for _, cmd0 := range cmd1.Commands {
-			if err := e.do(cmd0); err != nil {
+		for _, subCmd := range cmd.Commands {
+			if err := e.do(subCmd); err != nil {
 				return err
 			}
 		}
 
 		return nil
-	}
-
-	switch cmd := cmd0.(type) {
 	case *EndCommand:
 		return nil
 	case *TransitCommand:

@@ -117,7 +117,7 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 		case *flowstate.NopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand, *flowstate.ForkCommand:
 			continue
 		case *flowstate.ExecuteCommand:
-			continue
+			return fmt.Errorf("execute command not allowed inside commit")
 		default:
 			return fmt.Errorf("unknown command: %T", cmd0)
 		}

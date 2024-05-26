@@ -33,10 +33,9 @@ func TestFork_WithCommit(t *testing.T) {
 			flowstate.Commit(
 				flowstate.Transit(stateCtx, `origin`),
 				flowstate.Transit(forkedStateCtx, `forked`),
-
-				flowstate.Execute(stateCtx),
-				flowstate.Execute(forkedStateCtx),
 			),
+			flowstate.Execute(stateCtx),
+			flowstate.Execute(forkedStateCtx),
 		); err != nil {
 			return nil, err
 		}

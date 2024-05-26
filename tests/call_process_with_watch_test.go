@@ -40,8 +40,8 @@ func TestCallProcessWithWatch(t *testing.T) {
 				flowstate.Commit(
 					flowstate.Transit(stateCtx, `call`),
 					flowstate.Transit(nextStateCtx, `called`),
-					flowstate.Execute(nextStateCtx),
 				),
+				flowstate.Execute(nextStateCtx),
 			); err != nil {
 				return nil, err
 			}
