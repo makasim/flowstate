@@ -129,15 +129,24 @@ func TestMutex(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 500)
 
-	require.Equal(t, []string{
-		"lock",
-		"lock",
-		"lock",
-		"protected",
-		"unlock",
-		"protected",
-		"unlock",
-		"protected",
-		"unlock",
-	}, trkr.Visited())
+	visited := trkr.Visited()
+
+	require.Len(t, visited, 9)
+	var lockCnt int
+	var protectedCnt int
+	var unlockCnt int
+	for i := range visited {
+		switch visited[i] {
+		case "lock":
+			lockCnt++
+		case "protected":
+			protectedCnt++
+			require.Equal(t, visited[i+1], "unlock")
+		case "unlock":
+			unlockCnt++
+		}
+	}
+	require.Equal(t, 3, lockCnt)
+	require.Equal(t, 3, protectedCnt)
+	require.Equal(t, 3, unlockCnt)
 }

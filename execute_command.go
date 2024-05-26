@@ -8,6 +8,8 @@ func Execute(stateCtx *StateCtx) *ExecuteCommand {
 
 type ExecuteCommand struct {
 	StateCtx *StateCtx
+
+	sync bool
 }
 
 func (cmd *ExecuteCommand) Prepare() error {
