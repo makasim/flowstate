@@ -20,8 +20,8 @@ func TestCallProcessWithCommit(t *testing.T) {
 	endedCh := make(chan struct{})
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr := memdriver.NewFlowRegistry()
+	fr.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx) {
@@ -47,7 +47,7 @@ func TestCallProcessWithCommit(t *testing.T) {
 
 		return flowstate.Nop(stateCtx), nil
 	}))
-	br.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if err := e.Do(
@@ -59,7 +59,7 @@ func TestCallProcessWithCommit(t *testing.T) {
 
 		return flowstate.Nop(stateCtx), nil
 	}))
-	br.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		if flowstate.Stacked(stateCtx) {
 			callStateCtx := &flowstate.StateCtx{}
@@ -80,7 +80,7 @@ func TestCallProcessWithCommit(t *testing.T) {
 
 		return flowstate.End(stateCtx), nil
 	}))
-	br.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		close(endedCh)
@@ -89,7 +89,7 @@ func TestCallProcessWithCommit(t *testing.T) {
 	}))
 
 	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d, fr)
 
 	err := e.Do(flowstate.Commit(
 		flowstate.Transit(stateCtx, `call`),

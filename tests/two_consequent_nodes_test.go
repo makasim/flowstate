@@ -11,18 +11,18 @@ import (
 func TestTwoConsequentNodes(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr := memdriver.NewFlowRegistry()
+	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `second`), nil
 	}))
-	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d, fr)
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{

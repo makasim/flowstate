@@ -12,8 +12,8 @@ import (
 func TestDefer_Return(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr := memdriver.NewFlowRegistry()
+	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		if flowstate.Deferred(stateCtx) {
 			return flowstate.Transit(stateCtx, `second`), nil
@@ -21,13 +21,13 @@ func TestDefer_Return(t *testing.T) {
 
 		return flowstate.Defer(stateCtx, time.Millisecond*200), nil
 	}))
-	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d, fr)
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -46,8 +46,8 @@ func TestDefer_Return(t *testing.T) {
 func TestDefer_EngineDo(t *testing.T) {
 	trkr := &tracker2{}
 
-	br := &flowstate.MapFlowRegistry{}
-	br.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr := memdriver.NewFlowRegistry()
+	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		if flowstate.Deferred(stateCtx) {
 			return flowstate.Transit(stateCtx, `second`), nil
@@ -61,13 +61,13 @@ func TestDefer_EngineDo(t *testing.T) {
 
 		return flowstate.Nop(stateCtx), nil
 	}))
-	br.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
 	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, br)
+	e := flowstate.NewEngine(d, fr)
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{

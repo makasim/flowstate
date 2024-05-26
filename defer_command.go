@@ -4,11 +4,11 @@ import (
 	"time"
 )
 
-var deferAtAnnotation = `flowstate.defer.at`
-var deferDurationAnnotation = `flowstate.deferred.duration`
+var DeferAtAnnotation = `flowstate.defer.at`
+var DeferDurationAnnotation = `flowstate.deferred.duration`
 
 func Deferred(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[deferAtAnnotation] != ``
+	return stateCtx.Current.Transition.Annotations[DeferAtAnnotation] != ``
 }
 
 func Defer(stateCtx *StateCtx, dur time.Duration) *DeferCommand {
@@ -37,8 +37,8 @@ func (cmd *DeferCommand) Prepare() error {
 		ToID:        deferredStateCtx.Current.Transition.ToID,
 		Annotations: nil,
 	}
-	nextTs.SetAnnotation(deferAtAnnotation, time.Now().Format(time.RFC3339Nano))
-	nextTs.SetAnnotation(deferDurationAnnotation, cmd.Duration.String())
+	nextTs.SetAnnotation(DeferAtAnnotation, time.Now().Format(time.RFC3339Nano))
+	nextTs.SetAnnotation(DeferDurationAnnotation, cmd.Duration.String())
 
 	deferredStateCtx.Current.Transition = nextTs
 
