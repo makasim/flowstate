@@ -1,9 +1,7 @@
 package flowstate
 
-var resumedAnnotation = `flowstate.resumed`
-
 func Resumed(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[resumedAnnotation] == `true`
+	return stateCtx.Current.Transition.Annotations[stateAnnotation] == `resumed`
 }
 
 func Resume(stateCtx *StateCtx) *ResumeCommand {
@@ -25,7 +23,7 @@ func (cmd *ResumeCommand) Prepare() error {
 		ToID:        cmd.StateCtx.Current.Transition.ToID,
 		Annotations: nil,
 	}
-	nextTs.SetAnnotation(resumedAnnotation, `true`)
+	nextTs.SetAnnotation(stateAnnotation, `resumed`)
 
 	cmd.StateCtx.Current.Transition = nextTs
 

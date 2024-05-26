@@ -1,9 +1,9 @@
 package flowstate
 
-var pausedAnnotation = `flowstate.paused`
+var stateAnnotation = `flowstate.state`
 
 func Paused(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[pausedAnnotation] == `true`
+	return stateCtx.Current.Transition.Annotations[stateAnnotation] == `paused`
 }
 
 func Pause(stateCtx *StateCtx, fID FlowID) *PauseCommand {
@@ -26,7 +26,7 @@ func (cmd *PauseCommand) Prepare() error {
 		ToID:        cmd.FlowID,
 		Annotations: nil,
 	}
-	nextTs.SetAnnotation(pausedAnnotation, `true`)
+	nextTs.SetAnnotation(stateAnnotation, `paused`)
 
 	cmd.StateCtx.Current.Transition = nextTs
 

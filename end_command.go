@@ -1,9 +1,7 @@
 package flowstate
 
-var endedAnnotation = `flowstate.ended`
-
 func Ended(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[endedAnnotation] == `true`
+	return stateCtx.Current.Transition.Annotations[stateAnnotation] == `ended`
 }
 
 func End(stateCtx *StateCtx) *EndCommand {
@@ -24,7 +22,7 @@ func (cmd *EndCommand) Prepare() error {
 		ToID:        ``,
 		Annotations: nil,
 	}
-	nextTs.SetAnnotation(endedAnnotation, `true`)
+	nextTs.SetAnnotation(stateAnnotation, `ended`)
 
 	cmd.StateCtx.Current.Transition = nextTs
 

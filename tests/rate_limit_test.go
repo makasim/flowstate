@@ -39,9 +39,10 @@ func TestRateLimit(t *testing.T) {
 					return nil, err
 				}
 
-				if !(limitedStateCtx.Current.Transition.ToID == `limited` && flowstate.Paused(limitedStateCtx)) {
+				if !flowstate.Paused(limitedStateCtx) {
 					continue
 				}
+
 				delete(limitedStateCtx.Current.Labels, "limiter")
 				if err := e.Do(flowstate.Commit(
 					flowstate.Resume(limitedStateCtx),
@@ -104,7 +105,7 @@ func TestRateLimit(t *testing.T) {
 
 	var visited []string
 	require.Eventually(t, func() bool {
-		visited = trkr.Visited()
+		visited = trkr.VisitedSorted()
 		return len(visited) >= 15
 	}, time.Second, time.Millisecond*10)
 
