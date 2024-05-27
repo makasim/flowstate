@@ -20,8 +20,8 @@ func TestRateLimit(t *testing.T) {
 		IncludeState: true,
 	}
 
-	fr := memdriver.NewFlowRegistry()
-	fr.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
@@ -53,11 +53,11 @@ func TestRateLimit(t *testing.T) {
 					return nil, err
 				}
 			case <-closeCh:
-				return flowstate.Nop(stateCtx), nil
+				return flowstate.Noop(stateCtx), nil
 			}
 		}
 	}))
-	fr.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx) {
@@ -90,8 +90,8 @@ func TestRateLimit(t *testing.T) {
 		states = append(states, stateCtx)
 	}
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, fr)
+	e, err := flowstate.NewEngine(d)
+	require.NoError(t, err)
 
 	require.NoError(t, e.Do(
 		flowstate.Commit(
@@ -113,7 +113,7 @@ func TestRateLimit(t *testing.T) {
 	require.Eventually(t, func() bool {
 		visited = trkr.VisitedSorted()
 		return len(visited) >= 15
-	}, time.Second, time.Millisecond*10)
+	}, time.Second, time.Millisecond*50)
 
 	close(closeCh)
 

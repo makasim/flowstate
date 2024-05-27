@@ -1,12 +1,15 @@
-package flowstate
+package exptcmd
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+
+	"github.com/makasim/flowstate"
 )
 
-func Unstack(stateCtx, unstackStateCtx *StateCtx) *UnstackCommand {
+func Unstack(stateCtx, unstackStateCtx *flowstate.StateCtx) *UnstackCommand {
 	return &UnstackCommand{
 		StateCtx:        stateCtx,
 		UnstackStateCtx: unstackStateCtx,
@@ -15,11 +18,23 @@ func Unstack(stateCtx, unstackStateCtx *StateCtx) *UnstackCommand {
 }
 
 type UnstackCommand struct {
-	StateCtx        *StateCtx
-	UnstackStateCtx *StateCtx
+	StateCtx        *flowstate.StateCtx
+	UnstackStateCtx *flowstate.StateCtx
 }
 
-func (cmd *UnstackCommand) Prepare() error {
+type Unstacker struct {
+}
+
+func UnstackDoer() *Unstacker {
+	return &Unstacker{}
+}
+
+func (d *Unstacker) Do(cmd0 flowstate.Command) error {
+	cmd, ok := cmd0.(*UnstackCommand)
+	if !ok {
+		return flowstate.ErrCommandNotSupported
+	}
+
 	stackedTask := cmd.StateCtx.Current.Annotations[stackedAnnotation]
 	if stackedTask == `` {
 		return fmt.Errorf("no state to unstack; the annotation not set")
@@ -36,5 +51,13 @@ func (cmd *UnstackCommand) Prepare() error {
 
 	cmd.StateCtx.Current.Annotations[stackedAnnotation] = ``
 
+	return nil
+}
+
+func (d *Unstacker) Init(_ *flowstate.Engine) error {
+	return nil
+}
+
+func (d *Unstacker) Shutdown(_ context.Context) error {
 	return nil
 }

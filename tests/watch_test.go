@@ -10,25 +10,24 @@ import (
 )
 
 func TestWatch(t *testing.T) {
-	fr := memdriver.NewFlowRegistry()
-	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return flowstate.Commit(
 			flowstate.Transit(stateCtx, `second`),
 		), nil
 	}))
-	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return flowstate.Commit(
 			flowstate.Transit(stateCtx, `third`),
 		), nil
 	}))
-	fr.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return flowstate.Commit(
 			flowstate.End(stateCtx),
 		), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, fr)
+	e, err := flowstate.NewEngine(d)
 
 	w, err := e.Watch(0, map[string]string{
 		`theWatchLabel`: `theValue`,
