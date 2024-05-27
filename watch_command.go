@@ -12,7 +12,7 @@ type WatchCommand struct {
 	SinceLatest bool
 	Labels      map[string]string
 
-	Watcher Watcher
+	Listener Watcher
 }
 
 func (cmd *WatchCommand) Prepare() error {

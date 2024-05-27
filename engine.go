@@ -89,7 +89,7 @@ func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
 		return nil, err
 	}
 
-	return cmd.Watcher, nil
+	return cmd.Listener, nil
 }
 
 func (e *Engine) prepareAndDo(cmd0 Command) error {
@@ -155,7 +155,7 @@ func (e *Engine) do(cmd0 Command) error {
 			}
 		}()
 		return nil
-	case *NopCommand:
+	case *NoopCommand:
 		return nil
 	case *GetFlowCommand:
 		if cmd.StateCtx.Current.Transition.ToID == "" {
@@ -204,7 +204,7 @@ func (e *Engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 		return nil, nil
 	case *EndCommand:
 		return nil, nil
-	case *NopCommand:
+	case *NoopCommand:
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("unknown command 123 %T", cmd0)

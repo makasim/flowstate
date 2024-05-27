@@ -1,29 +1,54 @@
 package memdriver
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/makasim/flowstate"
 )
 
-type Driver struct {
-	l  Log
-	ws []*Watcher
+var _ flowstate.Doer = &Commiter{}
+
+type Commiter struct {
+	l *Log
+	e flowstate.Engine
 }
 
-func (d *Driver) Do(cmds ...flowstate.Command) error {
+func NewCommiter(l *Log) *Commiter {
+	return &Commiter{
+		l: l,
+	}
+}
+
+func (d *Commiter) Do(cmd0 flowstate.Command) error {
+	cmd, ok := cmd0.(*flowstate.CommitCommand)
+	if !ok {
+		return flowstate.ErrCommandNotSupported
+	}
+
+	if len(cmd.Commands) == 0 {
+		return fmt.Errorf("no commands to commit")
+	}
+
+	for _, c := range cmd.Commands {
+		if _, ok := c.(*flowstate.CommitCommand); ok {
+			return fmt.Errorf("commit command not allowed inside another commit")
+		}
+		if _, ok := c.(*flowstate.ExecuteCommand); ok {
+			return fmt.Errorf("execute command not allowed inside commit")
+		}
+	}
+
 	d.l.Lock()
 	defer d.l.Unlock()
 	defer d.l.Rollback()
 
-	for _, cmd0 := range cmds {
-		if err := cmd0.Prepare(); err != nil {
-			return fmt.Errorf("%T: prepare: %w", cmd0, err)
+	for _, cmd0 := range cmd.Commands {
+		if err := d.e.Do(cmd0); err != nil {
+			return fmt.Errorf("%T: do: %w", cmd0, err)
 		}
 
 		switch cmd := cmd0.(type) {
-		case *flowstate.CommitCommand:
-			return fmt.Errorf("commit command not allowed")
 		case *flowstate.TransitCommand:
 			stateCtx := cmd.StateCtx
 
@@ -96,29 +121,10 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 			}
 
 			d.l.Append(stateCtx)
-		case *flowstate.WatchCommand:
-			
-			w := &Watcher{
-				sinceRev:    cmd.SinceRev,
-				sinceLatest: cmd.SinceLatest,
-				// todo: copy labels
-				labels: cmd.Labels,
-
-				watchCh:  make(chan *flowstate.StateCtx, 1),
-				changeCh: make(chan int64, 1),
-				closeCh:  make(chan struct{}),
-				l:        &d.l,
-			}
-
-			cmd.Listener = w
-			w.Change(cmd.SinceRev)
-			d.ws = append(d.ws, w)
-
-			go w.listen()
 		case *flowstate.NoopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand, *flowstate.ForkCommand:
 			continue
-		case *flowstate.ExecuteCommand:
-			return fmt.Errorf("execute command not allowed inside commit")
+		case *flowstate.GetFlowCommand:
+			continue
 		default:
 			return fmt.Errorf("unknown command: %T", cmd0)
 		}
@@ -126,9 +132,14 @@ func (d *Driver) Do(cmds ...flowstate.Command) error {
 
 	d.l.Commit()
 
-	for _, w := range d.ws {
-		w.Change(d.l.rev)
-	}
+	return nil
+}
 
+func (d *Commiter) Init(e flowstate.Engine) error {
+	d.e = e
+	return nil
+}
+
+func (d *Commiter) Shutdown(ctx context.Context) error {
 	return nil
 }

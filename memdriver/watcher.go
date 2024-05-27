@@ -1,53 +1,113 @@
 package memdriver
 
 import (
+	"context"
+
 	"github.com/makasim/flowstate"
 )
 
+var _ flowstate.Doer = &Watcher{}
+
 type Watcher struct {
+	l *Log
+	e flowstate.Engine
+}
+
+func NewWatcher(l *Log) *Watcher {
+	d := &Watcher{
+		l: l,
+	}
+
+	return d
+}
+
+func (w *Watcher) Do(cmd0 flowstate.Command) error {
+	cmd, ok := cmd0.(*flowstate.WatchCommand)
+	if !ok {
+		return flowstate.ErrCommandNotSupported
+	}
+
+	lis := &listener{
+		l: w.l,
+
+		sinceRev:    cmd.SinceRev,
+		sinceLatest: cmd.SinceLatest,
+		// todo: copy labels
+		labels: cmd.Labels,
+
+		watchCh:  make(chan *flowstate.StateCtx, 1),
+		changeCh: make(chan int64, 1),
+		closeCh:  make(chan struct{}),
+	}
+
+	lis.Change(cmd.SinceRev)
+
+	if err := w.l.SubscribeCommit(lis.changeCh); err != nil {
+		return err
+	}
+
+	go lis.listen()
+
+	cmd.Listener = lis
+
+	return nil
+}
+
+func (w *Watcher) Init(e flowstate.Engine) error {
+	w.e = e
+	return nil
+}
+
+func (w *Watcher) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+type listener struct {
+	l *Log
+
 	sinceRev    int64
 	sinceLatest bool
-	labels      map[string]string
 
+	labels   map[string]string
 	watchCh  chan *flowstate.StateCtx
 	changeCh chan int64
-	closeCh  chan struct{}
-	l        *Log
+
+	closeCh chan struct{}
 }
 
-func (w *Watcher) Watch() <-chan *flowstate.StateCtx {
-	return w.watchCh
+func (lis *listener) Watch() <-chan *flowstate.StateCtx {
+	return lis.watchCh
 }
 
-func (w *Watcher) Close() {
-	close(w.closeCh)
+func (lis *listener) Close() {
+	close(lis.closeCh)
 }
 
-func (w *Watcher) Change(rev int64) {
+func (lis *listener) Change(rev int64) {
 	select {
-	case w.changeCh <- rev:
-	case <-w.changeCh:
-		w.changeCh <- rev
+	case lis.changeCh <- rev:
+	case <-lis.changeCh:
+		lis.changeCh <- rev
 	}
 }
 
-func (w *Watcher) listen() {
+func (lis *listener) listen() {
 	var states []*flowstate.StateCtx
 
-	if w.sinceLatest {
-		w.l.Lock()
-		_, sinceRev := w.l.LatestByLabels(w.labels)
-		w.sinceRev = sinceRev - 1
-		w.l.Unlock()
+	if lis.sinceLatest {
+		lis.l.Lock()
+		_, sinceRev := lis.l.LatestByLabels(lis.labels)
+		lis.sinceRev = sinceRev - 1
+		lis.l.Unlock()
 	}
 
 skip:
 	for {
 		select {
-		case <-w.changeCh:
-			w.l.Lock()
-			states, w.sinceRev = w.l.Entries(w.sinceRev, 10)
-			w.l.Unlock()
+		case <-lis.changeCh:
+			lis.l.Lock()
+			states, lis.sinceRev = lis.l.Entries(lis.sinceRev, 10)
+			lis.l.Unlock()
 
 			if len(states) == 0 {
 				continue skip
@@ -55,20 +115,21 @@ skip:
 
 		next:
 			for _, t := range states {
-				for k, v := range w.labels {
+				for k, v := range lis.labels {
 					if t.Committed.Labels[k] != v {
 						continue next
 					}
 				}
 
 				select {
-				case w.watchCh <- t:
+				case lis.watchCh <- t:
 					continue next
-				case <-w.closeCh:
+				case <-lis.closeCh:
 					return
 				}
 			}
-		case <-w.closeCh:
+		case <-lis.closeCh:
+			lis.l.UnsubscribeCommit(lis.changeCh)
 			return
 		}
 	}

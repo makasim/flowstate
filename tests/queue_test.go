@@ -55,7 +55,7 @@ func TestQueue(t *testing.T) {
 					return nil, err
 				}
 
-				return flowstate.Nop(stateCtx), nil
+				return flowstate.Noop(stateCtx), nil
 			}
 		}
 	}))

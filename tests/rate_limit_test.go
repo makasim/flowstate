@@ -53,7 +53,7 @@ func TestRateLimit(t *testing.T) {
 					return nil, err
 				}
 			case <-closeCh:
-				return flowstate.Nop(stateCtx), nil
+				return flowstate.Noop(stateCtx), nil
 			}
 		}
 	}))

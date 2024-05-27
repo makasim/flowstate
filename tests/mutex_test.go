@@ -29,7 +29,7 @@ func TestMutex(t *testing.T) {
 		if err := e.Do(wCmd); err != nil {
 			return nil, err
 		}
-		w := wCmd.Watcher
+		w := wCmd.Listener
 		defer w.Close()
 
 		var mutexStateCtx *flowstate.StateCtx
@@ -89,7 +89,7 @@ func TestMutex(t *testing.T) {
 			return nil, err
 		}
 
-		return flowstate.Nop(stateCtx), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
 
 	mutexStateCtx := &flowstate.StateCtx{

@@ -1,15 +1,15 @@
 package flowstate
 
-func Nop(stateCtx *StateCtx) *NopCommand {
-	return &NopCommand{
+func Noop(stateCtx *StateCtx) *NoopCommand {
+	return &NoopCommand{
 		StateCtx: stateCtx,
 	}
 }
 
-type NopCommand struct {
+type NoopCommand struct {
 	StateCtx *StateCtx
 }
 
-func (cmd *NopCommand) Prepare() error {
+func (cmd *NoopCommand) Prepare() error {
 	return nil
 }

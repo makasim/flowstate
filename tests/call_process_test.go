@@ -43,7 +43,7 @@ func TestCallProcess(t *testing.T) {
 			return nil, err
 		}
 
-		return flowstate.Nop(stateCtx), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
 	fr.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
@@ -64,7 +64,7 @@ func TestCallProcess(t *testing.T) {
 				return nil, err
 			}
 
-			return flowstate.Nop(stateCtx), nil
+			return flowstate.Noop(stateCtx), nil
 		}
 
 		return flowstate.End(stateCtx), nil
