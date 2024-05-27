@@ -54,8 +54,8 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 			commitStateCtx = cmd.StateCtx
 		case *flowstate.EndCommand:
 			commitStateCtx = cmd.StateCtx
-		case *flowstate.DeferCommand:
-			commitStateCtx = cmd.DeferredStateCtx
+		case *flowstate.DelayCommand:
+			commitStateCtx = cmd.DelayStateCtx
 		case *flowstate.PauseCommand:
 			commitStateCtx = cmd.StateCtx
 		case *flowstate.ResumeCommand:

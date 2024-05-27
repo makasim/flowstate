@@ -9,17 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDefer_Return(t *testing.T) {
+func TestDelay_Return(t *testing.T) {
 	trkr := &tracker2{}
 
 	d := memdriver.New()
 	d.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
-		if flowstate.Deferred(stateCtx) {
+		if flowstate.Delayed(stateCtx) {
 			return flowstate.Transit(stateCtx, `second`), nil
 		}
 
-		return flowstate.Defer(stateCtx, time.Millisecond*200), nil
+		return flowstate.Delay(stateCtx, time.Millisecond*200), nil
 	}))
 	d.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
@@ -43,18 +43,18 @@ func TestDefer_Return(t *testing.T) {
 	require.Equal(t, []string{`first`, `first`, `second`}, trkr.Visited())
 }
 
-func TestDefer_EngineDo(t *testing.T) {
+func TestDelay_EngineDo(t *testing.T) {
 	trkr := &tracker2{}
 
 	d := memdriver.New()
 	d.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
-		if flowstate.Deferred(stateCtx) {
+		if flowstate.Delayed(stateCtx) {
 			return flowstate.Transit(stateCtx, `second`), nil
 		}
 
 		if err := e.Do(
-			flowstate.Defer(stateCtx, time.Millisecond*200),
+			flowstate.Delay(stateCtx, time.Millisecond*200),
 		); err != nil {
 			return nil, err
 		}

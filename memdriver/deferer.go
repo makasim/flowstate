@@ -8,18 +8,18 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-var _ flowstate.Doer = &Deferer{}
+var _ flowstate.Doer = &Delayer{}
 
-type Deferer struct {
+type Delayer struct {
 	e *flowstate.Engine
 }
 
-func NewDeferer() *Deferer {
-	return &Deferer{}
+func NewDelayer() *Delayer {
+	return &Delayer{}
 }
 
-func (d *Deferer) Do(cmd0 flowstate.Command) error {
-	cmd, ok := cmd0.(*flowstate.DeferCommand)
+func (d *Delayer) Do(cmd0 flowstate.Command) error {
+	cmd, ok := cmd0.(*flowstate.DelayCommand)
 	if !ok {
 		return flowstate.ErrCommandNotSupported
 	}
@@ -35,7 +35,7 @@ func (d *Deferer) Do(cmd0 flowstate.Command) error {
 
 		<-t.C
 
-		if err := d.e.Execute(cmd.DeferredStateCtx); err != nil {
+		if err := d.e.Execute(cmd.DelayStateCtx); err != nil {
 			log.Printf(`ERROR: engine: defer: engine: execute: %s`, err)
 		}
 	}()
@@ -43,11 +43,11 @@ func (d *Deferer) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (d *Deferer) Init(e *flowstate.Engine) error {
+func (d *Delayer) Init(e *flowstate.Engine) error {
 	d.e = e
 	return nil
 }
 
-func (d *Deferer) Shutdown(_ context.Context) error {
+func (d *Delayer) Shutdown(_ context.Context) error {
 	return nil
 }

@@ -37,7 +37,7 @@ func New() *Driver {
 
 		NewCommiter(l),
 		NewWatcher(l),
-		NewDeferer(),
+		NewDelayer(),
 	}
 	d.doers = doers
 

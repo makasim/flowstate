@@ -134,7 +134,7 @@ func (e *Engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 		return cmd.StateCtx, nil
 	case *PauseCommand:
 		return nil, nil
-	case *DeferCommand:
+	case *DelayCommand:
 		return nil, nil
 	case *EndCommand:
 		return nil, nil

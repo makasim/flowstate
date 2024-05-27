@@ -120,45 +120,45 @@ type CommitCommand struct {
 	Commands []Command
 }
 
-var DeferAtAnnotation = `flowstate.defer.at`
-var DeferDurationAnnotation = `flowstate.deferred.duration`
+var DelayAtAnnotation = `flowstate.delay.at`
+var DelayDurationAnnotation = `flowstate.delay.duration`
 
-func Deferred(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[DeferAtAnnotation] != ``
+func Delayed(stateCtx *StateCtx) bool {
+	return stateCtx.Current.Transition.Annotations[DelayAtAnnotation] != ``
 }
 
-func Defer(stateCtx *StateCtx, dur time.Duration) *DeferCommand {
-	return &DeferCommand{
-		OriginStateCtx: stateCtx,
-		Duration:       dur,
+func Delay(stateCtx *StateCtx, dur time.Duration) *DelayCommand {
+	return &DelayCommand{
+		StateCtx: stateCtx,
+		Duration: dur,
 	}
 
 }
 
-type DeferCommand struct {
-	OriginStateCtx   *StateCtx
-	DeferredStateCtx *StateCtx
-	Duration         time.Duration
-	Commit           bool
+type DelayCommand struct {
+	StateCtx      *StateCtx
+	DelayStateCtx *StateCtx
+	Duration      time.Duration
+	Commit        bool
 }
 
-func (cmd *DeferCommand) Prepare() error {
-	deferredStateCtx := &StateCtx{}
-	cmd.OriginStateCtx.CopyTo(deferredStateCtx)
+func (cmd *DelayCommand) Prepare() error {
+	delayedStateCtx := &StateCtx{}
+	cmd.StateCtx.CopyTo(delayedStateCtx)
 
-	deferredStateCtx.Transitions = append(deferredStateCtx.Transitions, deferredStateCtx.Current.Transition)
+	delayedStateCtx.Transitions = append(delayedStateCtx.Transitions, delayedStateCtx.Current.Transition)
 
 	nextTs := Transition{
-		FromID:      deferredStateCtx.Current.Transition.ToID,
-		ToID:        deferredStateCtx.Current.Transition.ToID,
+		FromID:      delayedStateCtx.Current.Transition.ToID,
+		ToID:        delayedStateCtx.Current.Transition.ToID,
 		Annotations: nil,
 	}
-	nextTs.SetAnnotation(DeferAtAnnotation, time.Now().Format(time.RFC3339Nano))
-	nextTs.SetAnnotation(DeferDurationAnnotation, cmd.Duration.String())
+	nextTs.SetAnnotation(DelayAtAnnotation, time.Now().Format(time.RFC3339Nano))
+	nextTs.SetAnnotation(DelayDurationAnnotation, cmd.Duration.String())
 
-	deferredStateCtx.Current.Transition = nextTs
+	delayedStateCtx.Current.Transition = nextTs
 
-	cmd.DeferredStateCtx = deferredStateCtx
+	cmd.DelayStateCtx = delayedStateCtx
 
 	return nil
 }
