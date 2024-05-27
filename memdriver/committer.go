@@ -11,7 +11,7 @@ var _ flowstate.Doer = &Commiter{}
 
 type Commiter struct {
 	l *Log
-	e flowstate.Engine
+	e *flowstate.Engine
 }
 
 func NewCommiter(l *Log) *Commiter {
@@ -48,85 +48,34 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 			return fmt.Errorf("%T: do: %w", cmd0, err)
 		}
 
+		var commitStateCtx *flowstate.StateCtx
 		switch cmd := cmd0.(type) {
 		case *flowstate.TransitCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
+			commitStateCtx = cmd.StateCtx
 		case *flowstate.EndCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if stateCtx.Committed.Rev == 0 {
-				return fmt.Errorf("state rev empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
+			commitStateCtx = cmd.StateCtx
 		case *flowstate.DeferCommand:
-			stateCtx := cmd.DeferredStateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if stateCtx.Committed.Rev == 0 {
-				return fmt.Errorf("state rev empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
+			commitStateCtx = cmd.DeferredStateCtx
 		case *flowstate.PauseCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
+			commitStateCtx = cmd.StateCtx
 		case *flowstate.ResumeCommand:
-			stateCtx := cmd.StateCtx
+			commitStateCtx = cmd.StateCtx
+		default:
+			continue
+		}
 
-			if stateCtx.Current.ID == `` {
+		if commitStateCtx != nil {
+			if commitStateCtx.Current.ID == `` {
 				return fmt.Errorf("state id empty")
 			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
+
+			if _, rev := d.l.LatestByID(commitStateCtx.Current.ID); rev != commitStateCtx.Committed.Rev {
 				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				conflictErr.Add(fmt.Sprintf("%T", cmd), commitStateCtx.Current.ID, fmt.Errorf("rev mismatch"))
 				return conflictErr
 			}
 
-			d.l.Append(stateCtx)
-		case *flowstate.NoopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand, *flowstate.ForkCommand:
-			continue
-		case *flowstate.GetFlowCommand:
-			continue
-		default:
-			return fmt.Errorf("unknown command: %T", cmd0)
+			d.l.Append(commitStateCtx)
 		}
 	}
 
@@ -135,7 +84,7 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (d *Commiter) Init(e flowstate.Engine) error {
+func (d *Commiter) Init(e *flowstate.Engine) error {
 	d.e = e
 	return nil
 }

@@ -1,134 +1,112 @@
 package memdriver
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/exptcmd"
+	"github.com/makasim/flowstate/stddoer"
 )
 
 type Driver struct {
-	l  Log
-	ws []*Watcher
+	l     *Log
+	flows map[flowstate.FlowID]flowstate.Flow
+	doers []flowstate.Doer
 }
 
-func (d *Driver) Do(cmds ...flowstate.Command) error {
-	d.l.Lock()
-	defer d.l.Unlock()
-	defer d.l.Rollback()
+func New() *Driver {
+	l := &Log{}
 
-	for _, cmd0 := range cmds {
-		if err := cmd0.Prepare(); err != nil {
-			return fmt.Errorf("%T: prepare: %w", cmd0, err)
-		}
+	d := &Driver{
+		l:     l,
+		flows: make(map[flowstate.FlowID]flowstate.Flow),
+	}
 
-		switch cmd := cmd0.(type) {
-		case *flowstate.CommitCommand:
-			return fmt.Errorf("commit command not allowed")
-		case *flowstate.TransitCommand:
-			stateCtx := cmd.StateCtx
+	doers := []flowstate.Doer{
+		stddoer.Transit(),
+		stddoer.Pause(),
+		stddoer.Resume(),
+		stddoer.End(),
+		stddoer.Noop(),
 
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
+		exptcmd.ForkDoer(),
+		exptcmd.NewStacker(),
+		exptcmd.UnstackDoer(),
 
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
+		NewCommiter(l),
+		NewWatcher(l),
+		NewDeferer(),
+	}
+	d.doers = doers
 
-			d.l.Append(stateCtx)
-		case *flowstate.EndCommand:
-			stateCtx := cmd.StateCtx
+	return d
+}
 
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if stateCtx.Committed.Rev == 0 {
-				return fmt.Errorf("state rev empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
+func (d *Driver) Do(cmd0 flowstate.Command) error {
+	if cmd, ok := cmd0.(*flowstate.GetFlowCommand); ok {
+		return d.doGetFlow(cmd)
+	}
 
-			d.l.Append(stateCtx)
-		case *flowstate.DeferCommand:
-			stateCtx := cmd.DeferredStateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if stateCtx.Committed.Rev == 0 {
-				return fmt.Errorf("state rev empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
-		case *flowstate.PauseCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
-		case *flowstate.ResumeCommand:
-			stateCtx := cmd.StateCtx
-
-			if stateCtx.Current.ID == `` {
-				return fmt.Errorf("state id empty")
-			}
-			if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-				conflictErr := &flowstate.ErrCommitConflict{}
-				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-				return conflictErr
-			}
-
-			d.l.Append(stateCtx)
-		case *flowstate.WatchCommand:
-			
-			w := &Watcher{
-				sinceRev:    cmd.SinceRev,
-				sinceLatest: cmd.SinceLatest,
-				// todo: copy labels
-				labels: cmd.Labels,
-
-				watchCh:  make(chan *flowstate.StateCtx, 1),
-				changeCh: make(chan int64, 1),
-				closeCh:  make(chan struct{}),
-				l:        &d.l,
-			}
-
-			cmd.Listener = w
-			w.Change(cmd.SinceRev)
-			d.ws = append(d.ws, w)
-
-			go w.listen()
-		case *flowstate.NoopCommand, *flowstate.StackCommand, *flowstate.UnstackCommand, *flowstate.ForkCommand:
+	for _, doer := range d.doers {
+		if err := doer.Do(cmd0); errors.Is(err, flowstate.ErrCommandNotSupported) {
 			continue
-		case *flowstate.ExecuteCommand:
-			return fmt.Errorf("execute command not allowed inside commit")
-		default:
-			return fmt.Errorf("unknown command: %T", cmd0)
+		} else if err != nil {
+			return fmt.Errorf("%T: do: %w", doer, err)
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("no doer for command %T", cmd0)
+}
+
+func (d *Driver) Init(e *flowstate.Engine) error {
+	for _, doer := range d.doers {
+		if err := doer.Init(e); err != nil {
+			return fmt.Errorf("%T: init: %w", doer, err)
 		}
 	}
+	return nil
+}
 
-	d.l.Commit()
+func (d *Driver) Shutdown(_ context.Context) error {
+	return nil
+}
 
-	for _, w := range d.ws {
-		w.Change(d.l.rev)
+func (d *Driver) SetFlow(id flowstate.FlowID, f flowstate.Flow) {
+	if d.flows == nil {
+		d.flows = make(map[flowstate.FlowID]flowstate.Flow)
 	}
+
+	d.flows[id] = f
+}
+
+func (d *Driver) Flow(id flowstate.FlowID) (flowstate.Flow, error) {
+	if d.flows == nil {
+		return nil, flowstate.ErrFlowNotFound
+	}
+
+	f, ok := d.flows[id]
+	if !ok {
+		return nil, flowstate.ErrFlowNotFound
+	}
+
+	return f, nil
+}
+
+func (d *Driver) doGetFlow(cmd *flowstate.GetFlowCommand) error {
+	if cmd.StateCtx.Current.Transition.ToID == "" {
+		return fmt.Errorf("transition flow to is empty")
+	}
+
+	f, err := d.Flow(cmd.StateCtx.Current.Transition.ToID)
+	if err != nil {
+		return err
+	}
+
+	cmd.Flow = f
 
 	return nil
 }

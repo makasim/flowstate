@@ -1,5 +1,9 @@
 package flowstate
 
+import "context"
+
 type Driver interface {
-	Do(cmds ...Command) error
+	Init(e *Engine) error
+	Shutdown(ctx context.Context) error
+	Do(cmd Command) error
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/exptcmd"
 	"github.com/makasim/flowstate/memdriver"
 	"github.com/stretchr/testify/require"
 )
@@ -16,11 +17,11 @@ func TestMutex(t *testing.T) {
 
 	trkr := &tracker2{}
 
-	fr := memdriver.NewFlowRegistry()
-	fr.SetFlow("mutex", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("mutex", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must not be called; mutex is always paused")
 	}))
-	fr.SetFlow("lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		wCmd := flowstate.Watch(0, map[string]string{"mutex": "theName"})
@@ -46,7 +47,7 @@ func TestMutex(t *testing.T) {
 
 				if err := e.Do(flowstate.Commit(
 					flowstate.Pause(copyMutexStateCtx, `locked`),
-					flowstate.Stack(copyMutexStateCtx, copyStateCtx),
+					exptcmd.Stack(copyMutexStateCtx, copyStateCtx),
 					flowstate.Transit(copyStateCtx, `protected`),
 				)); errors.As(err, conflictErr) {
 					if conflictErr.Contains(mutexStateCtx.Current.ID) {
@@ -70,19 +71,19 @@ func TestMutex(t *testing.T) {
 
 		}
 	}))
-	fr.SetFlow("protected", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("protected", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		raceDetector += 1
+
 		return flowstate.Transit(stateCtx, `unlock`), nil
 	}))
-	fr.SetFlow("unlock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("unlock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		mutexStateCtx := &flowstate.StateCtx{}
-
 		if err := e.Do(flowstate.Commit(
-			flowstate.Unstack(stateCtx, mutexStateCtx),
+			exptcmd.Unstack(stateCtx, mutexStateCtx),
 			flowstate.Pause(mutexStateCtx, `unlocked`),
 			flowstate.End(stateCtx),
 		)); err != nil {
@@ -111,10 +112,10 @@ func TestMutex(t *testing.T) {
 		states = append(states, statesCtx)
 	}
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, fr)
+	e, err := flowstate.NewEngine(d)
+	require.NoError(t, err)
 
-	err := e.Do(flowstate.Commit(
+	err = e.Do(flowstate.Commit(
 		flowstate.Pause(mutexStateCtx, `unlocked`),
 	))
 	require.NoError(t, err)

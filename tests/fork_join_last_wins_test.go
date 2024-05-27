@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/exptcmd"
 	"github.com/makasim/flowstate/memdriver"
 	"github.com/stretchr/testify/require"
 )
@@ -20,8 +21,8 @@ func TestForkJoin_LastWins(t *testing.T) {
 
 	trkr := &tracker2{}
 
-	fr := memdriver.NewFlowRegistry()
-	fr.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		stateCtx.Current.SetLabel(`theForkJoinLabel`, string(stateCtx.Current.ID))
@@ -36,8 +37,8 @@ func TestForkJoin_LastWins(t *testing.T) {
 
 		if err := e.Do(
 			flowstate.Commit(
-				flowstate.Fork(stateCtx, forkedStateCtx),
-				flowstate.Fork(stateCtx, forkedTwoStateCtx),
+				exptcmd.Fork(stateCtx, forkedStateCtx),
+				exptcmd.Fork(stateCtx, forkedTwoStateCtx),
 
 				flowstate.Transit(stateCtx, `forked`),
 				flowstate.Transit(forkedStateCtx, `forked`),
@@ -52,7 +53,7 @@ func TestForkJoin_LastWins(t *testing.T) {
 
 		return flowstate.Noop(stateCtx), nil
 	}))
-	fr.SetFlow("join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if stateCtx.Committed.Transition.ToID != `join` {
@@ -98,18 +99,18 @@ func TestForkJoin_LastWins(t *testing.T) {
 		}
 	}))
 
-	fr.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `join`), nil
 	}))
 
-	fr.SetFlow("joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, fr)
+	e, err := flowstate.NewEngine(d)
+	require.NoError(t, err)
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))
 	require.NoError(t, e.Execute(stateCtx))

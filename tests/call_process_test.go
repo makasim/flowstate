@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/exptcmd"
 	"github.com/makasim/flowstate/memdriver"
 	"github.com/stretchr/testify/require"
 )
@@ -20,8 +21,8 @@ func TestCallProcess(t *testing.T) {
 	endedCh := make(chan struct{})
 	trkr := &tracker2{}
 
-	fr := memdriver.NewFlowRegistry()
-	fr.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d := memdriver.New()
+	d.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx) {
@@ -36,7 +37,7 @@ func TestCallProcess(t *testing.T) {
 
 		if err := e.Do(
 			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
-			flowstate.Stack(stateCtx, nextStateCtx),
+			exptcmd.Stack(stateCtx, nextStateCtx),
 			flowstate.Transit(nextStateCtx, `called`),
 			flowstate.Execute(nextStateCtx),
 		); err != nil {
@@ -45,18 +46,18 @@ func TestCallProcess(t *testing.T) {
 
 		return flowstate.Noop(stateCtx), nil
 	}))
-	fr.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	fr.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
-		if flowstate.Stacked(stateCtx) {
+		if exptcmd.Stacked(stateCtx) {
 			callStateCtx := &flowstate.StateCtx{}
 
 			if err := e.Do(
-				flowstate.Unstack(stateCtx, callStateCtx),
+				exptcmd.Unstack(stateCtx, callStateCtx),
 				flowstate.Resume(callStateCtx),
 				flowstate.Execute(callStateCtx),
 				flowstate.End(stateCtx),
@@ -70,7 +71,7 @@ func TestCallProcess(t *testing.T) {
 		return flowstate.End(stateCtx), nil
 	}))
 
-	fr.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	d.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
 		close(endedCh)
@@ -78,8 +79,8 @@ func TestCallProcess(t *testing.T) {
 		return flowstate.End(stateCtx), nil
 	}))
 
-	d := &memdriver.Driver{}
-	e := flowstate.NewEngine(d, fr)
+	e, err := flowstate.NewEngine(d)
+	require.NoError(t, err)
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `call`)))
 	require.NoError(t, e.Execute(stateCtx))

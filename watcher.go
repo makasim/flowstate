@@ -1,6 +1,6 @@
 package flowstate
 
-type Watcher interface {
+type WatchListener interface {
 	Watch() <-chan *StateCtx
 	Close()
 }

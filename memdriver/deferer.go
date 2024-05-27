@@ -11,7 +11,7 @@ import (
 var _ flowstate.Doer = &Deferer{}
 
 type Deferer struct {
-	e flowstate.Engine
+	e *flowstate.Engine
 }
 
 func NewDeferer() *Deferer {
@@ -24,22 +24,9 @@ func (d *Deferer) Do(cmd0 flowstate.Command) error {
 		return flowstate.ErrCommandNotSupported
 	}
 
-	deferredStateCtx := &flowstate.StateCtx{}
-	cmd.OriginStateCtx.CopyTo(deferredStateCtx)
-
-	deferredStateCtx.Transitions = append(deferredStateCtx.Transitions, deferredStateCtx.Current.Transition)
-
-	nextTs := flowstate.Transition{
-		FromID:      deferredStateCtx.Current.Transition.ToID,
-		ToID:        deferredStateCtx.Current.Transition.ToID,
-		Annotations: nil,
+	if err := cmd.Prepare(); err != nil {
+		return err
 	}
-	nextTs.SetAnnotation(flowstate.DeferAtAnnotation, time.Now().Format(time.RFC3339Nano))
-	nextTs.SetAnnotation(flowstate.DeferDurationAnnotation, cmd.Duration.String())
-
-	deferredStateCtx.Current.Transition = nextTs
-
-	cmd.DeferredStateCtx = deferredStateCtx
 
 	// todo: replace naive implementation with real one
 	go func() {
@@ -56,11 +43,11 @@ func (d *Deferer) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (d *Deferer) Init(e flowstate.Engine) error {
+func (d *Deferer) Init(e *flowstate.Engine) error {
 	d.e = e
 	return nil
 }
 
-func (d *Deferer) Shutdown(ctx context.Context) error {
+func (d *Deferer) Shutdown(_ context.Context) error {
 	return nil
 }
