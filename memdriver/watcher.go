@@ -22,7 +22,7 @@ func NewWatcher(l *Log) *Watcher {
 }
 
 func (w *Watcher) Do(cmd0 flowstate.Command) error {
-	cmd, ok := cmd0.(*flowstate.WatchCommand)
+	cmd, ok := cmd0.(*flowstate.GetWatcherCommand)
 	if !ok {
 		return flowstate.ErrCommandNotSupported
 	}
@@ -48,7 +48,7 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 
 	go lis.listen()
 
-	cmd.Listener = lis
+	cmd.Watcher = lis
 
 	return nil
 }

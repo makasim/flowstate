@@ -24,13 +24,13 @@ func TestMutex(t *testing.T) {
 	d.SetFlow("lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		track2(stateCtx, trkr)
 
-		wCmd := flowstate.Watch(0, map[string]string{"mutex": "theName"})
+		wCmd := flowstate.GetWatcher(0, map[string]string{"mutex": "theName"})
 		wCmd.SinceLatest = true
 
 		if err := e.Do(wCmd); err != nil {
 			return nil, err
 		}
-		w := wCmd.Listener
+		w := wCmd.Watcher
 		defer w.Close()
 
 		var mutexStateCtx *flowstate.StateCtx

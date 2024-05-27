@@ -9,10 +9,10 @@ import (
 var ErrFlowNotFound = errors.New("flow not found")
 
 type Engine struct {
-	d Driver
+	d Doer
 }
 
-func NewEngine(d Driver) (*Engine, error) {
+func NewEngine(d Doer) (*Engine, error) {
 	e := &Engine{
 		d: d,
 	}
@@ -82,13 +82,13 @@ func (e *Engine) Do(cmds ...Command) error {
 	return nil
 }
 
-func (e *Engine) Watch(rev int64, labels map[string]string) (WatchListener, error) {
-	cmd := Watch(rev, labels)
+func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
+	cmd := GetWatcher(rev, labels)
 	if err := e.Do(cmd); err != nil {
 		return nil, err
 	}
 
-	return cmd.Listener, nil
+	return cmd.Watcher, nil
 }
 
 func (e *Engine) do(cmd0 Command) error {
