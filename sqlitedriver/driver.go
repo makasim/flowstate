@@ -1,28 +1,35 @@
-package memdriver
+package sqlitedriver
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/exptcmd"
+	"github.com/makasim/flowstate/memdriver"
 	"github.com/makasim/flowstate/stddoer"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Driver struct {
-	*FlowRegistry
-
-	l     *Log
+	*memdriver.FlowRegistry
+	db    *sql.DB
 	doers []flowstate.Doer
 }
 
-func New() *Driver {
-	l := &Log{}
+func New(dsn string) (*Driver, error) {
+	db, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("db: open: %w", err)
+	}
 
 	d := &Driver{
-		l:            l,
-		FlowRegistry: &FlowRegistry{},
+		FlowRegistry: &memdriver.FlowRegistry{},
+
+		db: db,
 	}
 
 	doers := []flowstate.Doer{
@@ -36,14 +43,17 @@ func New() *Driver {
 		exptcmd.NewStacker(),
 		exptcmd.UnstackDoer(),
 
-		NewFlowGetter(d.FlowRegistry),
-		NewCommiter(l),
-		NewWatcher(l),
-		NewDelayer(),
+		memdriver.NewFlowGetter(d.FlowRegistry),
+
+		NewCommiter(d.db),
+
+		// TODO: implement sqlite doers and remove the following doers
+		//memdriver.NewWatcher(l),
+		//memdriver.NewDelayer(),
 	}
 	d.doers = doers
 
-	return d
+	return d, nil
 }
 
 func (d *Driver) Do(cmd0 flowstate.Command) error {
@@ -65,6 +75,16 @@ func (d *Driver) Do(cmd0 flowstate.Command) error {
 }
 
 func (d *Driver) Init(e *flowstate.Engine) error {
+	if _, err := d.db.Exec(createRevTableSQL); err != nil {
+		return fmt.Errorf("create flowstate_rev table: db: exec: %w", err)
+	}
+	if _, err := d.db.Exec(createStateLatestTableSQL); err != nil {
+		return fmt.Errorf("create flowstate_state_latest table: db: exec: %w", err)
+	}
+	if _, err := d.db.Exec(createStateLogTableSQL); err != nil {
+		return fmt.Errorf("create flowstate_state_log table: db: exec: %w", err)
+	}
+
 	for _, doer := range d.doers {
 		if err := doer.Init(e); err != nil {
 			return fmt.Errorf("%T: init: %w", doer, err)
@@ -74,7 +94,7 @@ func (d *Driver) Init(e *flowstate.Engine) error {
 }
 
 func (d *Driver) Shutdown(_ context.Context) error {
-	return nil
+	return d.db.Close()
 }
 
 func (d *Driver) doGetFlow(cmd *flowstate.GetFlowCommand) error {

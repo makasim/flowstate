@@ -16,6 +16,10 @@ type TransitCommand struct {
 	FlowID   FlowID
 }
 
+func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
+	return cmd.StateCtx
+}
+
 func Paused(stateCtx *StateCtx) bool {
 	return stateCtx.Current.Transition.Annotations[StateAnnotation] == `paused`
 }
@@ -32,6 +36,10 @@ type PauseCommand struct {
 	FlowID   FlowID
 }
 
+func (cmd *PauseCommand) CommittableStateCtx() *StateCtx {
+	return cmd.StateCtx
+}
+
 func Resumed(stateCtx *StateCtx) bool {
 	return stateCtx.Current.Transition.Annotations[StateAnnotation] == `resumed`
 }
@@ -46,6 +54,10 @@ type ResumeCommand struct {
 	StateCtx *StateCtx
 }
 
+func (cmd *ResumeCommand) CommittableStateCtx() *StateCtx {
+	return cmd.StateCtx
+}
+
 func Ended(stateCtx *StateCtx) bool {
 	return stateCtx.Current.Transition.Annotations[StateAnnotation] == `ended`
 }
@@ -58,6 +70,10 @@ func End(stateCtx *StateCtx) *EndCommand {
 
 type EndCommand struct {
 	StateCtx *StateCtx
+}
+
+func (cmd *EndCommand) CommittableStateCtx() *StateCtx {
+	return cmd.StateCtx
 }
 
 func GetWatcher(sinceRev int64, labels map[string]string) *GetWatcherCommand {
@@ -116,6 +132,10 @@ func Commit(cmds ...Command) *CommitCommand {
 	}
 }
 
+type CommittableCommand interface {
+	CommittableStateCtx() *StateCtx
+}
+
 type CommitCommand struct {
 	Commands []Command
 }
@@ -140,6 +160,10 @@ type DelayCommand struct {
 	DelayStateCtx *StateCtx
 	Duration      time.Duration
 	Commit        bool
+}
+
+func (cmd *DelayCommand) CommittableStateCtx() *StateCtx {
+	return cmd.DelayStateCtx
 }
 
 func (cmd *DelayCommand) Prepare() error {
