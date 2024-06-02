@@ -20,12 +20,7 @@ type Driver struct {
 	doers []flowstate.Doer
 }
 
-func New(dsn string) (*Driver, error) {
-	db, err := sql.Open("sqlite3", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("db: open: %w", err)
-	}
-
+func New(db *sql.DB) (*Driver, error) {
 	d := &Driver{
 		FlowRegistry: &memdriver.FlowRegistry{},
 
@@ -94,7 +89,8 @@ func (d *Driver) Init(e *flowstate.Engine) error {
 }
 
 func (d *Driver) Shutdown(_ context.Context) error {
-	return d.db.Close()
+	// return d.db.Close()
+	return nil
 }
 
 func (d *Driver) doGetFlow(cmd *flowstate.GetFlowCommand) error {

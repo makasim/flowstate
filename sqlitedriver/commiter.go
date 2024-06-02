@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/makasim/flowstate"
 )
@@ -46,6 +47,8 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 	}
 	defer tx.Rollback()
 
+	conflictErr := &flowstate.ErrCommitConflict{}
+
 	for _, cmd0 := range cmd.Commands {
 		if err := d.e.Do(cmd0); err != nil {
 			return fmt.Errorf("%T: do: %w", cmd0, err)
@@ -56,32 +59,52 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 			continue
 		}
 
-		stateCtx := cmd1.CommittableStateCtx()
-		var nextRev int64
-		if err = tx.QueryRow(`INSERT INTO flowstate_rev default values RETURNING rev;`).Scan(&nextRev); err != nil {
+		nextRevRes, err := tx.Exec(`INSERT INTO flowstate_rev(rev) VALUES(NULL)`)
+		if err != nil {
 			return fmt.Errorf("db: query next rev: %w", err)
 		}
+		nextRev, err := nextRevRes.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("db: query next rev: last insert id: %w", err)
+		}
 
+		stateCtx := cmd1.CommittableStateCtx()
 		if stateCtx.Committed.Rev == 0 {
 			if _, err = tx.Exec(
 				`INSERT INTO flowstate_state_latest(id, rev) VALUES(?, ?)`,
 				stateCtx.Current.ID,
 				nextRev,
-			); err != nil {
+			); err != nil && strings.Contains(err.Error(), `UNIQUE constraint failed`) {
+				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, err)
+				continue
+			} else if err != nil {
 				return fmt.Errorf("db: insert latest state: %w", err)
 			}
 		} else {
-			if _, err = tx.Exec(
-				`UPDATE flowstate_state_latest SET rev = ? WHERE id = ? AND rev = ? LIMIT 1`,
+			latestStateRes, err := tx.Exec(
+				`UPDATE flowstate_state_latest SET rev = ? WHERE id = ? AND rev = ?`,
 				nextRev,
 				stateCtx.Current.ID,
 				stateCtx.Committed.Rev,
-			); err != nil {
+			)
+			if err != nil {
 				return fmt.Errorf("db: update latest state: %w", err)
+			}
+
+			affectedCnt, err := latestStateRes.RowsAffected()
+			if err != nil {
+				return fmt.Errorf("db: update latest state: rows affected: %w", err)
+			}
+			if affectedCnt == 0 {
+				conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
+				continue
 			}
 		}
 
-		serializedState, err := json.Marshal(stateCtx.Current)
+		nextState := stateCtx.Current.CopyTo(&flowstate.State{})
+		nextState.Rev = nextRev
+
+		serializedState, err := json.Marshal(nextState)
 		if err != nil {
 			return fmt.Errorf("json: marshal state ctx: %w", err)
 		}
@@ -94,9 +117,16 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 			return fmt.Errorf("db: insert log state: %w", err)
 		}
 
+		nextState.CopyTo(&stateCtx.Committed)
+		nextState.CopyTo(&stateCtx.Current)
+		stateCtx.Transitions = stateCtx.Transitions[:0]
 	}
 
-	return nil
+	if len(conflictErr.TaskIDs()) > 0 {
+		return conflictErr
+	}
+
+	return tx.Commit()
 }
 
 func (d *Commiter) Init(e *flowstate.Engine) error {

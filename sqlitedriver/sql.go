@@ -14,8 +14,7 @@ CREATE TABLE IF NOT EXISTS flowstate_state_latest (
 
 var createStateLogTableSQL = `
 CREATE TABLE IF NOT EXISTS flowstate_state_log (
+	rev INTEGER AUTO_INCREMENT PRIMARY KEY,
 	id TEXT,
-	rev INTEGER,
-	state JSONB,
-	PRIMARY KEY (id, rev)
+	state JSONB
 );`
