@@ -1,8 +1,9 @@
 module github.com/makasim/flowstate
 
-go 1.21
+go 1.22
 
 require (
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/time v0.5.0
 )

@@ -11,7 +11,7 @@ type State struct {
 	Transition Transition `json:"transition2"`
 }
 
-func (t *State) CopyTo(to *State) {
+func (t *State) CopyTo(to *State) *State {
 	to.ID = t.ID
 	to.Rev = t.Rev
 	t.Transition.CopyTo(&to.Transition)
@@ -22,6 +22,8 @@ func (t *State) CopyTo(to *State) {
 	for k, v := range t.Labels {
 		to.SetLabel(k, v)
 	}
+
+	return to
 }
 
 func (t *State) SetAnnotation(name, value string) {

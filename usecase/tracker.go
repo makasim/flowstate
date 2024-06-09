@@ -1,4 +1,4 @@
-package tests
+package usecase
 
 import (
 	"sort"
@@ -7,7 +7,7 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-type tracker2 struct {
+type Tracker struct {
 	IncludeTaskID bool
 	IncludeState  bool
 
@@ -15,7 +15,7 @@ type tracker2 struct {
 	visited []string
 }
 
-func track2(stateCtx *flowstate.StateCtx, trkr *tracker2) {
+func Track(stateCtx *flowstate.StateCtx, trkr *Tracker) {
 	trkr.mux.Lock()
 	defer trkr.mux.Unlock()
 
@@ -37,14 +37,14 @@ func track2(stateCtx *flowstate.StateCtx, trkr *tracker2) {
 	trkr.visited = append(trkr.visited, string(stateCtx.Current.Transition.ToID)+postfix)
 }
 
-func (trkr *tracker2) Visited() []string {
+func (trkr *Tracker) Visited() []string {
 	trkr.mux.Lock()
 	defer trkr.mux.Unlock()
 
 	return append([]string(nil), trkr.visited...)
 }
 
-func (trkr *tracker2) VisitedSorted() []string {
+func (trkr *Tracker) VisitedSorted() []string {
 	visited := trkr.Visited()
 
 	// sort to eliminate race conditions

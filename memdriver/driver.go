@@ -11,8 +11,9 @@ import (
 )
 
 type Driver struct {
+	*FlowRegistry
+
 	l     *Log
-	flows map[flowstate.FlowID]flowstate.Flow
 	doers []flowstate.Doer
 }
 
@@ -20,8 +21,8 @@ func New() *Driver {
 	l := &Log{}
 
 	d := &Driver{
-		l:     l,
-		flows: make(map[flowstate.FlowID]flowstate.Flow),
+		l:            l,
+		FlowRegistry: &FlowRegistry{},
 	}
 
 	doers := []flowstate.Doer{
@@ -35,6 +36,7 @@ func New() *Driver {
 		exptcmd.NewStacker(),
 		exptcmd.UnstackDoer(),
 
+		NewFlowGetter(d.FlowRegistry),
 		NewCommiter(l),
 		NewWatcher(l),
 		NewDelayer(),
@@ -73,27 +75,6 @@ func (d *Driver) Init(e *flowstate.Engine) error {
 
 func (d *Driver) Shutdown(_ context.Context) error {
 	return nil
-}
-
-func (d *Driver) SetFlow(id flowstate.FlowID, f flowstate.Flow) {
-	if d.flows == nil {
-		d.flows = make(map[flowstate.FlowID]flowstate.Flow)
-	}
-
-	d.flows[id] = f
-}
-
-func (d *Driver) Flow(id flowstate.FlowID) (flowstate.Flow, error) {
-	if d.flows == nil {
-		return nil, flowstate.ErrFlowNotFound
-	}
-
-	f, ok := d.flows[id]
-	if !ok {
-		return nil, flowstate.ErrFlowNotFound
-	}
-
-	return f, nil
 }
 
 func (d *Driver) doGetFlow(cmd *flowstate.GetFlowCommand) error {
