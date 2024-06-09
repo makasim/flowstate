@@ -41,9 +41,9 @@ func New(db *sql.DB) *Driver {
 		memdriver.NewFlowGetter(d.FlowRegistry),
 
 		NewCommiter(d.db),
+		NewWatcher(d.db),
 
 		// TODO: implement sqlite doers and remove the following doers
-		//memdriver.NewWatcher(l),
 		//memdriver.NewDelayer(),
 	}
 	d.doers = doers
