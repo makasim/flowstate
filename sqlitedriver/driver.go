@@ -20,7 +20,7 @@ type Driver struct {
 	doers []flowstate.Doer
 }
 
-func New(db *sql.DB) (*Driver, error) {
+func New(db *sql.DB) *Driver {
 	d := &Driver{
 		FlowRegistry: &memdriver.FlowRegistry{},
 
@@ -48,7 +48,7 @@ func New(db *sql.DB) (*Driver, error) {
 	}
 	d.doers = doers
 
-	return d, nil
+	return d
 }
 
 func (d *Driver) Do(cmd0 flowstate.Command) error {

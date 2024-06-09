@@ -7,8 +7,8 @@ import (
 	"github.com/makasim/flowstate/usecase"
 )
 
-func TestRateLimit(t *testing.T) {
+func TestDelay_EngineDo(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.RateLimit(t, d, d)
+	usecase.Delay_EngineDo(t, d, d)
 }

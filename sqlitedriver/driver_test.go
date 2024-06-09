@@ -16,8 +16,7 @@ func TestDriver_Init(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	d, err := sqlitedriver.New(db)
-	require.NoError(t, err)
+	d := sqlitedriver.New(db)
 
 	require.NoError(t, d.Init(&flowstate.Engine{}))
 
@@ -29,8 +28,7 @@ func TestDriver_Commit(main *testing.T) {
 		db, err := sql.Open("sqlite3", `:memory:`)
 		require.NoError(t, err)
 
-		d, err := sqlitedriver.New(db)
-		require.NoError(t, err)
+		d := sqlitedriver.New(db)
 
 		t.Cleanup(func() {
 			require.NoError(t, db.Close())
