@@ -81,13 +81,8 @@ func (lis *listener) Close() {
 }
 
 func (lis *listener) listen() {
-	//var states []*flowstate.StateCtx
-
 	if lis.sinceLatest {
-		//lis.l.Lock()
-		//_, sinceRev := lis.l.LatestByLabels(lis.labels)
-		//lis.sinceRev = sinceRev - 1
-		//lis.l.Unlock()
+		// TODO: implement since latest
 	}
 
 	var states []flowstate.State
