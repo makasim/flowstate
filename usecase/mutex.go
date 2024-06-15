@@ -112,6 +112,10 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	e, err := flowstate.NewEngine(d)
 	require.NoError(t, err)
 
+	if d1, ok := d.(initer); ok {
+		require.NoError(t, d1.Init(e))
+	}
+
 	err = e.Do(flowstate.Commit(
 		flowstate.Pause(mutexStateCtx, `unlocked`),
 	))

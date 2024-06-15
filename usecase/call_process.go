@@ -79,6 +79,10 @@ func CallProcess(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	e, err := flowstate.NewEngine(d)
 	require.NoError(t, err)
 
+	if d1, ok := d.(initer); ok {
+		require.NoError(t, d1.Init(e))
+	}
+
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `call`)))
 	require.NoError(t, e.Execute(stateCtx))
 

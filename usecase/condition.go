@@ -30,6 +30,10 @@ func Condition(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	e, err := flowstate.NewEngine(d)
 	require.NoError(t, err)
 
+	if d1, ok := d.(initer); ok {
+		require.NoError(t, d1.Init(e))
+	}
+
 	// condition true
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
