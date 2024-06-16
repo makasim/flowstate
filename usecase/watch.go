@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"time"
 
 	"github.com/makasim/flowstate"
@@ -23,8 +24,14 @@ func Watch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			flowstate.End(stateCtx),
 		), nil
 	}))
-
+	
 	e, err := flowstate.NewEngine(d)
+	defer func() {
+		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer sCtxCancel()
+
+		require.NoError(t, e.Shutdown(sCtx))
+	}()
 
 	w, err := e.Watch(0, map[string]string{
 		`theWatchLabel`: `theValue`,

@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"time"
 
 	"github.com/makasim/flowstate"
@@ -40,6 +41,12 @@ func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry
 
 	e, err := flowstate.NewEngine(d)
 	require.NoError(t, err)
+	defer func() {
+		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer sCtxCancel()
+
+		require.NoError(t, e.Shutdown(sCtx))
+	}()
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
