@@ -1,20 +1,30 @@
 package flowstate
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
 
 type Engine struct {
 	d Doer
+
+	wg       *sync.WaitGroup
+	closeCh  chan struct{}
+	closedCh chan struct{}
 }
 
 func NewEngine(d Doer) (*Engine, error) {
 	e := &Engine{
 		d: d,
+
+		wg:       &sync.WaitGroup{},
+		closeCh:  make(chan struct{}),
+		closedCh: make(chan struct{}),
 	}
 
 	if err := d.Init(e); err != nil {
@@ -25,11 +35,20 @@ func NewEngine(d Doer) (*Engine, error) {
 }
 
 func (e *Engine) Execute(stateCtx *StateCtx) error {
+	e.wg.Add(1)
+	defer e.wg.Done()
+
 	if stateCtx.Current.ID == `` {
 		return fmt.Errorf(`state id empty`)
 	}
 
 	for {
+		select {
+		case <-e.closeCh:
+			return fmt.Errorf("engine closed")
+		default:
+		}
+
 		if stateCtx.Current.Transition.ToID == `` {
 			return fmt.Errorf(`transition to id empty`)
 		}
@@ -91,6 +110,28 @@ func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
 	return cmd.Watcher, nil
 }
 
+func (e *Engine) Shutdown(ctx context.Context) error {
+	select {
+	case <-e.closeCh:
+		return fmt.Errorf("engine already closed")
+	default:
+		close(e.closeCh)
+	}
+
+	go func() {
+		e.wg.Wait()
+		close(e.closedCh)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-e.closedCh:
+	}
+
+	return e.d.Shutdown(ctx)
+}
+
 func (e *Engine) do(cmd0 Command) error {
 	switch cmd := cmd0.(type) {
 	case *ExecuteCommand:
@@ -98,7 +139,10 @@ func (e *Engine) do(cmd0 Command) error {
 			return nil
 		}
 
+		e.wg.Add(1)
 		go func() {
+			defer e.wg.Done()
+
 			if err := e.Execute(cmd.StateCtx); err != nil {
 				log.Printf("ERROR: engine: go execute: %s\n", err)
 			}

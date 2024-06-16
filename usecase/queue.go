@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -65,6 +66,12 @@ func Queue(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 	e, err := flowstate.NewEngine(d)
 	require.NoError(t, err)
+	defer func() {
+		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer sCtxCancel()
+
+		require.NoError(t, e.Shutdown(sCtx))
+	}()
 
 	for i := 0; i < 3; i++ {
 		stateCtx := &flowstate.StateCtx{
