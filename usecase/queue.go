@@ -40,7 +40,9 @@ func Queue(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		for {
 			select {
-			case queuedStateCtx := <-w.Watch():
+			case queuedState := <-w.Watch():
+				queuedStateCtx := flowstate.CopyToCtx(queuedState, &flowstate.StateCtx{})
+
 				delete(queuedStateCtx.Current.Labels, "queue")
 
 				if err := e.Do(

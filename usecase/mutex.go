@@ -62,7 +62,13 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			}
 
 			select {
-			case mutexStateCtx = <-w.Watch():
+			case mutexState := <-w.Watch():
+				if mutexStateCtx == nil {
+					mutexStateCtx = &flowstate.StateCtx{}
+				}
+
+				mutexStateCtx = flowstate.CopyToCtx(mutexState, mutexStateCtx)
+
 				continue
 			case <-stateCtx.Done():
 				return flowstate.Noop(stateCtx), nil

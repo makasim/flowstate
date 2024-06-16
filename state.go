@@ -84,7 +84,7 @@ func (s *StateCtx) Done() <-chan struct{} {
 		return nil
 	}
 
-	return s.e.closeCh
+	return s.e.doneCh
 }
 
 func (s *StateCtx) Err() error {
@@ -93,7 +93,7 @@ func (s *StateCtx) Err() error {
 	}
 
 	select {
-	case <-s.e.closeCh:
+	case <-s.e.doneCh:
 		return context.Canceled
 	default:
 		return nil
@@ -107,4 +107,10 @@ func (s *StateCtx) Value(key any) any {
 	}
 
 	return s.Current.Annotations[key1]
+}
+
+func CopyToCtx(state State, stateCtx *StateCtx) *StateCtx {
+	state.CopyTo(&stateCtx.Committed)
+	state.CopyTo(&stateCtx.Current)
+	return stateCtx
 }

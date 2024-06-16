@@ -9,23 +9,20 @@ import (
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
-var ErrEngineClosed = errors.New("engine closed")
 
 type Engine struct {
 	d Doer
 
-	wg       *sync.WaitGroup
-	closeCh  chan struct{}
-	closedCh chan struct{}
+	wg     *sync.WaitGroup
+	doneCh chan struct{}
 }
 
 func NewEngine(d Doer) (*Engine, error) {
 	e := &Engine{
 		d: d,
 
-		wg:       &sync.WaitGroup{},
-		closeCh:  make(chan struct{}),
-		closedCh: make(chan struct{}),
+		wg:     &sync.WaitGroup{},
+		doneCh: make(chan struct{}),
 	}
 
 	if err := d.Init(e); err != nil {
@@ -47,8 +44,8 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 
 	for {
 		select {
-		case <-e.closeCh:
-			return ErrEngineClosed
+		case <-e.doneCh:
+			return nil
 		default:
 		}
 
@@ -115,21 +112,23 @@ func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
 
 func (e *Engine) Shutdown(ctx context.Context) error {
 	select {
-	case <-e.closeCh:
+	case <-e.doneCh:
 		return fmt.Errorf("engine already closed")
 	default:
-		close(e.closeCh)
+		close(e.doneCh)
 	}
+
+	waitCh := make(chan struct{})
 
 	go func() {
 		e.wg.Wait()
-		close(e.closedCh)
+		close(waitCh)
 	}()
 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-e.closedCh:
+	case <-waitCh:
 	}
 
 	return e.d.Shutdown(ctx)
