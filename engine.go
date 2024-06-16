@@ -139,10 +139,7 @@ func (e *Engine) do(cmd0 Command) error {
 			return nil
 		}
 
-		e.wg.Add(1)
 		go func() {
-			defer e.wg.Done()
-
 			if err := e.Execute(cmd.StateCtx); err != nil {
 				log.Printf("ERROR: engine: go execute: %s\n", err)
 			}
