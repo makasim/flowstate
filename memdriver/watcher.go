@@ -32,15 +32,18 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 
 		sinceRev:    cmd.SinceRev,
 		sinceLatest: cmd.SinceLatest,
-		// todo: copy labels
-		labels: cmd.Labels,
 
+		labels:   make(map[string]string),
 		watchCh:  make(chan flowstate.State, 1),
 		changeCh: make(chan int64, 1),
 		closeCh:  make(chan struct{}),
 	}
 
-	lis.Change(cmd.SinceRev)
+	for k, v := range cmd.Labels {
+		lis.labels[k] = v
+	}
+
+	lis.change(cmd.SinceRev)
 
 	if err := w.l.SubscribeCommit(lis.changeCh); err != nil {
 		return err
@@ -83,7 +86,7 @@ func (lis *listener) Close() {
 	close(lis.closeCh)
 }
 
-func (lis *listener) Change(rev int64) {
+func (lis *listener) change(rev int64) {
 	select {
 	case lis.changeCh <- rev:
 	case <-lis.changeCh:
@@ -104,28 +107,34 @@ func (lis *listener) listen() {
 skip:
 	for {
 		select {
-		case <-lis.changeCh:
-			lis.l.Lock()
-			states, lis.sinceRev = lis.l.Entries(lis.sinceRev, 10)
-			lis.l.Unlock()
+		case latestRev := <-lis.changeCh:
+			for {
+				lis.l.Lock()
+				states, lis.sinceRev = lis.l.Entries(lis.sinceRev, 10)
+				lis.l.Unlock()
 
-			if len(states) == 0 {
-				continue skip
-			}
+				if len(states) == 0 {
+					continue skip
+				}
 
-		next:
-			for _, s := range states {
-				for k, v := range lis.labels {
-					if s.Committed.Labels[k] != v {
+			next:
+				for _, s := range states {
+					for k, v := range lis.labels {
+						if s.Committed.Labels[k] != v {
+							continue next
+						}
+					}
+
+					select {
+					case lis.watchCh <- s.Committed:
 						continue next
+					case <-lis.closeCh:
+						return
 					}
 				}
 
-				select {
-				case lis.watchCh <- s.Committed:
-					continue next
-				case <-lis.closeCh:
-					return
+				if latestRev <= lis.sinceRev {
+					continue skip
 				}
 			}
 		case <-lis.closeCh:

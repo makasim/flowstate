@@ -53,7 +53,10 @@ func (l *Log) Commit() {
 		return 1
 	})
 
+	var rev int64
 	for _, stateCtx := range l.changes {
+		rev = stateCtx.Current.Rev
+
 		l.entries = append(l.entries, stateCtx)
 	}
 
@@ -61,9 +64,9 @@ func (l *Log) Commit() {
 
 	for _, ch := range l.listeners {
 		select {
-		case ch <- l.rev:
+		case ch <- rev:
 		case <-ch:
-			ch <- l.rev
+			ch <- rev
 		}
 	}
 }
@@ -132,6 +135,7 @@ func (l *Log) SubscribeCommit(notifyCh chan int64) error {
 	l.Lock()
 	defer l.Unlock()
 
+	//log.Println(91)
 	l.listeners = append(l.listeners, notifyCh)
 	return nil
 }
@@ -139,7 +143,7 @@ func (l *Log) SubscribeCommit(notifyCh chan int64) error {
 func (l *Log) UnsubscribeCommit(notifyCh chan int64) {
 	l.Lock()
 	defer l.Unlock()
-
+	//log.Println(92)
 	for i, ch := range l.listeners {
 		if ch == notifyCh {
 			l.listeners = append(l.listeners[:i], l.listeners[i+1:]...)
