@@ -24,7 +24,7 @@ func Watch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			flowstate.End(stateCtx),
 		), nil
 	}))
-	
+
 	e, err := flowstate.NewEngine(d)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -60,8 +60,8 @@ func Watch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 loop:
 	for {
 		select {
-		case stateCtx := <-w.Watch():
-			visited = append(visited, stateCtx.Current.Transition.ToID)
+		case state := <-w.Watch():
+			visited = append(visited, state.Transition.ToID)
 
 			if len(visited) >= 3 {
 				break loop

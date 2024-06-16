@@ -57,7 +57,9 @@ func CallProcessWithWatch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			select {
 			case <-stateCtx.Done():
 				return flowstate.Noop(stateCtx), nil
-			case nextStateCtx := <-w.Watch():
+			case nextState := <-w.Watch():
+				nextStateCtx := flowstate.CopyToCtx(nextState, &flowstate.StateCtx{})
+
 				if !flowstate.Ended(nextStateCtx) {
 					continue
 				}

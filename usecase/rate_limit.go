@@ -30,7 +30,9 @@ func RateLimit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		for {
 			select {
-			case limitedStateCtx := <-w.Watch():
+			case limitedState := <-w.Watch():
+				limitedStateCtx := flowstate.CopyToCtx(limitedState, &flowstate.StateCtx{})
+
 				ctx, _ := context.WithTimeout(context.Background(), time.Second)
 				if err := l.Wait(ctx); err != nil {
 					return nil, err
