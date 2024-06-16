@@ -64,7 +64,8 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			select {
 			case mutexStateCtx = <-w.Watch():
 				continue
-				// TODO: handle shutdown, timeout and other cases
+			case <-stateCtx.Done():
+				return flowstate.Noop(stateCtx), nil
 			}
 
 		}

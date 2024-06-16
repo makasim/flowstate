@@ -39,6 +39,8 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 	e.wg.Add(1)
 	defer e.wg.Done()
 
+	stateCtx.e = e
+
 	if stateCtx.Current.ID == `` {
 		return fmt.Errorf(`state id empty`)
 	}
