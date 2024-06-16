@@ -9,6 +9,7 @@ import (
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
+var ErrEngineClosed = errors.New("engine closed")
 
 type Engine struct {
 	d Doer
@@ -45,7 +46,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 	for {
 		select {
 		case <-e.closeCh:
-			return fmt.Errorf("engine closed")
+			return ErrEngineClosed
 		default:
 		}
 
