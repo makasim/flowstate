@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -12,8 +13,10 @@ import (
 func TestDelay_EngineDo(t *testing.T) {
 	db, err := sql.Open("sqlite3", `:memory:`)
 	require.NoError(t, err)
+	defer db.Close()
 
 	d := sqlitedriver.New(db)
+	defer d.Shutdown(context.Background())
 
 	usecase.Delay_EngineDo(t, d, d)
 }

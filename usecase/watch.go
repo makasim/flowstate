@@ -26,10 +26,6 @@ func Watch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 	e, err := flowstate.NewEngine(d)
 
-	if d1, ok := d.(initer); ok {
-		require.NoError(t, d1.Init(e))
-	}
-
 	w, err := e.Watch(0, map[string]string{
 		`theWatchLabel`: `theValue`,
 	})

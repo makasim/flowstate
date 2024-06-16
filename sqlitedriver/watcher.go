@@ -82,7 +82,13 @@ func (lis *listener) Close() {
 
 func (lis *listener) listen() {
 	if lis.sinceLatest {
-		// TODO: implement since latest
+		sinceLatest, err := lis.findSinceLatest()
+		if err != nil {
+			log.Printf("ERROR: %s", err)
+			return
+		}
+
+		lis.sinceRev = sinceLatest
 	}
 
 	var states []flowstate.State
@@ -125,6 +131,63 @@ skip:
 			return
 		}
 	}
+}
+
+func (lis *listener) findSinceLatest() (int64, error) {
+	return 0, fmt.Errorf("not implemented")
+	//	args := make([]interface{}, 0, len(lis.labels)+2)
+	//
+	//	var labelsWhere string
+	//	for k, v := range lis.labels {
+	//		if labelsWhere != "" {
+	//			labelsWhere += " AND "
+	//		}
+	//
+	//		// TODO: somewhat ? does not work inside josn_extract, sanitize k to prevent sql injection
+	//		labelsWhere += `json_extract(state, '$.labels.` + k + `') = ?`
+	//		args = append(args, v)
+	//	}
+	//
+	//	args = append(args, lis.sinceRev, 10)
+	//
+	//	q := fmt.Sprintf(`
+	//SELECT
+	//    rev
+	//FROM
+	//    flowstate_state_latest INNER JOIN flowstate_state_log
+	//WHERE
+	//    %s AND rev > ?
+	//ORDER BY rev
+	//LIMIT ?`, labelsWhere)
+	//
+	//	rows, err := lis.db.Query(q, args...)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	defer rows.Close()
+	//
+	//	var stateJSON []byte
+	//
+	//	var states []flowstate.State
+	//	for rows.Next() {
+	//		stateJSON = stateJSON[:0]
+	//
+	//		if err := rows.Scan(&stateJSON); err != nil {
+	//			return nil, err
+	//		}
+	//
+	//		var state flowstate.State
+	//		if err := json.Unmarshal(stateJSON, &state); err != nil {
+	//			return nil, err
+	//		}
+	//
+	//		states = append(states, state)
+	//	}
+	//	if rows.Err() != nil {
+	//		return nil, rows.Err()
+	//	}
+	//
+	//	return states, nil
 }
 
 func (lis *listener) findStates() ([]flowstate.State, error) {
