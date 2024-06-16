@@ -51,6 +51,8 @@ func RateLimit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 				}
 			case <-closeCh:
 				return flowstate.Noop(stateCtx), nil
+			case <-stateCtx.Done():
+				return flowstate.Noop(stateCtx), nil
 			}
 		}
 	}))

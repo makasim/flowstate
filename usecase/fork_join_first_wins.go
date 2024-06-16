@@ -73,6 +73,8 @@ func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		cnt := 0
 		for {
 			select {
+			case <-stateCtx.Done():
+				return flowstate.Noop(stateCtx), nil
 			case changedStateCtx := <-w.Watch():
 				if changedStateCtx.Current.Transition.ToID != `join` {
 					continue
