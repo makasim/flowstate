@@ -35,7 +35,7 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 		// todo: copy labels
 		labels: cmd.Labels,
 
-		watchCh:  make(chan *flowstate.StateCtx, 1),
+		watchCh:  make(chan flowstate.State, 1),
 		changeCh: make(chan int64, 1),
 		closeCh:  make(chan struct{}),
 	}
@@ -69,13 +69,13 @@ type listener struct {
 	sinceLatest bool
 
 	labels   map[string]string
-	watchCh  chan *flowstate.StateCtx
+	watchCh  chan flowstate.State
 	changeCh chan int64
 
 	closeCh chan struct{}
 }
 
-func (lis *listener) Watch() <-chan *flowstate.StateCtx {
+func (lis *listener) Watch() <-chan flowstate.State {
 	return lis.watchCh
 }
 
@@ -114,15 +114,15 @@ skip:
 			}
 
 		next:
-			for _, t := range states {
+			for _, s := range states {
 				for k, v := range lis.labels {
-					if t.Committed.Labels[k] != v {
+					if s.Committed.Labels[k] != v {
 						continue next
 					}
 				}
 
 				select {
-				case lis.watchCh <- t:
+				case lis.watchCh <- s.Committed:
 					continue next
 				case <-lis.closeCh:
 					return

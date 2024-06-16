@@ -1,5 +1,12 @@
 package flowstate
 
+import (
+	"context"
+	"time"
+)
+
+var _ context.Context = &StateCtx{}
+
 type StateID string
 
 type State struct {
@@ -11,55 +18,99 @@ type State struct {
 	Transition Transition `json:"transition2"`
 }
 
-func (t *State) CopyTo(to *State) *State {
-	to.ID = t.ID
-	to.Rev = t.Rev
-	t.Transition.CopyTo(&to.Transition)
+func (s *State) CopyTo(to *State) *State {
+	to.ID = s.ID
+	to.Rev = s.Rev
+	s.Transition.CopyTo(&to.Transition)
 
-	for k, v := range t.Annotations {
+	for k, v := range s.Annotations {
 		to.SetAnnotation(k, v)
 	}
-	for k, v := range t.Labels {
+	for k, v := range s.Labels {
 		to.SetLabel(k, v)
 	}
 
 	return to
 }
 
-func (t *State) SetAnnotation(name, value string) {
-	if t.Annotations == nil {
-		t.Annotations = make(map[string]string)
+func (s *State) SetAnnotation(name, value string) {
+	if s.Annotations == nil {
+		s.Annotations = make(map[string]string)
 	}
-	t.Annotations[name] = value
+	s.Annotations[name] = value
 }
 
-func (t *State) SetLabel(name, value string) {
-	if t.Labels == nil {
-		t.Labels = make(map[string]string)
+func (s *State) SetLabel(name, value string) {
+	if s.Labels == nil {
+		s.Labels = make(map[string]string)
 	}
-	t.Labels[name] = value
+	s.Labels[name] = value
 }
 
 type StateCtx struct {
+	noCopy noCopy
+
 	Current   State `json:"current"`
 	Committed State `json:"committed"`
 
 	// Transitions between committed and current states
 	Transitions []Transition `json:"transitions2"`
+
+	e *Engine `json:"-"`
 }
 
-func (t *StateCtx) CopyTo(to *StateCtx) *StateCtx {
-	t.Current.CopyTo(&to.Current)
-	t.Committed.CopyTo(&to.Committed)
+func (s *StateCtx) CopyTo(to *StateCtx) *StateCtx {
+	s.Current.CopyTo(&to.Current)
+	s.Committed.CopyTo(&to.Committed)
 
-	if cap(to.Transitions) >= len(t.Transitions) {
-		to.Transitions = to.Transitions[:len(t.Transitions)]
+	if cap(to.Transitions) >= len(s.Transitions) {
+		to.Transitions = to.Transitions[:len(s.Transitions)]
 	} else {
-		to.Transitions = make([]Transition, len(t.Transitions))
+		to.Transitions = make([]Transition, len(s.Transitions))
 	}
-	for idx := range t.Transitions {
-		t.Transitions[idx].CopyTo(&to.Transitions[idx])
+	for idx := range s.Transitions {
+		s.Transitions[idx].CopyTo(&to.Transitions[idx])
 	}
 
 	return to
+}
+
+func (s *StateCtx) Deadline() (time.Time, bool) {
+	return time.Time{}, false
+}
+
+func (s *StateCtx) Done() <-chan struct{} {
+	if s.e == nil {
+		return nil
+	}
+
+	return s.e.doneCh
+}
+
+func (s *StateCtx) Err() error {
+	if s.e == nil {
+		return nil
+	}
+
+	select {
+	case <-s.e.doneCh:
+		return context.Canceled
+	default:
+		return nil
+	}
+}
+
+func (s *StateCtx) Value(key any) any {
+	key1, ok := key.(string)
+	if !ok {
+		return nil
+	}
+
+	return s.Current.Annotations[key1]
+}
+
+func CopyToCtx(state State, stateCtx *StateCtx) *StateCtx {
+	state.CopyTo(&stateCtx.Committed)
+	state.CopyTo(&stateCtx.Current)
+	return stateCtx
 }
