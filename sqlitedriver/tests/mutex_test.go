@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"context"
 	"database/sql"
 	"testing"
 
@@ -16,7 +15,6 @@ func TestMutex(t *testing.T) {
 	defer db.Close()
 
 	d := sqlitedriver.New(db)
-	defer d.Shutdown(context.Background())
 
 	usecase.Mutex(t, d, d)
 }

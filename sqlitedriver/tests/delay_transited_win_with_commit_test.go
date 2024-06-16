@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"context"
 	"database/sql"
 	"testing"
 
@@ -16,7 +15,6 @@ func TestDelay_TransitedWin_WithCommit(t *testing.T) {
 	defer db.Close()
 
 	d := sqlitedriver.New(db)
-	defer d.Shutdown(context.Background())
 
 	usecase.Delay_TransitedWin_WithCommit(t, d, d)
 }

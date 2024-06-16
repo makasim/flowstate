@@ -84,7 +84,7 @@ func (lis *listener) listen() {
 	if lis.sinceLatest {
 		sinceLatest, err := lis.findSinceLatest()
 		if err != nil {
-			log.Printf("ERROR: %s", err)
+			log.Printf("ERROR: listner: find since latest: %s", err)
 			return
 		}
 
@@ -105,7 +105,7 @@ skip:
 
 			states, err = lis.findStates()
 			if err != nil {
-				log.Printf("ERROR: %s", err)
+				log.Printf("ERROR: lstener: find states: %s", err)
 				continue skip
 			}
 
