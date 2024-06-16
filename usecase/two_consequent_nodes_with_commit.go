@@ -6,17 +6,16 @@ import (
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
-
-type initer interface {
-	Init(*flowstate.Engine) error
-}
 
 type flowRegistry interface {
 	SetFlow(id flowstate.FlowID, f flowstate.Flow)
 }
 
 func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	trkr := &Tracker{}
 
 	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {

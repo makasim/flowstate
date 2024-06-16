@@ -40,7 +40,7 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 		// todo: copy labels
 		labels: cmd.Labels,
 
-		watchCh: make(chan *flowstate.StateCtx, 1),
+		watchCh: make(chan flowstate.State, 1),
 		closeCh: make(chan struct{}),
 	}
 
@@ -67,12 +67,12 @@ type listener struct {
 	sinceLatest bool
 
 	labels  map[string]string
-	watchCh chan *flowstate.StateCtx
+	watchCh chan flowstate.State
 
 	closeCh chan struct{}
 }
 
-func (lis *listener) Watch() <-chan *flowstate.StateCtx {
+func (lis *listener) Watch() <-chan flowstate.State {
 	return lis.watchCh
 }
 
@@ -115,13 +115,9 @@ skip:
 
 		next:
 			for _, s := range states {
-				stateCtx := &flowstate.StateCtx{}
-				s.CopyTo(&stateCtx.Committed)
-				s.CopyTo(&stateCtx.Current)
-
 				select {
-				case lis.watchCh <- stateCtx:
-					lis.sinceRev = stateCtx.Committed.Rev
+				case lis.watchCh <- s:
+					lis.sinceRev = s.Rev
 					continue next
 				case <-lis.closeCh:
 					return
@@ -131,63 +127,6 @@ skip:
 			return
 		}
 	}
-}
-
-func (lis *listener) findSinceLatest() (int64, error) {
-	return 0, fmt.Errorf("not implemented")
-	//	args := make([]interface{}, 0, len(lis.labels)+2)
-	//
-	//	var labelsWhere string
-	//	for k, v := range lis.labels {
-	//		if labelsWhere != "" {
-	//			labelsWhere += " AND "
-	//		}
-	//
-	//		// TODO: somewhat ? does not work inside josn_extract, sanitize k to prevent sql injection
-	//		labelsWhere += `json_extract(state, '$.labels.` + k + `') = ?`
-	//		args = append(args, v)
-	//	}
-	//
-	//	args = append(args, lis.sinceRev, 10)
-	//
-	//	q := fmt.Sprintf(`
-	//SELECT
-	//    rev
-	//FROM
-	//    flowstate_state_latest INNER JOIN flowstate_state_log
-	//WHERE
-	//    %s AND rev > ?
-	//ORDER BY rev
-	//LIMIT ?`, labelsWhere)
-	//
-	//	rows, err := lis.db.Query(q, args...)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	defer rows.Close()
-	//
-	//	var stateJSON []byte
-	//
-	//	var states []flowstate.State
-	//	for rows.Next() {
-	//		stateJSON = stateJSON[:0]
-	//
-	//		if err := rows.Scan(&stateJSON); err != nil {
-	//			return nil, err
-	//		}
-	//
-	//		var state flowstate.State
-	//		if err := json.Unmarshal(stateJSON, &state); err != nil {
-	//			return nil, err
-	//		}
-	//
-	//		states = append(states, state)
-	//	}
-	//	if rows.Err() != nil {
-	//		return nil, rows.Err()
-	//	}
-	//
-	//	return states, nil
 }
 
 func (lis *listener) findStates() ([]flowstate.State, error) {
@@ -244,4 +183,40 @@ LIMIT ?`, labelsWhere)
 	}
 
 	return states, nil
+}
+
+func (lis *listener) findSinceLatest() (int64, error) {
+	args := make([]interface{}, 0, len(lis.labels)+2)
+
+	var labelsWhere string
+	for k, v := range lis.labels {
+		if labelsWhere != "" {
+			labelsWhere += " AND "
+		}
+
+		// TODO: somewhat ? does not work inside josn_extract, sanitize k to prevent sql injection
+		labelsWhere += `json_extract(state, '$.labels.` + k + `') = ?`
+		args = append(args, v)
+	}
+
+	args = append(args, lis.sinceRev, 10)
+
+	q := fmt.Sprintf(`
+SELECT 
+    rev 
+FROM 
+    flowstate_state_log 
+WHERE 
+    %s
+ORDER BY rev DESC 
+LIMIT 1`, labelsWhere)
+
+	var sinceRev int64
+	if err := lis.db.QueryRow(q, args...).Scan(&sinceRev); err != nil {
+		return 0, err
+	}
+
+	sinceRev -= 1
+
+	return sinceRev, nil
 }

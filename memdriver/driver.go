@@ -74,7 +74,14 @@ func (d *Driver) Init(e *flowstate.Engine) error {
 }
 
 func (d *Driver) Shutdown(_ context.Context) error {
-	return nil
+	var res error
+	for _, doer := range d.doers {
+		if err := doer.Shutdown(context.Background()); err != nil {
+			res = errors.Join(res, fmt.Errorf("%T: shutdown: %w", doer, err))
+		}
+	}
+
+	return res
 }
 
 func (d *Driver) doGetFlow(cmd *flowstate.GetFlowCommand) error {

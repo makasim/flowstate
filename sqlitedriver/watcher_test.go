@@ -78,30 +78,17 @@ func TestWatcher(main *testing.T) {
 		w := cmd.Watcher
 		defer w.Close()
 
-		require.Equal(t, []*flowstate.StateCtx{
+		require.Equal(t, []flowstate.State{
 			{
-				Current: flowstate.State{
-					ID:     "1",
-					Rev:    1,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
-				Committed: flowstate.State{
-					ID:     "1",
-					Rev:    1,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
+				ID:     "1",
+				Rev:    1,
+				Labels: map[string]string{"foo": "fooVal"},
 			},
 			{
-				Current: flowstate.State{
-					ID:     "1",
-					Rev:    3,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
-				Committed: flowstate.State{
-					ID:     "1",
-					Rev:    3,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
+
+				ID:     "1",
+				Rev:    3,
+				Labels: map[string]string{"foo": "fooVal"},
 			},
 		}, collectStates(t, w, 2))
 	})
@@ -133,42 +120,21 @@ func TestWatcher(main *testing.T) {
 		w := cmd.Watcher
 		defer w.Close()
 
-		require.Equal(t, []*flowstate.StateCtx{
+		require.Equal(t, []flowstate.State{
 			{
-				Current: flowstate.State{
-					ID:     "1",
-					Rev:    1,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
-				Committed: flowstate.State{
-					ID:     "1",
-					Rev:    1,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
+				ID:     "1",
+				Rev:    1,
+				Labels: map[string]string{"foo": "fooVal"},
 			},
 			{
-				Current: flowstate.State{
-					ID:     "2",
-					Rev:    2,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
-				Committed: flowstate.State{
-					ID:     "2",
-					Rev:    2,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
+				ID:     "2",
+				Rev:    2,
+				Labels: map[string]string{"foo": "fooVal"},
 			},
 			{
-				Current: flowstate.State{
-					ID:     "1",
-					Rev:    3,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
-				Committed: flowstate.State{
-					ID:     "1",
-					Rev:    3,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
+				ID:     "1",
+				Rev:    3,
+				Labels: map[string]string{"foo": "fooVal"},
 			},
 		}, collectStates(t, w, 3))
 	})
@@ -190,18 +156,11 @@ func TestWatcher(main *testing.T) {
 		w := cmd.Watcher
 		defer w.Close()
 
-		require.Equal(t, []*flowstate.StateCtx{
+		require.Equal(t, []flowstate.State{
 			{
-				Current: flowstate.State{
-					ID:     "1",
-					Rev:    1,
-					Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
-				},
-				Committed: flowstate.State{
-					ID:     "1",
-					Rev:    1,
-					Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
-				},
+				ID:     "1",
+				Rev:    1,
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
 			},
 		}, collectStates(t, w, 1))
 	})
@@ -228,25 +187,18 @@ func TestWatcher(main *testing.T) {
 		w := cmd.Watcher
 		defer w.Close()
 
-		require.Equal(t, []*flowstate.StateCtx{
+		require.Equal(t, []flowstate.State{
 			{
-				Current: flowstate.State{
-					ID:     "1",
-					Rev:    6,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
-				Committed: flowstate.State{
-					ID:     "1",
-					Rev:    6,
-					Labels: map[string]string{"foo": "fooVal"},
-				},
+				ID:     "1",
+				Rev:    6,
+				Labels: map[string]string{"foo": "fooVal"},
 			},
 		}, collectStates(t, w, 1))
 	})
 }
 
-func collectStates(t *testing.T, w flowstate.Watcher, limit int) []*flowstate.StateCtx {
-	states := make([]*flowstate.StateCtx, 0, limit)
+func collectStates(t *testing.T, w flowstate.Watcher, limit int) []flowstate.State {
+	states := make([]flowstate.State, 0, limit)
 
 	timeoutT := time.NewTimer(time.Second)
 	defer timeoutT.Stop()

@@ -9,9 +9,12 @@ import (
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/exptcmd"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	var raceDetector int
 
 	trkr := &Tracker{}
