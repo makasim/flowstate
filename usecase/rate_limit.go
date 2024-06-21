@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"golang.org/x/time/rate"
 )
 
 func RateLimit(t TestingT, d flowstate.Doer, fr flowRegistry) {
-	// todo: workaround till stateCtx does not implement context.Context
-	closeCh := make(chan struct{})
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{
 		IncludeState: true,
@@ -51,8 +52,6 @@ func RateLimit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 				); err != nil {
 					return nil, err
 				}
-			case <-closeCh:
-				return flowstate.Noop(stateCtx), nil
 			case <-stateCtx.Done():
 				return flowstate.Noop(stateCtx), nil
 			}
@@ -117,12 +116,16 @@ func RateLimit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	}
 
 	var visited []string
-	require.Eventually(t, func() bool {
+	assert.Eventually(t, func() bool {
 		visited = trkr.VisitedSorted()
 		return len(visited) >= 15
 	}, time.Second, time.Millisecond*50)
+	require.Len(t, visited, 15, "visited %d: %v; need 15", len(visited), visited)
 
-	close(closeCh)
+	sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer sCtxCancel()
+
+	require.NoError(t, e.Shutdown(sCtx))
 
 	require.Equal(t, []string{
 		"limited",

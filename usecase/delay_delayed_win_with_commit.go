@@ -6,9 +6,12 @@ import (
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 func Delay_DelayedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	trkr := &Tracker{}
 
 	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {

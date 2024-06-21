@@ -25,6 +25,8 @@ func NewEngine(d Doer) (*Engine, error) {
 		doneCh: make(chan struct{}),
 	}
 
+	e.wg.Add(1)
+
 	if err := d.Init(e); err != nil {
 		return nil, fmt.Errorf("driver: init: %w", err)
 	}
@@ -33,8 +35,13 @@ func NewEngine(d Doer) (*Engine, error) {
 }
 
 func (e *Engine) Execute(stateCtx *StateCtx) error {
-	e.wg.Add(1)
-	defer e.wg.Done()
+	select {
+	case <-e.doneCh:
+		return nil
+	default:
+		e.wg.Add(1)
+		defer e.wg.Done()
+	}
 
 	stateCtx.e = e
 
@@ -113,7 +120,7 @@ func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
 func (e *Engine) Shutdown(ctx context.Context) error {
 	select {
 	case <-e.doneCh:
-		return fmt.Errorf("engine already closed")
+		return nil
 	default:
 		close(e.doneCh)
 	}
@@ -124,6 +131,9 @@ func (e *Engine) Shutdown(ctx context.Context) error {
 		e.wg.Wait()
 		close(waitCh)
 	}()
+
+	// undo the Add in NewEngine
+	e.wg.Done()
 
 	select {
 	case <-ctx.Done():

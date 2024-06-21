@@ -6,9 +6,12 @@ import (
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 func CallProcessWithWatch(t TestingT, d flowstate.Doer, fr flowRegistry) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	var nextStateCtx *flowstate.StateCtx
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{

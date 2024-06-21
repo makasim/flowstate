@@ -6,9 +6,12 @@ import (
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 func Fork_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	var forkedStateCtx *flowstate.StateCtx
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{

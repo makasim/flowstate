@@ -7,9 +7,12 @@ import (
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 func Queue(t TestingT, d flowstate.Doer, fr flowRegistry) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
 	trkr := &Tracker{
 		IncludeTaskID: true,
 		IncludeState:  true,

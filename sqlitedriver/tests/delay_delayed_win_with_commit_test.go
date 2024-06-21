@@ -12,6 +12,8 @@ import (
 func TestDelay_DelayedWin_WithCommit(t *testing.T) {
 	db, err := sql.Open("sqlite3", `:memory:`)
 	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	defer db.Close()
 
 	d := sqlitedriver.New(db)
 

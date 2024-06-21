@@ -53,7 +53,10 @@ func (l *Log) Commit() {
 		return 1
 	})
 
+	var rev int64
 	for _, stateCtx := range l.changes {
+		rev = stateCtx.Current.Rev
+
 		l.entries = append(l.entries, stateCtx)
 	}
 
@@ -61,9 +64,9 @@ func (l *Log) Commit() {
 
 	for _, ch := range l.listeners {
 		select {
-		case ch <- l.rev:
+		case ch <- rev:
 		case <-ch:
-			ch <- l.rev
+			ch <- rev
 		}
 	}
 }
