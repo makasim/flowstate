@@ -107,7 +107,7 @@ func (lis *listener) listen() {
 skip:
 	for {
 		select {
-		case latestRev := <-lis.changeCh:
+		case <-lis.changeCh:
 			for {
 				lis.l.Lock()
 				states, lis.sinceRev = lis.l.Entries(lis.sinceRev, 10)
