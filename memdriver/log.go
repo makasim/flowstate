@@ -135,7 +135,6 @@ func (l *Log) SubscribeCommit(notifyCh chan int64) error {
 	l.Lock()
 	defer l.Unlock()
 
-	//log.Println(91)
 	l.listeners = append(l.listeners, notifyCh)
 	return nil
 }
@@ -143,7 +142,7 @@ func (l *Log) SubscribeCommit(notifyCh chan int64) error {
 func (l *Log) UnsubscribeCommit(notifyCh chan int64) {
 	l.Lock()
 	defer l.Unlock()
-	//log.Println(92)
+
 	for i, ch := range l.listeners {
 		if ch == notifyCh {
 			l.listeners = append(l.listeners[:i], l.listeners[i+1:]...)

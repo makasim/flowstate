@@ -132,10 +132,6 @@ skip:
 						return
 					}
 				}
-
-				if latestRev <= lis.sinceRev {
-					continue skip
-				}
 			}
 		case <-lis.closeCh:
 			lis.l.UnsubscribeCommit(lis.changeCh)
