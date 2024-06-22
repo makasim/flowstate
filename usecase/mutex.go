@@ -70,7 +70,7 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 					mutexStateCtx = &flowstate.StateCtx{}
 				}
 
-				mutexStateCtx = flowstate.CopyToCtx(mutexState, mutexStateCtx)
+				mutexStateCtx = mutexState.CopyToCtx(mutexStateCtx)
 
 				continue
 			case <-stateCtx.Done():

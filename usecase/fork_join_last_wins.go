@@ -71,7 +71,7 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			case <-stateCtx.Done():
 				return flowstate.Noop(stateCtx), nil
 			case changedState := <-w.Watch():
-				changedStateCtx := flowstate.CopyToCtx(changedState, &flowstate.StateCtx{})
+				changedStateCtx := changedState.CopyToCtx(&flowstate.StateCtx{})
 
 				if changedStateCtx.Current.Transition.ToID != `join` {
 					continue

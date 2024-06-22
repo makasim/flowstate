@@ -15,10 +15,20 @@ type State struct {
 	Annotations map[string]string `json:"annotations"`
 	Labels      map[string]string `json:"labels"`
 
+	CommittedAtUnixMilli int64 `json:"committed_at_unix_milli"`
+
 	Transition Transition `json:"transition2"`
 }
 
-func (s *State) CopyTo(to *State) *State {
+func (s *State) SetCommitedAt(at time.Time) {
+	s.CommittedAtUnixMilli = at.UnixMilli()
+}
+
+func (s *State) CommittedAt() time.Time {
+	return time.UnixMilli(s.CommittedAtUnixMilli)
+}
+
+func (s *State) CopyTo(to *State) State {
 	to.ID = s.ID
 	to.Rev = s.Rev
 	s.Transition.CopyTo(&to.Transition)
@@ -30,6 +40,12 @@ func (s *State) CopyTo(to *State) *State {
 		to.SetLabel(k, v)
 	}
 
+	return *to
+}
+
+func (s *State) CopyToCtx(to *StateCtx) *StateCtx {
+	s.CopyTo(&to.Committed)
+	s.CopyTo(&to.Current)
 	return to
 }
 
@@ -116,10 +132,4 @@ func (s *StateCtx) Value(key any) any {
 	}
 
 	return s.Current.Annotations[key1]
-}
-
-func CopyToCtx(state State, stateCtx *StateCtx) *StateCtx {
-	state.CopyTo(&stateCtx.Committed)
-	state.CopyTo(&stateCtx.Current)
-	return stateCtx
 }

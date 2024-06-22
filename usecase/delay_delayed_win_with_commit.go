@@ -17,7 +17,7 @@ func Delay_DelayedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) 
 	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		if flowstate.Delayed(stateCtx) {
+		if flowstate.Delayed(stateCtx.Current) {
 			return flowstate.Commit(
 				flowstate.Transit(stateCtx, `second`),
 			), nil

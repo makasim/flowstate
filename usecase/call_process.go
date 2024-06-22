@@ -26,7 +26,7 @@ func CallProcess(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	fr.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		if flowstate.Resumed(stateCtx) {
+		if flowstate.Resumed(stateCtx.Current) {
 			return flowstate.Transit(stateCtx, `callEnd`), nil
 		}
 
