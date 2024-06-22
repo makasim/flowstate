@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/makasim/flowstate/sqlitedriver"
-	"github.com/makasim/flowstate/usecase"
+	"github.com/makasim/flowstate/testcases"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,5 +17,5 @@ func TestDelay_DelayedWin_WithCommit(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Delay_DelayedWin_WithCommit(t, d, d)
+	testcases.Delay_DelayedWin_WithCommit(t, d, d)
 }

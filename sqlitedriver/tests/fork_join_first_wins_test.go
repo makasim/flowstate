@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/makasim/flowstate/sqlitedriver"
-	"github.com/makasim/flowstate/usecase"
+	"github.com/makasim/flowstate/testcases"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,5 +17,5 @@ func TestForkJoin_FirstWins(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.ForkJoin_FirstWins(t, d, d)
+	testcases.ForkJoin_FirstWins(t, d, d)
 }

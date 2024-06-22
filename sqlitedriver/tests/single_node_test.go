@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/makasim/flowstate/sqlitedriver"
-	"github.com/makasim/flowstate/usecase"
+	"github.com/makasim/flowstate/testcases"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,5 +17,5 @@ func TestSingleNode(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.SingleNode(t, d, d)
+	testcases.SingleNode(t, d, d)
 }

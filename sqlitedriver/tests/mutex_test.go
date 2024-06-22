@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/makasim/flowstate/sqlitedriver"
-	"github.com/makasim/flowstate/usecase"
+	"github.com/makasim/flowstate/testcases"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,5 +17,5 @@ func TestMutex(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Mutex(t, d, d)
+	testcases.Mutex(t, d, d)
 }

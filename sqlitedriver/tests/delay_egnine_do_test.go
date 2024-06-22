@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/makasim/flowstate/sqlitedriver"
-	"github.com/makasim/flowstate/usecase"
+	"github.com/makasim/flowstate/testcases"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,5 +17,5 @@ func TestDelay_EngineDo(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Delay_EngineDo(t, d, d)
+	testcases.Delay_EngineDo(t, d, d)
 }

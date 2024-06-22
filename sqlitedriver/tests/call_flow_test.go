@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestQueue(t *testing.T) {
+func TestCallFlow(t *testing.T) {
 	db, err := sql.Open("sqlite3", `:memory:`)
 	require.NoError(t, err)
 	db.SetMaxOpenConns(1)
@@ -17,5 +17,5 @@ func TestQueue(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	testcases.Queue(t, d, d)
+	testcases.CallFlow(t, d, d)
 }
