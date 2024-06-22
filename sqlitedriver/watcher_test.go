@@ -25,10 +25,8 @@ func TestWatcher(main *testing.T) {
 			require.NoError(t, db.Close())
 		})
 
-		e, err := flowstate.NewEngine(d)
+		_, err = flowstate.NewEngine(d)
 		require.NoError(t, err)
-
-		require.NoError(t, d.Init(e))
 
 		return d, db
 	}

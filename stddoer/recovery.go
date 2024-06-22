@@ -13,16 +13,18 @@ import (
 type RecoveryDoer struct {
 	failoverDur time.Duration
 
-	w      flowstate.Watcher
-	e      *flowstate.Engine
-	doneCh chan struct{}
-	log    []flowstate.State
+	w         flowstate.Watcher
+	e         *flowstate.Engine
+	doneCh    chan struct{}
+	stoppedCh chan struct{}
+	log       []flowstate.State
 }
 
 func Recovery(failoverDur time.Duration) flowstate.Doer {
 	return &RecoveryDoer{
-		doneCh:      make(chan struct{}),
 		failoverDur: failoverDur,
+		doneCh:      make(chan struct{}),
+		stoppedCh:   make(chan struct{}),
 	}
 }
 
@@ -35,7 +37,6 @@ func (d *RecoveryDoer) Do(cmd0 flowstate.Command) error {
 }
 
 func (d *RecoveryDoer) Init(e *flowstate.Engine) error {
-
 	w, err := e.Watch(0, nil)
 	if err != nil {
 		return err
@@ -44,9 +45,12 @@ func (d *RecoveryDoer) Init(e *flowstate.Engine) error {
 	d.w = w
 	d.e = e
 
-	t := time.NewTicker(d.failoverDur)
-
 	go func() {
+		defer close(d.stoppedCh)
+
+		t := time.NewTicker(d.failoverDur)
+		defer t.Stop()
+
 		for {
 			select {
 			case <-d.doneCh:
@@ -125,11 +129,16 @@ func (d *RecoveryDoer) checkLog() error {
 	return nil
 }
 
-func (d *RecoveryDoer) Shutdown(_ context.Context) error {
+func (d *RecoveryDoer) Shutdown(ctx context.Context) error {
 	d.w.Close()
 	close(d.doneCh)
 
-	return nil
+	select {
+	case <-d.stoppedCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 type recoveryCommit struct {

@@ -86,10 +86,10 @@ func (d *Driver) Init(e *flowstate.Engine) error {
 	return nil
 }
 
-func (d *Driver) Shutdown(_ context.Context) error {
+func (d *Driver) Shutdown(ctx context.Context) error {
 	var res error
 	for _, doer := range d.doers {
-		if err := doer.Shutdown(context.Background()); err != nil {
+		if err := doer.Shutdown(ctx); err != nil {
 			res = errors.Join(res, fmt.Errorf("%T: shutdown: %w", doer, err))
 		}
 	}
