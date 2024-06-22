@@ -17,5 +17,5 @@ func TestFork(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Fork(t, d, d)
+	testcases.Fork(t, d, d)
 }

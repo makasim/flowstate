@@ -17,5 +17,5 @@ func TestQueue(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Queue(t, d, d)
+	testcases.Queue(t, d, d)
 }

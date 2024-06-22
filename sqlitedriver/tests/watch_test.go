@@ -17,5 +17,5 @@ func TestWatch(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Watch(t, d, d)
+	testcases.Watch(t, d, d)
 }

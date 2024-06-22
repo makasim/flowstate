@@ -10,5 +10,5 @@ import (
 func TestTwoConsequentNodes(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.TwoConsequentNodes(t, d, d)
+	testcases.TwoConsequentNodes(t, d, d)
 }

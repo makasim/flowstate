@@ -17,5 +17,5 @@ func TestMutex(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Mutex(t, d, d)
+	testcases.Mutex(t, d, d)
 }

@@ -10,5 +10,5 @@ import (
 func TestRateLimit(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.RateLimit(t, d, d)
+	testcases.RateLimit(t, d, d)
 }

@@ -17,5 +17,5 @@ func TestSingleNode(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.SingleNode(t, d, d)
+	testcases.SingleNode(t, d, d)
 }

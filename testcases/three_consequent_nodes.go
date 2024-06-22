@@ -1,4 +1,4 @@
-package usecase
+package testcases
 
 import (
 	"context"
@@ -9,24 +9,18 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Condition(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func ThreeConsequentNodes(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
 
 	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-
-		bID := flowstate.FlowID(`third`)
-		if stateCtx.Current.Annotations["condition"] == "true" {
-			bID = `second`
-		}
-
-		return flowstate.Transit(stateCtx, bID), nil
+		return flowstate.Transit(stateCtx, `second`), nil
 	}))
 	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Transit(stateCtx, `third`), nil
 	}))
 	fr.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
@@ -42,33 +36,15 @@ func Condition(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
-	// condition true
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
-			ID: "aTrueTID",
-			Annotations: map[string]string{
-				"condition": "true",
-			},
+			ID:  "aTID",
+			Rev: 0,
 		},
 	}
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
 	require.NoError(t, e.Execute(stateCtx))
-	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
 
-	// condition false
-	trkr.visited = nil
-
-	stateCtx1 := &flowstate.StateCtx{
-		Current: flowstate.State{
-			ID: "aFalseTID",
-			Annotations: map[string]string{
-				"condition": "false",
-			},
-		},
-	}
-
-	require.NoError(t, e.Do(flowstate.Transit(stateCtx1, `first`)))
-	require.NoError(t, e.Execute(stateCtx1))
-	require.Equal(t, []string{`first`, `third`}, trkr.Visited())
+	require.Equal(t, []string{`first`, `second`, `third`}, trkr.Visited())
 }

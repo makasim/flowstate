@@ -10,5 +10,5 @@ import (
 func TestFork_WithCommit(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.Fork_WithCommit(t, d, d)
+	testcases.Fork_WithCommit(t, d, d)
 }

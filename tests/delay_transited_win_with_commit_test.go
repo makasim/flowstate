@@ -10,5 +10,5 @@ import (
 func TestDelay_TransitedWin_WithCommit(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.Delay_TransitedWin_WithCommit(t, d, d)
+	testcases.Delay_TransitedWin_WithCommit(t, d, d)
 }

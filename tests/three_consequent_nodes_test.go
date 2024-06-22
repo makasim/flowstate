@@ -10,5 +10,5 @@ import (
 func TestThreeConsequentNodes(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.ThreeConsequentNodes(t, d, d)
+	testcases.ThreeConsequentNodes(t, d, d)
 }

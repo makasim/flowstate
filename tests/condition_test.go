@@ -10,5 +10,5 @@ import (
 func TestCondition(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.Condition(t, d, d)
+	testcases.Condition(t, d, d)
 }

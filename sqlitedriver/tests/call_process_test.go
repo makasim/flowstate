@@ -17,5 +17,5 @@ func TestCallProcess(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.CallProcess(t, d, d)
+	testcases.CallProcess(t, d, d)
 }

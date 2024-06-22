@@ -17,5 +17,5 @@ func TestDelay_Return(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Delay_Return(t, d, d)
+	testcases.Delay_Return(t, d, d)
 }

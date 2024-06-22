@@ -1,4 +1,4 @@
-package usecase
+package testcases
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var forkedStateCtx *flowstate.StateCtx
@@ -26,7 +26,6 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		Track(stateCtx, trkr)
 
 		stateCtx.Current.SetLabel(`theForkJoinLabel`, string(stateCtx.Current.ID))
-
 		forkedStateCtx = stateCtx.NewTo(`forkedTID`, &flowstate.StateCtx{})
 		forkedTwoStateCtx = stateCtx.NewTo(`forkedTwoTID`, &flowstate.StateCtx{})
 
@@ -66,7 +65,6 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		cnt := 0
 		for {
-
 			select {
 			case <-stateCtx.Done():
 				return flowstate.Noop(stateCtx), nil
@@ -82,7 +80,7 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 					continue
 				}
 
-				if cnt == 3 {
+				if cnt == 1 {
 					return flowstate.Commit(
 						flowstate.Transit(stateCtx, `joined`),
 					), nil
@@ -91,6 +89,7 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 				return flowstate.Commit(
 					flowstate.End(stateCtx),
 				), nil
+
 			}
 		}
 	}))

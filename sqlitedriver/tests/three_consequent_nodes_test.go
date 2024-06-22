@@ -17,5 +17,5 @@ func TestThreeConsequentNodes(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.ThreeConsequentNodes(t, d, d)
+	testcases.ThreeConsequentNodes(t, d, d)
 }

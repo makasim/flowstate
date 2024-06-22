@@ -10,5 +10,5 @@ import (
 func TestCallProcessWithCommit(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.CallProcessWithCommit(t, d, d)
+	testcases.CallProcessWithCommit(t, d, d)
 }

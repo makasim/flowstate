@@ -1,4 +1,4 @@
-package usecase
+package testcases
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func Condition(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
@@ -17,19 +17,12 @@ func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry
 	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		if flowstate.Delayed(stateCtx) {
-			return flowstate.Commit(
-				flowstate.Transit(stateCtx, `second`),
-			), nil
+		bID := flowstate.FlowID(`third`)
+		if stateCtx.Current.Annotations["condition"] == "true" {
+			bID = `second`
 		}
 
-		if err := e.Do(flowstate.Delay(stateCtx, time.Millisecond*200)); err != nil {
-			return nil, err
-		}
-
-		return flowstate.Commit(
-			flowstate.Transit(stateCtx, `third`),
-		), nil
+		return flowstate.Transit(stateCtx, bID), nil
 	}))
 	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
@@ -49,17 +42,33 @@ func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
+	// condition true
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
-			ID: "aTID",
+			ID: "aTrueTID",
+			Annotations: map[string]string{
+				"condition": "true",
+			},
 		},
 	}
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
 	require.NoError(t, e.Execute(stateCtx))
+	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
 
-	time.Sleep(time.Millisecond * 800)
+	// condition false
+	trkr.visited = nil
 
-	// no second in list
-	require.Equal(t, []string{`first`, `third`, `first`}, trkr.Visited())
+	stateCtx1 := &flowstate.StateCtx{
+		Current: flowstate.State{
+			ID: "aFalseTID",
+			Annotations: map[string]string{
+				"condition": "false",
+			},
+		},
+	}
+
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx1, `first`)))
+	require.NoError(t, e.Execute(stateCtx1))
+	require.Equal(t, []string{`first`, `third`}, trkr.Visited())
 }

@@ -10,5 +10,5 @@ import (
 func TestCallProcess(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.CallProcess(t, d, d)
+	testcases.CallProcess(t, d, d)
 }

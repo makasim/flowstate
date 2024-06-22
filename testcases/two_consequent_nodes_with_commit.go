@@ -1,4 +1,4 @@
-package usecase
+package testcases
 
 import (
 	"context"
@@ -9,12 +9,22 @@ import (
 	"go.uber.org/goleak"
 )
 
-func SingleNode(t TestingT, d flowstate.Doer, fr flowRegistry) {
+type flowRegistry interface {
+	SetFlow(id flowstate.FlowID, f flowstate.Flow)
+}
+
+func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
 
 	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		Track(stateCtx, trkr)
+		return flowstate.Commit(
+			flowstate.Transit(stateCtx, `second`),
+		), nil
+	}))
+	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
@@ -35,8 +45,10 @@ func SingleNode(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		},
 	}
 
-	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
+	require.NoError(t, e.Do(flowstate.Commit(
+		flowstate.Transit(stateCtx, `first`),
+	)))
 	require.NoError(t, e.Execute(stateCtx))
 
-	require.Equal(t, []string{`first`}, trkr.Visited())
+	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
 }

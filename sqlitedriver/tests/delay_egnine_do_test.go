@@ -17,5 +17,5 @@ func TestDelay_EngineDo(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Delay_EngineDo(t, d, d)
+	testcases.Delay_EngineDo(t, d, d)
 }

@@ -10,5 +10,5 @@ import (
 func TestQueue(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.Queue(t, d, d)
+	testcases.Queue(t, d, d)
 }

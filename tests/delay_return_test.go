@@ -10,5 +10,5 @@ import (
 func TestDelay_Return(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.Delay_Return(t, d, d)
+	testcases.Delay_Return(t, d, d)
 }

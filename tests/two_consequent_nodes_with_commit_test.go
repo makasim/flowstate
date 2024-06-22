@@ -10,5 +10,5 @@ import (
 func TestTwoConsequentNodesWithCommit(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.TwoConsequentNodesWithCommit(t, d, d)
+	testcases.TwoConsequentNodesWithCommit(t, d, d)
 }

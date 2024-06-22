@@ -10,5 +10,5 @@ import (
 func TestFork(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.Fork(t, d, d)
+	testcases.Fork(t, d, d)
 }

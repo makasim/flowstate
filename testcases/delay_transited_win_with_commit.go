@@ -1,4 +1,4 @@
-package usecase
+package testcases
 
 import (
 	"context"
@@ -9,22 +9,33 @@ import (
 	"go.uber.org/goleak"
 )
 
-type flowRegistry interface {
-	SetFlow(id flowstate.FlowID, f flowstate.Flow)
-}
-
-func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
 
 	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
+
+		if flowstate.Delayed(stateCtx) {
+			return flowstate.Commit(
+				flowstate.Transit(stateCtx, `second`),
+			), nil
+		}
+
+		if err := e.Do(flowstate.Delay(stateCtx, time.Millisecond*200)); err != nil {
+			return nil, err
+		}
+
 		return flowstate.Commit(
-			flowstate.Transit(stateCtx, `second`),
+			flowstate.Transit(stateCtx, `third`),
 		), nil
 	}))
 	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		Track(stateCtx, trkr)
+		return flowstate.End(stateCtx), nil
+	}))
+	fr.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
@@ -40,15 +51,15 @@ func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry)
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
-			ID:  "aTID",
-			Rev: 0,
+			ID: "aTID",
 		},
 	}
 
-	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Transit(stateCtx, `first`),
-	)))
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
 	require.NoError(t, e.Execute(stateCtx))
 
-	require.Equal(t, []string{`first`, `second`}, trkr.Visited())
+	time.Sleep(time.Millisecond * 800)
+
+	// no second in list
+	require.Equal(t, []string{`first`, `third`, `first`}, trkr.Visited())
 }

@@ -17,5 +17,5 @@ func TestDelay_DelayedWin_WithCommit(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Delay_DelayedWin_WithCommit(t, d, d)
+	testcases.Delay_DelayedWin_WithCommit(t, d, d)
 }

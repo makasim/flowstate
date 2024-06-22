@@ -10,5 +10,5 @@ import (
 func TestMutex(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.Mutex(t, d, d)
+	testcases.Mutex(t, d, d)
 }

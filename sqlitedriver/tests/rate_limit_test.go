@@ -17,5 +17,5 @@ func TestRateLimit(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.RateLimit(t, d, d)
+	testcases.RateLimit(t, d, d)
 }

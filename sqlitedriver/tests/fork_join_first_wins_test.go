@@ -17,5 +17,5 @@ func TestForkJoin_FirstWins(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.ForkJoin_FirstWins(t, d, d)
+	testcases.ForkJoin_FirstWins(t, d, d)
 }

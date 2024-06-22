@@ -17,5 +17,5 @@ func TestTwoConsequentNodesWithCommit(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.TwoConsequentNodesWithCommit(t, d, d)
+	testcases.TwoConsequentNodesWithCommit(t, d, d)
 }

@@ -10,5 +10,5 @@ import (
 func TestSingleNode(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.SingleNode(t, d, d)
+	testcases.SingleNode(t, d, d)
 }

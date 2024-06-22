@@ -1,4 +1,4 @@
-package usecase
+package testcases
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Delay_EngineDo(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func Delay_Return(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
@@ -20,13 +20,7 @@ func Delay_EngineDo(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			return flowstate.Transit(stateCtx, `second`), nil
 		}
 
-		if err := e.Do(
-			flowstate.Delay(stateCtx, time.Millisecond*200),
-		); err != nil {
-			return nil, err
-		}
-
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Delay(stateCtx, time.Millisecond*200), nil
 	}))
 	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)

@@ -17,5 +17,5 @@ func TestCallProcessWithWatch(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.CallProcessWithWatch(t, d, d)
+	testcases.CallProcessWithWatch(t, d, d)
 }

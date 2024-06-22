@@ -10,5 +10,5 @@ import (
 func TestWatch(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.Watch(t, d, d)
+	testcases.Watch(t, d, d)
 }

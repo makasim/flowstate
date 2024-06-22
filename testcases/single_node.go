@@ -1,4 +1,4 @@
-package usecase
+package testcases
 
 import (
 	"context"
@@ -9,20 +9,12 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Delay_Return(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func SingleNode(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
 
 	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
-		Track(stateCtx, trkr)
-		if flowstate.Delayed(stateCtx) {
-			return flowstate.Transit(stateCtx, `second`), nil
-		}
-
-		return flowstate.Delay(stateCtx, time.Millisecond*200), nil
-	}))
-	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
@@ -38,14 +30,13 @@ func Delay_Return(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
-			ID: "aTID",
+			ID:  "aTID",
+			Rev: 0,
 		},
 	}
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
 	require.NoError(t, e.Execute(stateCtx))
 
-	time.Sleep(time.Millisecond * 500)
-
-	require.Equal(t, []string{`first`, `first`, `second`}, trkr.Visited())
+	require.Equal(t, []string{`first`}, trkr.Visited())
 }

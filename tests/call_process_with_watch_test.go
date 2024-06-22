@@ -10,5 +10,5 @@ import (
 func TestCallProcessWithWatch(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.CallProcessWithWatch(t, d, d)
+	testcases.CallProcessWithWatch(t, d, d)
 }

@@ -10,5 +10,5 @@ import (
 func TestForkJoin_LastWins(t *testing.T) {
 	d := memdriver.New()
 
-	usecase.ForkJoin_LastWins(t, d, d)
+	testcases.ForkJoin_LastWins(t, d, d)
 }

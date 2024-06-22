@@ -17,5 +17,5 @@ func TestCallProcessWithCommit(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.CallProcessWithCommit(t, d, d)
+	testcases.CallProcessWithCommit(t, d, d)
 }

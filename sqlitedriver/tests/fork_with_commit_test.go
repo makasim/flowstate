@@ -17,5 +17,5 @@ func TestFork_WithCommit(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	usecase.Fork_WithCommit(t, d, d)
+	testcases.Fork_WithCommit(t, d, d)
 }
