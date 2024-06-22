@@ -1,6 +1,7 @@
 package sqlitedriver_test
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"testing"
@@ -15,10 +16,12 @@ func TestWatcher(main *testing.T) {
 	setUp := func(t *testing.T) (*sqlitedriver.Driver, *sql.DB) {
 		db, err := sql.Open("sqlite3", `:memory:`)
 		require.NoError(t, err)
+		db.SetMaxOpenConns(1)
 
 		d := sqlitedriver.New(db)
 
 		t.Cleanup(func() {
+			require.NoError(t, d.Shutdown(context.Background()))
 			require.NoError(t, db.Close())
 		})
 

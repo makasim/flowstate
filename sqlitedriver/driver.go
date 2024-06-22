@@ -34,7 +34,6 @@ func New(db *sql.DB) *Driver {
 		stddoer.End(),
 		stddoer.Noop(),
 
-		exptcmd.ForkDoer(),
 		exptcmd.NewStacker(),
 		exptcmd.UnstackDoer(),
 

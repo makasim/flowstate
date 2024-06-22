@@ -3,8 +3,11 @@ package usecase
 import (
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/makasim/flowstate"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type Tracker struct {
@@ -54,6 +57,28 @@ func (trkr *Tracker) VisitedSorted() []string {
 		}
 		return true
 	})
+
+	return visited
+}
+
+func (trkr *Tracker) WaitSortedVisitedEqual(t TestingT, expVisited []string, wait time.Duration) []string {
+	var visited []string
+	assert.Eventually(t, func() bool {
+		visited = trkr.VisitedSorted()
+		return len(visited) >= len(expVisited)
+	}, wait, time.Millisecond*50)
+	require.Equal(t, visited, expVisited)
+
+	return visited
+}
+
+func (trkr *Tracker) WaitVisitedEqual(t TestingT, expVisited []string, wait time.Duration) []string {
+	var visited []string
+	assert.Eventually(t, func() bool {
+		visited = trkr.Visited()
+		return len(visited) >= len(expVisited)
+	}, wait, time.Millisecond*50)
+	require.Equal(t, visited, expVisited)
 
 	return visited
 }

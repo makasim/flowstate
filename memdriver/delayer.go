@@ -2,6 +2,7 @@ package memdriver
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 
@@ -22,6 +23,10 @@ func NewDelayer() *Delayer {
 }
 
 func (d *Delayer) Do(cmd0 flowstate.Command) error {
+	if _, ok := cmd0.(*delayedCommit); ok {
+		return nil
+	}
+
 	cmd, ok := cmd0.(*flowstate.DelayCommand)
 	if !ok {
 		return flowstate.ErrCommandNotSupported
@@ -38,6 +43,17 @@ func (d *Delayer) Do(cmd0 flowstate.Command) error {
 
 		select {
 		case <-t.C:
+			if cmd.DelayStateCtx.Current.Transition.Annotations[flowstate.DelayCommitAnnotation] == `true` {
+				conflictErr := &flowstate.ErrCommitConflict{}
+				if err := d.e.Do(flowstate.Commit(&delayedCommit{stateCtx: cmd.DelayStateCtx})); errors.As(err, conflictErr) {
+					log.Printf(`ERROR: memdriver: delayer: engine: commit: %s\n`, conflictErr)
+					return
+				} else if err != nil {
+					log.Printf(`ERROR: memdriver: delayer: engine: commit: %s`, err)
+					return
+				}
+			}
+
 			if err := d.e.Execute(cmd.DelayStateCtx); err != nil {
 				log.Printf(`ERROR: memdriver: delayer: engine: execute: %s`, err)
 			}
@@ -57,5 +73,17 @@ func (d *Delayer) Init(e *flowstate.Engine) error {
 
 func (d *Delayer) Shutdown(_ context.Context) error {
 	close(d.doneCh)
+	return nil
+}
+
+type delayedCommit struct {
+	stateCtx *flowstate.StateCtx
+}
+
+func (cmd *delayedCommit) CommittableStateCtx() *flowstate.StateCtx {
+	return cmd.stateCtx
+}
+
+func (cmd *delayedCommit) Prepare() error {
 	return nil
 }

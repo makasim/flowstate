@@ -65,11 +65,9 @@ func Fork_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))
 	require.NoError(t, e.Execute(stateCtx))
 
-	time.Sleep(time.Millisecond * 100)
-
-	require.Equal(t, []string{
+	trkr.WaitSortedVisitedEqual(t, []string{
 		`fork`,
 		`forked`,
 		`origin`,
-	}, trkr.VisitedSorted())
+	}, time.Second)
 }

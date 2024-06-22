@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/exptcmd"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 )
@@ -28,19 +27,11 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		stateCtx.Current.SetLabel(`theForkJoinLabel`, string(stateCtx.Current.ID))
 
-		forkedStateCtx = &flowstate.StateCtx{}
-		forkedStateCtx.Current.ID = "forkedTID"
-		forkedStateCtx.Committed.ID = "forkedTID"
-
-		forkedTwoStateCtx = &flowstate.StateCtx{}
-		forkedTwoStateCtx.Current.ID = "forkedTwoTID"
-		forkedTwoStateCtx.Committed.ID = "forkedTwoTID"
+		forkedStateCtx = stateCtx.NewTo(`forkedTID`, &flowstate.StateCtx{})
+		forkedTwoStateCtx = stateCtx.NewTo(`forkedTwoTID`, &flowstate.StateCtx{})
 
 		if err := e.Do(
 			flowstate.Commit(
-				exptcmd.Fork(stateCtx, forkedStateCtx),
-				exptcmd.Fork(stateCtx, forkedTwoStateCtx),
-
 				flowstate.Transit(stateCtx, `forked`),
 				flowstate.Transit(forkedStateCtx, `forked`),
 				flowstate.Transit(forkedTwoStateCtx, `forked`),
@@ -126,9 +117,7 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))
 	require.NoError(t, e.Execute(stateCtx))
 
-	time.Sleep(time.Millisecond * 100)
-
-	require.Equal(t, []string{
+	trkr.WaitSortedVisitedEqual(t, []string{
 		"fork",
 		"forked",
 		"forked",
@@ -137,5 +126,5 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		"join",
 		"join",
 		"joined",
-	}, trkr.VisitedSorted())
+	}, time.Second)
 }
