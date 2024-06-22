@@ -1,6 +1,9 @@
 package flowstate
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 var StateAnnotation = `flowstate.state`
 
@@ -142,6 +145,7 @@ type CommitCommand struct {
 
 var DelayAtAnnotation = `flowstate.delay.at`
 var DelayDurationAnnotation = `flowstate.delay.duration`
+var DelayCommitAnnotation = `flowstate.delay.commit`
 
 func Delayed(stateCtx *StateCtx) bool {
 	return stateCtx.Current.Transition.Annotations[DelayAtAnnotation] != ``
@@ -167,8 +171,7 @@ func (cmd *DelayCommand) CommittableStateCtx() *StateCtx {
 }
 
 func (cmd *DelayCommand) Prepare() error {
-	delayedStateCtx := &StateCtx{}
-	cmd.StateCtx.CopyTo(delayedStateCtx)
+	delayedStateCtx := cmd.StateCtx.CopyTo(&StateCtx{})
 
 	delayedStateCtx.Transitions = append(delayedStateCtx.Transitions, delayedStateCtx.Current.Transition)
 
@@ -179,6 +182,7 @@ func (cmd *DelayCommand) Prepare() error {
 	}
 	nextTs.SetAnnotation(DelayAtAnnotation, time.Now().Format(time.RFC3339Nano))
 	nextTs.SetAnnotation(DelayDurationAnnotation, cmd.Duration.String())
+	nextTs.SetAnnotation(DelayCommitAnnotation, fmt.Sprintf("%v", cmd.Commit))
 
 	delayedStateCtx.Current.Transition = nextTs
 

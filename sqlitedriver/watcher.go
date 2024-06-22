@@ -37,11 +37,14 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 
 		sinceRev:    cmd.SinceRev,
 		sinceLatest: cmd.SinceLatest,
-		// todo: copy labels
-		labels: cmd.Labels,
 
+		labels:  make(map[string]string),
 		watchCh: make(chan flowstate.State, 1),
 		closeCh: make(chan struct{}),
+	}
+
+	for k, v := range cmd.Labels {
+		lis.labels[k] = v
 	}
 
 	go lis.listen()
@@ -145,6 +148,10 @@ func (lis *listener) findStates() ([]flowstate.State, error) {
 
 	args = append(args, lis.sinceRev, 10)
 
+	if labelsWhere == "" {
+		labelsWhere = " TRUE "
+	}
+
 	q := fmt.Sprintf(`
 SELECT 
     state 
@@ -200,6 +207,10 @@ func (lis *listener) findSinceLatest() (int64, error) {
 	}
 
 	args = append(args, lis.sinceRev, 10)
+
+	if labelsWhere == "" {
+		labelsWhere = " TRUE "
+	}
 
 	q := fmt.Sprintf(`
 SELECT 
