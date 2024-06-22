@@ -44,7 +44,7 @@ func (d *RecoveryDoer) Init(e *flowstate.Engine) error {
 	d.w = w
 	d.e = e
 
-	t := time.NewTicker(time.Millisecond * 100)
+	t := time.NewTicker(d.failoverDur)
 
 	go func() {
 		for {
