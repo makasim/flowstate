@@ -29,7 +29,7 @@ func Delay_DelayedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) 
 			return nil, err
 		}
 
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 400)
 
 		return flowstate.Commit(
 			flowstate.Transit(stateCtx, `third`),

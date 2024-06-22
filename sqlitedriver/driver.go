@@ -42,9 +42,7 @@ func New(db *sql.DB) *Driver {
 
 		NewCommiter(d.db),
 		NewWatcher(d.db),
-
-		// TODO: implement sqlite doers and remove the following doers
-		//memdriver.NewDelayer(),
+		NewDelayer(d.db),
 	}
 
 	return d

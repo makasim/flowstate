@@ -11,11 +11,14 @@ import (
 var _ flowstate.Doer = &Delayer{}
 
 type Delayer struct {
-	e *flowstate.Engine
+	e      *flowstate.Engine
+	doneCh chan struct{}
 }
 
 func NewDelayer() *Delayer {
-	return &Delayer{}
+	return &Delayer{
+		doneCh: make(chan struct{}),
+	}
 }
 
 func (d *Delayer) Do(cmd0 flowstate.Command) error {
@@ -33,10 +36,14 @@ func (d *Delayer) Do(cmd0 flowstate.Command) error {
 		t := time.NewTimer(cmd.Duration)
 		defer t.Stop()
 
-		<-t.C
-
-		if err := d.e.Execute(cmd.DelayStateCtx); err != nil {
-			log.Printf(`ERROR: engine: defer: engine: execute: %s`, err)
+		select {
+		case <-t.C:
+			if err := d.e.Execute(cmd.DelayStateCtx); err != nil {
+				log.Printf(`ERROR: memdriver: delayer: engine: execute: %s`, err)
+			}
+		case <-d.doneCh:
+			log.Printf(`ERROR: memdriver: delayer: state delay was terminated`)
+			return
 		}
 	}()
 
@@ -49,5 +56,6 @@ func (d *Delayer) Init(e *flowstate.Engine) error {
 }
 
 func (d *Delayer) Shutdown(_ context.Context) error {
+	close(d.doneCh)
 	return nil
 }
