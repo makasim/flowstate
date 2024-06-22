@@ -20,7 +20,7 @@ func Queue(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 	fr.SetFlow("queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		if flowstate.Resumed(stateCtx) {
+		if flowstate.Resumed(stateCtx.Current) {
 			return flowstate.Transit(stateCtx, `dequeued`), nil
 		}
 
@@ -44,7 +44,7 @@ func Queue(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		for {
 			select {
 			case queuedState := <-w.Watch():
-				queuedStateCtx := flowstate.CopyToCtx(queuedState, &flowstate.StateCtx{})
+				queuedStateCtx := queuedState.CopyToCtx(&flowstate.StateCtx{})
 
 				delete(queuedStateCtx.Current.Labels, "queue")
 

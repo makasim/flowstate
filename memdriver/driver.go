@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/exptcmd"
@@ -31,6 +32,7 @@ func New() *Driver {
 		stddoer.Resume(),
 		stddoer.End(),
 		stddoer.Noop(),
+		stddoer.Recovery(time.Millisecond * 500),
 
 		exptcmd.NewStacker(),
 		exptcmd.UnstackDoer(),

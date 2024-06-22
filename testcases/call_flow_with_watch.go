@@ -61,9 +61,9 @@ func CallFlowWithWatch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			case <-stateCtx.Done():
 				return flowstate.Noop(stateCtx), nil
 			case nextState := <-w.Watch():
-				nextStateCtx := flowstate.CopyToCtx(nextState, &flowstate.StateCtx{})
+				nextStateCtx := nextState.CopyToCtx(&flowstate.StateCtx{})
 
-				if !flowstate.Ended(nextStateCtx) {
+				if !flowstate.Ended(nextStateCtx.Current) {
 					continue
 				}
 

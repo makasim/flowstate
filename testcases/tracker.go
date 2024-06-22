@@ -26,9 +26,9 @@ func Track(stateCtx *flowstate.StateCtx, trkr *Tracker) {
 
 	if trkr.IncludeState {
 		switch {
-		case flowstate.Resumed(stateCtx):
+		case flowstate.Resumed(stateCtx.Current):
 			postfix += `:resumed`
-		case flowstate.Paused(stateCtx):
+		case flowstate.Paused(stateCtx.Current):
 			postfix += `:paused`
 		}
 	}
@@ -78,7 +78,7 @@ func (trkr *Tracker) WaitVisitedEqual(t TestingT, expVisited []string, wait time
 		visited = trkr.Visited()
 		return len(visited) >= len(expVisited)
 	}, wait, time.Millisecond*50)
-	require.Equal(t, visited, expVisited)
+	require.Equal(t, expVisited, visited)
 
 	return visited
 }

@@ -2,6 +2,7 @@ package flowstate
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -23,8 +24,8 @@ func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-func Paused(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[StateAnnotation] == `paused`
+func Paused(state State) bool {
+	return state.Transition.Annotations[StateAnnotation] == `paused`
 }
 
 func Pause(stateCtx *StateCtx, fID FlowID) *PauseCommand {
@@ -43,8 +44,8 @@ func (cmd *PauseCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-func Resumed(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[StateAnnotation] == `resumed`
+func Resumed(state State) bool {
+	return state.Transition.Annotations[StateAnnotation] == `resumed`
 }
 
 func Resume(stateCtx *StateCtx) *ResumeCommand {
@@ -61,8 +62,8 @@ func (cmd *ResumeCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-func Ended(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[StateAnnotation] == `ended`
+func Ended(state State) bool {
+	return state.Transition.Annotations[StateAnnotation] == `ended`
 }
 
 func End(stateCtx *StateCtx) *EndCommand {
@@ -147,8 +148,8 @@ var DelayAtAnnotation = `flowstate.delay.at`
 var DelayDurationAnnotation = `flowstate.delay.duration`
 var DelayCommitAnnotation = `flowstate.delay.commit`
 
-func Delayed(stateCtx *StateCtx) bool {
-	return stateCtx.Current.Transition.Annotations[DelayAtAnnotation] != ``
+func Delayed(state State) bool {
+	return state.Transition.Annotations[DelayAtAnnotation] != ``
 }
 
 func Delay(stateCtx *StateCtx, dur time.Duration) *DelayCommand {
@@ -189,4 +190,11 @@ func (cmd *DelayCommand) Prepare() error {
 	cmd.DelayStateCtx = delayedStateCtx
 
 	return nil
+}
+
+var RecoveryAttemptAnnotation = `flowstate.recovery_attempt`
+
+func RecoveryAttempt(state State) int {
+	attempt, _ := strconv.Atoi(state.Transition.Annotations[RecoveryAttemptAnnotation])
+	return attempt
 }

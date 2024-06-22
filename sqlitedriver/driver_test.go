@@ -14,16 +14,16 @@ import (
 func TestDriver_Init(t *testing.T) {
 	db, err := sql.Open("sqlite3", `:memory:`)
 	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
 	defer db.Close()
+
+	// driver init\shutdown performed by engine in NewEngine and e.Shutdown
 
 	d := sqlitedriver.New(db)
 
 	e, err := flowstate.NewEngine(d)
-	require.NoError(t, err)
 
-	require.NoError(t, d.Init(e))
-
-	require.NoError(t, d.Shutdown(context.Background()))
+	require.NoError(t, e.Shutdown(context.Background()))
 }
 
 func TestDriver_Commit(main *testing.T) {
@@ -39,10 +39,8 @@ func TestDriver_Commit(main *testing.T) {
 			require.NoError(t, db.Close())
 		})
 
-		e, err := flowstate.NewEngine(d)
+		_, err = flowstate.NewEngine(d)
 		require.NoError(t, err)
-
-		require.NoError(t, d.Init(e))
 
 		return d, db
 	}

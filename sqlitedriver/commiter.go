@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/makasim/flowstate"
 )
@@ -102,6 +103,7 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 		}
 
 		nextState := stateCtx.Current.CopyTo(&flowstate.State{})
+		nextState.SetCommitedAt(time.Now())
 		nextState.Rev = nextRev
 
 		serializedState, err := json.Marshal(nextState)

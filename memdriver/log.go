@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/makasim/flowstate"
 )
@@ -25,6 +26,7 @@ func (l *Log) Append(stateCtx *flowstate.StateCtx) {
 	}
 
 	stateCtx.CopyTo(committedT)
+	committedT.Current.SetCommitedAt(time.Now())
 	committedT.Current.CopyTo(&committedT.Committed)
 	committedT.Transitions = committedT.Transitions[:0]
 
