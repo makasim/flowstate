@@ -105,7 +105,6 @@ skip:
 		select {
 		case <-t.C:
 			var err error
-
 			states, err = lis.findStates()
 			if err != nil {
 				log.Printf("ERROR: lstener: find states: %s", err)

@@ -75,6 +75,15 @@ func (s *StateCtx) CopyTo(to *StateCtx) *StateCtx {
 	return to
 }
 
+func (s *StateCtx) NewTo(id StateID, to *StateCtx) *StateCtx {
+	s.CopyTo(to)
+	to.Current.ID = id
+	to.Current.Rev = 0
+	to.Current.ID = id
+	to.Current.Rev = 0
+	return to
+}
+
 func (s *StateCtx) Deadline() (time.Time, bool) {
 	return time.Time{}, false
 }

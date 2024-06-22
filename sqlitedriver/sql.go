@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS flowstate_delay_log (
 	execute_at INTEGER,
     state JSONB
 );
-CREATE INDEX flowstate_delay_log_execute_at ON flowstate_delay_log(execute_at);
+CREATE INDEX IF NOT EXISTS flowstate_delay_log_execute_at ON flowstate_delay_log(execute_at);
 `
 
 var createDelayMeta = `

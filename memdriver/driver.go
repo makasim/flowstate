@@ -32,7 +32,6 @@ func New() *Driver {
 		stddoer.End(),
 		stddoer.Noop(),
 
-		exptcmd.ForkDoer(),
 		exptcmd.NewStacker(),
 		exptcmd.UnstackDoer(),
 

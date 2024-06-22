@@ -107,14 +107,12 @@ func Queue(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	err = e.Execute(enqueueStateCtx)
 	require.NoError(t, err)
 
-	time.Sleep(time.Millisecond * 500)
-
-	require.Equal(t, []string{
+	trkr.WaitVisitedEqual(t, []string{
 		"queue:aTID0",
 		"queue:aTID1",
 		"queue:aTID2",
 		"enqueue:enqueueTID",
 		"queue:resumed:aTID0",
 		"dequeued:aTID0",
-	}, trkr.Visited())
+	}, time.Second)
 }
