@@ -10,7 +10,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func CallProcessWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func CallFlow(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var nextStateCtx *flowstate.StateCtx
@@ -32,16 +32,14 @@ func CallProcessWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		nextStateCtx = &flowstate.StateCtx{
 			Current: flowstate.State{
-				ID: "aNextTID",
+				ID: "aTID",
 			},
 		}
 
 		if err := e.Do(
-			flowstate.Commit(
-				flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
-				exptcmd.Stack(stateCtx, nextStateCtx),
-				flowstate.Transit(nextStateCtx, `called`),
-			),
+			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
+			exptcmd.Stack(stateCtx, nextStateCtx),
+			flowstate.Transit(nextStateCtx, `called`),
 			flowstate.Execute(nextStateCtx),
 		); err != nil {
 			return nil, err
@@ -51,28 +49,19 @@ func CallProcessWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	}))
 	fr.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-
-		if err := e.Do(
-			flowstate.Transit(stateCtx, `calledEnd`),
-			flowstate.Execute(stateCtx),
-		); err != nil {
-			return nil, err
-		}
-
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
 	fr.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
+
 		if exptcmd.Stacked(stateCtx) {
 			callStateCtx := &flowstate.StateCtx{}
 
 			if err := e.Do(
-				flowstate.Commit(
-					exptcmd.Unstack(stateCtx, callStateCtx),
-					flowstate.Resume(callStateCtx),
-					flowstate.End(stateCtx),
-				),
+				exptcmd.Unstack(stateCtx, callStateCtx),
+				flowstate.Resume(callStateCtx),
 				flowstate.Execute(callStateCtx),
+				flowstate.End(stateCtx),
 			); err != nil {
 				return nil, err
 			}
@@ -82,6 +71,7 @@ func CallProcessWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		return flowstate.End(stateCtx), nil
 	}))
+
 	fr.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
@@ -99,13 +89,8 @@ func CallProcessWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
-	err = e.Do(flowstate.Commit(
-		flowstate.Transit(stateCtx, `call`),
-	))
-	require.NoError(t, err)
-
-	err = e.Execute(stateCtx)
-	require.NoError(t, err)
+	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `call`)))
+	require.NoError(t, e.Execute(stateCtx))
 
 	require.Eventually(t, func() bool {
 		select {

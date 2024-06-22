@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/makasim/flowstate/sqlitedriver"
-	"github.com/makasim/flowstate/usecase"
+	"github.com/makasim/flowstate/testcases"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCallProcessWithWatch(t *testing.T) {
+func TestCallFlowWithWatch(t *testing.T) {
 	db, err := sql.Open("sqlite3", `:memory:`)
 	require.NoError(t, err)
 	db.SetMaxOpenConns(1)
@@ -17,5 +17,5 @@ func TestCallProcessWithWatch(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	testcases.CallProcessWithWatch(t, d, d)
+	testcases.CallFlowWithWatch(t, d, d)
 }

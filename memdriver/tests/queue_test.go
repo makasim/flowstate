@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/makasim/flowstate/memdriver"
-	"github.com/makasim/flowstate/usecase"
+	"github.com/makasim/flowstate/testcases"
 )
 
-func TestFork(t *testing.T) {
+func TestQueue(t *testing.T) {
 	d := memdriver.New()
 
-	testcases.Fork(t, d, d)
+	testcases.Queue(t, d, d)
 }
