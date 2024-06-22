@@ -37,11 +37,15 @@ func Delay_DelayedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) 
 	}))
 	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Commit(
+			flowstate.End(stateCtx),
+		), nil
 	}))
 	fr.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Commit(
+			flowstate.End(stateCtx),
+		), nil
 	}))
 
 	e, err := flowstate.NewEngine(d)
