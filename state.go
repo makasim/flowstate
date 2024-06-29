@@ -17,7 +17,7 @@ type State struct {
 
 	CommittedAtUnixMilli int64 `json:"committed_at_unix_milli"`
 
-	Transition Transition `json:"transition2"`
+	Transition Transition `json:"transition"`
 }
 
 func (s *State) SetCommitedAt(at time.Time) {
@@ -70,7 +70,7 @@ type StateCtx struct {
 	Committed State `json:"committed"`
 
 	// Transitions between committed and current states
-	Transitions []Transition `json:"transitions2"`
+	Transitions []Transition `json:"transitions"`
 
 	e *Engine `json:"-"`
 }
