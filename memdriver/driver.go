@@ -48,10 +48,6 @@ func New() *Driver {
 }
 
 func (d *Driver) Do(cmd0 flowstate.Command) error {
-	if cmd, ok := cmd0.(*flowstate.GetFlowCommand); ok {
-		return d.doGetFlow(cmd)
-	}
-
 	for _, doer := range d.doers {
 		if err := doer.Do(cmd0); errors.Is(err, flowstate.ErrCommandNotSupported) {
 			continue
@@ -83,19 +79,4 @@ func (d *Driver) Shutdown(_ context.Context) error {
 	}
 
 	return res
-}
-
-func (d *Driver) doGetFlow(cmd *flowstate.GetFlowCommand) error {
-	if cmd.StateCtx.Current.Transition.ToID == "" {
-		return fmt.Errorf("transition flow to is empty")
-	}
-
-	f, err := d.Flow(cmd.StateCtx.Current.Transition.ToID)
-	if err != nil {
-		return err
-	}
-
-	cmd.Flow = f
-
-	return nil
 }
