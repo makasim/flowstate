@@ -27,7 +27,7 @@ func Queue(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		stateCtx.Current.SetLabel("queue", "theName")
 
 		return flowstate.Commit(
-			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
+			flowstate.Pause(stateCtx),
 		), nil
 	}))
 	fr.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {

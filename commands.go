@@ -28,16 +28,21 @@ func Paused(state State) bool {
 	return state.Transition.Annotations[StateAnnotation] == `paused`
 }
 
-func Pause(stateCtx *StateCtx, fID FlowID) *PauseCommand {
+func Pause(stateCtx *StateCtx) *PauseCommand {
 	return &PauseCommand{
 		StateCtx: stateCtx,
-		FlowID:   fID,
+		FlowID:   stateCtx.Current.Transition.ToID,
 	}
 }
 
 type PauseCommand struct {
 	StateCtx *StateCtx
 	FlowID   FlowID
+}
+
+func (cmd *PauseCommand) WithTransit(fID FlowID) *PauseCommand {
+	cmd.FlowID = fID
+	return cmd
 }
 
 func (cmd *PauseCommand) CommittableStateCtx() *StateCtx {
@@ -167,8 +172,9 @@ type DelayCommand struct {
 	Commit        bool
 }
 
-func (cmd *DelayCommand) CommittableStateCtx() *StateCtx {
-	return cmd.DelayStateCtx
+func (cmd *DelayCommand) WithCommit(commit bool) *DelayCommand {
+	cmd.Commit = commit
+	return cmd
 }
 
 func (cmd *DelayCommand) Prepare() error {

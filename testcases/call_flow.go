@@ -36,7 +36,7 @@ func CallFlow(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		}
 
 		if err := e.Do(
-			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
+			flowstate.Pause(stateCtx),
 			flowstate.Serialize(stateCtx, nextStateCtx, `caller_state`),
 			flowstate.Transit(nextStateCtx, `called`),
 			flowstate.Execute(nextStateCtx),

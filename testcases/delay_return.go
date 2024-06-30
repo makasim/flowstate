@@ -45,7 +45,5 @@ func Delay_Return(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
 	require.NoError(t, e.Execute(stateCtx))
 
-	time.Sleep(time.Millisecond * 500)
-
-	require.Equal(t, []string{`first`, `first`, `second`}, trkr.Visited())
+	trkr.WaitVisitedEqual(t, []string{`first`, `first`, `second`}, time.Millisecond*500)
 }
