@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/exptcmd"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 )
@@ -38,7 +37,7 @@ func CallFlow(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		if err := e.Do(
 			flowstate.Pause(stateCtx),
-			exptcmd.Stack(stateCtx, nextStateCtx),
+			flowstate.Serialize(stateCtx, nextStateCtx, `caller_state`),
 			flowstate.Transit(nextStateCtx, `called`),
 			flowstate.Execute(nextStateCtx),
 		); err != nil {
@@ -54,11 +53,11 @@ func CallFlow(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	fr.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		if exptcmd.Stacked(stateCtx) {
+		if stateCtx.Current.Annotations[`caller_state`] != "" {
 			callStateCtx := &flowstate.StateCtx{}
 
 			if err := e.Do(
-				exptcmd.Unstack(stateCtx, callStateCtx),
+				flowstate.Deserialize(stateCtx, callStateCtx, `caller_state`),
 				flowstate.Resume(callStateCtx),
 				flowstate.Execute(callStateCtx),
 				flowstate.End(stateCtx),

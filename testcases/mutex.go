@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/exptcmd"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 )
@@ -48,7 +47,7 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 				if err := e.Do(flowstate.Commit(
 					flowstate.Pause(copyMutexStateCtx).WithTransit(`locked`),
-					exptcmd.Stack(copyMutexStateCtx, copyStateCtx),
+					flowstate.Serialize(copyMutexStateCtx, copyStateCtx, `mutex_state`),
 					flowstate.Transit(copyStateCtx, `protected`),
 				)); errors.As(err, conflictErr) {
 					if conflictErr.Contains(mutexStateCtx.Current.ID) {
@@ -91,7 +90,7 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		mutexStateCtx := &flowstate.StateCtx{}
 		if err := e.Do(flowstate.Commit(
-			exptcmd.Unstack(stateCtx, mutexStateCtx),
+			flowstate.Deserialize(stateCtx, mutexStateCtx, `mutex_state`),
 			flowstate.Pause(mutexStateCtx).WithTransit(`unlocked`),
 			flowstate.End(stateCtx),
 		)); err != nil {

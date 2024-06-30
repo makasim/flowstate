@@ -204,3 +204,33 @@ func RecoveryAttempt(state State) int {
 	attempt, _ := strconv.Atoi(state.Transition.Annotations[RecoveryAttemptAnnotation])
 	return attempt
 }
+
+func Serialize(serializableStateCtx, stateCtx *StateCtx, annotation string) *SerializeCommand {
+	return &SerializeCommand{
+		SerializableStateCtx: serializableStateCtx,
+		StateCtx:             stateCtx,
+		Annotation:           annotation,
+	}
+
+}
+
+type SerializeCommand struct {
+	SerializableStateCtx *StateCtx
+	StateCtx             *StateCtx
+	Annotation           string
+}
+
+func Deserialize(stateCtx, deserializedStateCtx *StateCtx, annotation string) *DeserializeCommand {
+	return &DeserializeCommand{
+		StateCtx:             stateCtx,
+		DeserializedStateCtx: deserializedStateCtx,
+		Annotation:           annotation,
+	}
+
+}
+
+type DeserializeCommand struct {
+	StateCtx             *StateCtx
+	DeserializedStateCtx *StateCtx
+	Annotation           string
+}
