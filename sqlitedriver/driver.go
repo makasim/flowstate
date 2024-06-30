@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/exptcmd"
 	"github.com/makasim/flowstate/memdriver"
 	"github.com/makasim/flowstate/stddoer"
 
@@ -35,9 +34,8 @@ func New(db *sql.DB) *Driver {
 		stddoer.End(),
 		stddoer.Noop(),
 		stddoer.Recovery(time.Millisecond * 500),
-
-		exptcmd.NewStacker(),
-		exptcmd.UnstackDoer(),
+		stddoer.NewSerializer(),
+		stddoer.NewDeserializer(),
 
 		memdriver.NewFlowGetter(d.FlowRegistry),
 
