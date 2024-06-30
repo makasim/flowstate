@@ -47,7 +47,7 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 				conflictErr := &flowstate.ErrCommitConflict{}
 
 				if err := e.Do(flowstate.Commit(
-					flowstate.Pause(copyMutexStateCtx, `locked`),
+					flowstate.Pause(copyMutexStateCtx).WithTransit(`locked`),
 					exptcmd.Stack(copyMutexStateCtx, copyStateCtx),
 					flowstate.Transit(copyStateCtx, `protected`),
 				)); errors.As(err, conflictErr) {
@@ -92,7 +92,7 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		mutexStateCtx := &flowstate.StateCtx{}
 		if err := e.Do(flowstate.Commit(
 			exptcmd.Unstack(stateCtx, mutexStateCtx),
-			flowstate.Pause(mutexStateCtx, `unlocked`),
+			flowstate.Pause(mutexStateCtx).WithTransit(`unlocked`),
 			flowstate.End(stateCtx),
 		)); err != nil {
 			return nil, err
@@ -130,7 +130,7 @@ func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	}()
 
 	err = e.Do(flowstate.Commit(
-		flowstate.Pause(mutexStateCtx, `unlocked`),
+		flowstate.Pause(mutexStateCtx).WithTransit(`unlocked`),
 	))
 	require.NoError(t, err)
 

@@ -13,13 +13,15 @@ import (
 
 type Commiter struct {
 	db *sql.DB
+	d  *Delayer
 
 	e *flowstate.Engine
 }
 
-func NewCommiter(db *sql.DB) *Commiter {
+func NewCommiter(db *sql.DB, d *Delayer) *Commiter {
 	return &Commiter{
 		db: db,
+		d:  d,
 	}
 }
 
@@ -50,12 +52,18 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 
 	conflictErr := &flowstate.ErrCommitConflict{}
 
-	for _, cmd0 := range cmd.Commands {
-		if err := d.e.Do(cmd0); err != nil {
-			return fmt.Errorf("%T: do: %w", cmd0, err)
+	for _, subCmd0 := range cmd.Commands {
+		if subCmd, ok := subCmd0.(*flowstate.DelayCommand); ok {
+			if err := d.d.DoTx(tx, subCmd); err != nil {
+				return fmt.Errorf("%T: do: %w", subCmd, err)
+			}
+		} else {
+			if err := d.e.Do(subCmd0); err != nil {
+				return fmt.Errorf("%T: do: %w", subCmd0, err)
+			}
 		}
 
-		cmd1, ok := cmd0.(flowstate.CommittableCommand)
+		cmd1, ok := subCmd0.(flowstate.CommittableCommand)
 		if !ok {
 			continue
 		}
