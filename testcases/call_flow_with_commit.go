@@ -38,7 +38,7 @@ func CallFlowWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		if err := e.Do(
 			flowstate.Commit(
-				flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
+				flowstate.Pause(stateCtx),
 				exptcmd.Stack(stateCtx, nextStateCtx),
 				flowstate.Transit(nextStateCtx, `called`),
 			),

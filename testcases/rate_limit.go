@@ -68,7 +68,7 @@ func RateLimit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 
 		stateCtx.Current.SetLabel("limiter", "theName")
 		return flowstate.Commit(
-			flowstate.Pause(stateCtx, stateCtx.Current.Transition.ToID),
+			flowstate.Pause(stateCtx),
 		), nil
 	}))
 

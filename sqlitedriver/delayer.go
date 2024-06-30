@@ -59,6 +59,28 @@ func (d *Delayer) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
+func (d *Delayer) DoTx(tx *sql.Tx, cmd *flowstate.DelayCommand) error {
+	if err := cmd.Prepare(); err != nil {
+		return err
+	}
+
+	executeAt := time.Now().Add(cmd.Duration)
+
+	serializedState, err := json.Marshal(cmd.DelayStateCtx)
+	if err != nil {
+		return fmt.Errorf("json: marshal state ctx: %w", err)
+	}
+	if _, err = tx.Exec(
+		`INSERT INTO flowstate_delay_log(state, execute_at) VALUES(?, ?)`,
+		serializedState,
+		executeAt.Unix(),
+	); err != nil {
+		return fmt.Errorf("db: insert delay log: %w", err)
+	}
+
+	return nil
+}
+
 func (d *Delayer) Init(e *flowstate.Engine) error {
 	if _, err := d.db.Exec(createDelayLogTableSQL); err != nil {
 		return fmt.Errorf("create flowstate_delay_log table: db: exec: %w", err)
@@ -118,6 +140,8 @@ LIMIT 10`
 	var stateCtxJSON []byte
 	var nextExecutedAt int64
 
+	var stateCtxs []*flowstate.StateCtx
+
 	for rows.Next() {
 		stateCtxJSON = stateCtxJSON[:0]
 
@@ -130,6 +154,14 @@ LIMIT 10`
 			return fmt.Errorf(`unmarshal delayed state ctx: %w`, err)
 		}
 
+		stateCtxs = append(stateCtxs, stateCtx)
+	}
+	if rows.Err() != nil {
+		return fmt.Errorf(`rows: next: %w`, rows.Err())
+	}
+	rows.Close()
+
+	for _, stateCtx := range stateCtxs {
 		if stateCtx.Current.Transition.Annotations[flowstate.DelayCommitAnnotation] == `true` {
 			conflictErr := &flowstate.ErrCommitConflict{}
 			if err := d.e.Do(flowstate.Commit(&delayedCommit{stateCtx: stateCtx})); errors.As(err, conflictErr) {
@@ -145,9 +177,6 @@ LIMIT 10`
 				log.Printf(`ERROR: sqlitedriver: delayer: engine: execute: %s`, err)
 			}
 		}()
-	}
-	if rows.Err() != nil {
-		return fmt.Errorf(`rows: next: %w`, rows.Err())
 	}
 
 	if _, err := d.db.Exec(`INSERT INTO flowstate_delay_meta(executed_until) VALUES(?)`, nextExecutedAt); err != nil {

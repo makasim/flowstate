@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func Delay_PausedWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
@@ -18,26 +18,22 @@ func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry
 		Track(stateCtx, trkr)
 
 		if flowstate.Delayed(stateCtx.Current) {
-			return flowstate.Commit(
-				flowstate.Transit(stateCtx, `second`),
-			), nil
+			return flowstate.Transit(stateCtx, `second`), nil
+		}
+		if flowstate.Paused(stateCtx.Current) {
+			return flowstate.Noop(stateCtx), nil
 		}
 
-		if err := e.Do(flowstate.Delay(stateCtx, time.Millisecond*200)); err != nil {
+		if err := e.Do(flowstate.Commit(
+			flowstate.Pause(stateCtx),
+			flowstate.Delay(stateCtx, time.Millisecond*100).WithCommit(true),
+		)); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Commit(
-			flowstate.Transit(stateCtx, `third`),
-		), nil
+		return flowstate.Noop(stateCtx), nil
 	}))
 	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
-		Track(stateCtx, trkr)
-		return flowstate.Commit(
-			flowstate.End(stateCtx),
-		), nil
-	}))
-	fr.SetFlow("third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.End(stateCtx),
@@ -59,9 +55,11 @@ func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry
 		},
 	}
 
-	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `first`)))
+	require.NoError(t, e.Do(flowstate.Commit(
+		flowstate.Transit(stateCtx, `first`)),
+	))
 	require.NoError(t, e.Execute(stateCtx))
 
-	// no second in list
-	trkr.WaitVisitedEqual(t, []string{`first`, `third`, `first`}, time.Second)
+	trkr.WaitVisitedEqual(t, []string{`first`, `first`, `second`}, time.Second*2)
+
 }

@@ -28,6 +28,8 @@ func New(db *sql.DB) *Driver {
 		db: db,
 	}
 
+	dlr := NewDelayer(d.db)
+
 	d.doers = []flowstate.Doer{
 		stddoer.Transit(),
 		stddoer.Pause(),
@@ -41,9 +43,9 @@ func New(db *sql.DB) *Driver {
 
 		memdriver.NewFlowGetter(d.FlowRegistry),
 
-		NewCommiter(d.db),
+		NewCommiter(d.db, dlr),
 		NewWatcher(d.db),
-		NewDelayer(d.db),
+		dlr,
 	}
 
 	return d
