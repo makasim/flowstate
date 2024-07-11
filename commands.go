@@ -6,6 +6,15 @@ import (
 	"time"
 )
 
+type Command interface {
+	cmd()
+}
+
+type command struct {
+}
+
+func (_ *command) cmd() {}
+
 var StateAnnotation = `flowstate.state`
 
 func Transit(stateCtx *StateCtx, fID FlowID) *TransitCommand {
@@ -16,6 +25,7 @@ func Transit(stateCtx *StateCtx, fID FlowID) *TransitCommand {
 }
 
 type TransitCommand struct {
+	command
 	StateCtx *StateCtx
 	FlowID   FlowID
 }
@@ -36,6 +46,8 @@ func Pause(stateCtx *StateCtx) *PauseCommand {
 }
 
 type PauseCommand struct {
+	command
+
 	StateCtx *StateCtx
 	FlowID   FlowID
 }
@@ -60,6 +72,7 @@ func Resume(stateCtx *StateCtx) *ResumeCommand {
 }
 
 type ResumeCommand struct {
+	command
 	StateCtx *StateCtx
 }
 
@@ -78,6 +91,7 @@ func End(stateCtx *StateCtx) *EndCommand {
 }
 
 type EndCommand struct {
+	command
 	StateCtx *StateCtx
 }
 
@@ -93,6 +107,7 @@ func GetWatcher(sinceRev int64, labels map[string]string) *GetWatcherCommand {
 }
 
 type GetWatcherCommand struct {
+	command
 	SinceRev    int64
 	SinceLatest bool
 	Labels      map[string]string
@@ -107,6 +122,7 @@ func Execute(stateCtx *StateCtx) *ExecuteCommand {
 }
 
 type ExecuteCommand struct {
+	command
 	StateCtx *StateCtx
 
 	sync bool
@@ -119,6 +135,7 @@ func Noop(stateCtx *StateCtx) *NoopCommand {
 }
 
 type NoopCommand struct {
+	command
 	StateCtx *StateCtx
 }
 
@@ -129,6 +146,7 @@ func GetFlow(stateCtx *StateCtx) *GetFlowCommand {
 }
 
 type GetFlowCommand struct {
+	command
 	StateCtx *StateCtx
 
 	// Result
@@ -146,7 +164,23 @@ type CommittableCommand interface {
 }
 
 type CommitCommand struct {
+	command
 	Commands []Command
+}
+
+func CommitStateCtx(stateCtx *StateCtx) *CommitStateCtxCommand {
+	return &CommitStateCtxCommand{
+		StateCtx: stateCtx,
+	}
+}
+
+type CommitStateCtxCommand struct {
+	command
+	StateCtx *StateCtx
+}
+
+func (cmd *CommitStateCtxCommand) CommittableStateCtx() *StateCtx {
+	return cmd.StateCtx
 }
 
 var DelayAtAnnotation = `flowstate.delay.at`
@@ -166,6 +200,7 @@ func Delay(stateCtx *StateCtx, dur time.Duration) *DelayCommand {
 }
 
 type DelayCommand struct {
+	command
 	StateCtx      *StateCtx
 	DelayStateCtx *StateCtx
 	Duration      time.Duration
@@ -215,6 +250,7 @@ func Serialize(serializableStateCtx, stateCtx *StateCtx, annotation string) *Ser
 }
 
 type SerializeCommand struct {
+	command
 	SerializableStateCtx *StateCtx
 	StateCtx             *StateCtx
 	Annotation           string
@@ -230,6 +266,7 @@ func Deserialize(stateCtx, deserializedStateCtx *StateCtx, annotation string) *D
 }
 
 type DeserializeCommand struct {
+	command
 	StateCtx             *StateCtx
 	DeserializedStateCtx *StateCtx
 	Annotation           string

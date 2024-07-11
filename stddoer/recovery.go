@@ -28,11 +28,7 @@ func Recovery(failoverDur time.Duration) flowstate.Doer {
 	}
 }
 
-func (d *RecoveryDoer) Do(cmd0 flowstate.Command) error {
-	if _, ok := cmd0.(*recoveryCommit); ok {
-		return nil
-	}
-
+func (d *RecoveryDoer) Do(_ flowstate.Command) error {
 	return flowstate.ErrCommandNotSupported
 }
 
@@ -112,7 +108,7 @@ func (d *RecoveryDoer) checkLog() error {
 		stateCtx := state.CopyToCtx(&flowstate.StateCtx{})
 		stateCtx.Current.Transition.SetAnnotation(flowstate.RecoveryAttemptAnnotation, strconv.Itoa(recoveryAttempt+1))
 		if err := d.e.Do(
-			flowstate.Commit(&recoveryCommit{stateCtx: stateCtx}),
+			flowstate.Commit(flowstate.CommitStateCtx(stateCtx)),
 			flowstate.Execute(stateCtx),
 		); errors.As(err, conflictErr) {
 			visited[state.ID] = struct{}{}
@@ -139,16 +135,4 @@ func (d *RecoveryDoer) Shutdown(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-type recoveryCommit struct {
-	stateCtx *flowstate.StateCtx
-}
-
-func (cmd *recoveryCommit) CommittableStateCtx() *flowstate.StateCtx {
-	return cmd.stateCtx
-}
-
-func (cmd *recoveryCommit) Prepare() error {
-	return nil
 }

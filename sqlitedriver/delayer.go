@@ -29,10 +29,6 @@ func NewDelayer(db *sql.DB) *Delayer {
 }
 
 func (d *Delayer) Do(cmd0 flowstate.Command) error {
-	if _, ok := cmd0.(*delayedCommit); ok {
-		return nil
-	}
-
 	cmd, ok := cmd0.(*flowstate.DelayCommand)
 	if !ok {
 		return flowstate.ErrCommandNotSupported
@@ -164,7 +160,9 @@ LIMIT 10`
 	for _, stateCtx := range stateCtxs {
 		if stateCtx.Current.Transition.Annotations[flowstate.DelayCommitAnnotation] == `true` {
 			conflictErr := &flowstate.ErrCommitConflict{}
-			if err := d.e.Do(flowstate.Commit(&delayedCommit{stateCtx: stateCtx})); errors.As(err, conflictErr) {
+			if err := d.e.Do(flowstate.Commit(
+				flowstate.CommitStateCtx(stateCtx),
+			)); errors.As(err, conflictErr) {
 				log.Printf("ERROR: engine: commit: %s\n", conflictErr)
 				continue
 			} else if err != nil {
@@ -189,17 +187,5 @@ LIMIT 10`
 func (d *Delayer) Shutdown(_ context.Context) error {
 	close(d.doneCh)
 
-	return nil
-}
-
-type delayedCommit struct {
-	stateCtx *flowstate.StateCtx
-}
-
-func (cmd *delayedCommit) CommittableStateCtx() *flowstate.StateCtx {
-	return cmd.stateCtx
-}
-
-func (cmd *delayedCommit) Prepare() error {
 	return nil
 }
