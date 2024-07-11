@@ -21,6 +21,10 @@ func NewCommiter(l *Log) *Commiter {
 }
 
 func (d *Commiter) Do(cmd0 flowstate.Command) error {
+	if _, ok := cmd0.(*flowstate.CommitStateCtxCommand); ok {
+		return nil
+	}
+
 	cmd, ok := cmd0.(*flowstate.CommitCommand)
 	if !ok {
 		return flowstate.ErrCommandNotSupported

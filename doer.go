@@ -7,9 +7,6 @@ import (
 
 var ErrCommandNotSupported = errors.New("command not supported")
 
-type Command interface {
-}
-
 type Doer interface {
 	Init(e *Engine) error
 	Do(cmd Command) error
