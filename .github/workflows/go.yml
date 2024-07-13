@@ -24,5 +24,11 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Test
-      run: go test -v -race ./...
+    - name: memdriver tests
+      run: go test -v -race ./memdriver/tests/...
+
+    - name: sqlitedriver tests
+      run: go test -v -race ./sqlitedriver/tests/...
+
+    - name: flowstate tests
+      run: go test -v -race ./
