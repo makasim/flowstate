@@ -35,6 +35,10 @@ func New() *Driver {
 		stddoer.NewSerializer(),
 		stddoer.NewDeserializer(),
 
+		flowstate.DefaultDereferenceDataDoer,
+		flowstate.DefaultReferenceDataDoer,
+
+		NewDataLog(),
 		NewFlowGetter(d.FlowRegistry),
 		NewCommiter(l),
 		NewWatcher(l),
