@@ -15,6 +15,8 @@ Data: Data is a payload that can be attached to a state. It can be anything and 
 
 Watcher: A watcher can subscribe to state changes and stream them to a client.
 
+
+
 ```go
 package main
 
@@ -23,19 +25,23 @@ import (
 
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/memdriver"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
 func main() {
 	d := memdriver.New()
 
-	d.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
-		return flowstate.Transit(stateCtx, `second`), nil
-	}))
-	d.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
-		return flowstate.End(stateCtx), nil
-	}))
+	d.SetFlow(
+		"first", 
+		flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
+			return flowstate.Transit(stateCtx, `second`), nil
+		}),
+	)
+	d.SetFlow(
+		"second", 
+		flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
+			return flowstate.End(stateCtx), nil
+		}),
+	)
 
 	e, err := flowstate.NewEngine(d)
 	if err != nil {
