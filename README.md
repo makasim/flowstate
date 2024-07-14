@@ -32,15 +32,19 @@ func main() {
 
 	d.SetFlow(
 		"first", 
-		flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Transit(stateCtx, `second`), nil
-		}),
+		flowstate.FlowFunc(
+			func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
+				return flowstate.Transit(stateCtx, `second`), nil
+			},
+		),
 	)
 	d.SetFlow(
 		"second", 
-		flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.End(stateCtx), nil
-		}),
+		flowstate.FlowFunc(
+			func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
+				return flowstate.End(stateCtx), nil
+			},
+		),
 	)
 
 	e, err := flowstate.NewEngine(d)
