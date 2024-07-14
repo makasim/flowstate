@@ -28,6 +28,7 @@ func New(db *sql.DB) *Driver {
 	}
 
 	dlr := NewDelayer(d.db)
+	dl := NewDataLog(d.db)
 
 	d.doers = []flowstate.Doer{
 		stddoer.Transit(),
@@ -38,12 +39,15 @@ func New(db *sql.DB) *Driver {
 		stddoer.Recovery(time.Millisecond * 500),
 		stddoer.NewSerializer(),
 		stddoer.NewDeserializer(),
+		flowstate.DefaultReferenceDataDoer,
+		flowstate.DefaultDereferenceDataDoer,
 
 		memdriver.NewFlowGetter(d.FlowRegistry),
 
-		NewCommiter(d.db, dlr),
+		NewCommiter(d.db, dlr, dl),
 		NewWatcher(d.db),
 		dlr,
+		dl,
 	}
 
 	return d
@@ -72,6 +76,9 @@ func (d *Driver) Init(e *flowstate.Engine) error {
 	}
 	if _, err := d.db.Exec(createStateLogTableSQL); err != nil {
 		return fmt.Errorf("create flowstate_state_log table: db: exec: %w", err)
+	}
+	if _, err := d.db.Exec(createDataLogTableSQL); err != nil {
+		return fmt.Errorf("create flowstate_data_log table: db: exec: %w", err)
 	}
 
 	for _, doer := range d.doers {

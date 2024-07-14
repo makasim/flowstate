@@ -33,3 +33,10 @@ var createDelayMeta = `
 CREATE TABLE IF NOT EXISTS flowstate_delay_meta (
     executed_until INTEGER
 );`
+
+var createDataLogTableSQL = `
+CREATE TABLE IF NOT EXISTS flowstate_data_log (
+	rev INTEGER PRIMARY KEY AUTOINCREMENT,
+	id TEXT,
+	data TEXT
+);`
