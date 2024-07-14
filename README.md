@@ -30,22 +30,12 @@ import (
 func main() {
 	d := memdriver.New()
 
-	d.SetFlow(
-		"first", 
-		flowstate.FlowFunc(
-			func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
-				return flowstate.Transit(stateCtx, `second`), nil
-			},
-		),
-	)
-	d.SetFlow(
-		"second", 
-		flowstate.FlowFunc(
-			func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
-				return flowstate.End(stateCtx), nil
-			},
-		),
-	)
+	d.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
+		return flowstate.Transit(stateCtx, `second`), nil
+	}))
+	d.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
+		return flowstate.End(stateCtx), nil
+	}))
 
 	e, err := flowstate.NewEngine(d)
 	if err != nil {
