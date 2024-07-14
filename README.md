@@ -15,8 +15,9 @@ Data: Data is a payload that can be attached to a state. It can be anything and 
 
 Watcher: A watcher can subscribe to state changes and stream them to a client.
 
+![flowstate](https://github.com/user-attachments/assets/6f102e1e-1365-48bd-a5e9-6b0f3284849c)
 
-
+Get you started:
 ```go
 package main
 
