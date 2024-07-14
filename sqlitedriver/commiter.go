@@ -14,14 +14,16 @@ import (
 type Commiter struct {
 	db *sql.DB
 	d  *Delayer
+	dl *DataLog
 
 	e *flowstate.Engine
 }
 
-func NewCommiter(db *sql.DB, d *Delayer) *Commiter {
+func NewCommiter(db *sql.DB, d *Delayer, dl *DataLog) *Commiter {
 	return &Commiter{
 		db: db,
 		d:  d,
+		dl: dl,
 	}
 }
 
@@ -59,6 +61,14 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 	for _, subCmd0 := range cmd.Commands {
 		if subCmd, ok := subCmd0.(*flowstate.DelayCommand); ok {
 			if err := d.d.DoTx(tx, subCmd); err != nil {
+				return fmt.Errorf("%T: do: %w", subCmd, err)
+			}
+		} else if subCmd, ok := subCmd0.(*flowstate.StoreDataCommand); ok {
+			if err := d.dl.AddTx(tx, subCmd.Data); err != nil {
+				return fmt.Errorf("%T: do: %w", subCmd, err)
+			}
+		} else if subCmd, ok := subCmd0.(*flowstate.GetDataCommand); ok {
+			if err := d.dl.GetTx(tx, subCmd.Data); err != nil {
 				return fmt.Errorf("%T: do: %w", subCmd, err)
 			}
 		} else {
