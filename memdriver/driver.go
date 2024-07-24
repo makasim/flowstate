@@ -41,6 +41,7 @@ func New() *Driver {
 		NewDataLog(),
 		NewFlowGetter(d.FlowRegistry),
 		NewCommiter(l),
+		NewGetter(l),
 		NewWatcher(l),
 		NewDelayer(),
 	}

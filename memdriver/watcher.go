@@ -99,7 +99,7 @@ func (lis *listener) listen() {
 
 	if lis.sinceLatest {
 		lis.l.Lock()
-		_, sinceRev := lis.l.LatestByLabels(lis.labels)
+		_, sinceRev := lis.l.GetLatestByLabels(lis.labels)
 		lis.sinceRev = sinceRev - 1
 		lis.l.Unlock()
 	}

@@ -62,7 +62,7 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 			return fmt.Errorf("state id empty")
 		}
 
-		if _, rev := d.l.LatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
+		if _, rev := d.l.GetLatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
 			conflictErr := &flowstate.ErrCommitConflict{}
 			conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
 			return conflictErr

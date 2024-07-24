@@ -46,6 +46,7 @@ func New(db *sql.DB) *Driver {
 
 		NewCommiter(d.db, dlr, dl),
 		NewWatcher(d.db),
+		NewGetter(d.db),
 		dlr,
 		dl,
 	}
