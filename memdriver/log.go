@@ -20,7 +20,7 @@ type Log struct {
 }
 
 func (l *Log) Append(stateCtx *flowstate.StateCtx) {
-	committedT, _ := l.LatestByID(stateCtx.Current.ID)
+	committedT, _ := l.GetLatestByID(stateCtx.Current.ID)
 	if committedT == nil {
 		committedT = &flowstate.StateCtx{}
 	}
@@ -77,10 +77,10 @@ func (l *Log) Rollback() {
 	l.changes = l.changes[:0]
 }
 
-func (l *Log) LatestByID(tID flowstate.StateID) (*flowstate.StateCtx, int64) {
+func (l *Log) GetLatestByID(id flowstate.StateID) (*flowstate.StateCtx, int64) {
 	var since int64
 	for i := len(l.entries) - 1; i >= 0; i-- {
-		if l.entries[i].Committed.ID == tID {
+		if l.entries[i].Committed.ID == id {
 			since = l.entries[i].Committed.Rev
 			return l.entries[i].CopyTo(&flowstate.StateCtx{}), since
 		}
@@ -89,7 +89,17 @@ func (l *Log) LatestByID(tID flowstate.StateID) (*flowstate.StateCtx, int64) {
 	return nil, since
 }
 
-func (l *Log) LatestByLabels(labels map[string]string) (*flowstate.StateCtx, int64) {
+func (l *Log) GetByIDAndRev(id flowstate.StateID, rev int64) *flowstate.StateCtx {
+	for i := len(l.entries) - 1; i >= 0; i-- {
+		if l.entries[i].Committed.ID == id && l.entries[i].Committed.Rev == rev {
+			return l.entries[i].CopyTo(&flowstate.StateCtx{})
+		}
+	}
+
+	return nil
+}
+
+func (l *Log) GetLatestByLabels(labels map[string]string) (*flowstate.StateCtx, int64) {
 	var since int64
 next:
 	for i := len(l.entries) - 1; i >= 0; i-- {

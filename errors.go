@@ -18,7 +18,7 @@ func (err ErrCommitConflict) As(target interface{}) bool {
 func (err ErrCommitConflict) Error() string {
 	msg := "conflict;"
 	for i := range err.cmds {
-		msg += " cmd: " + err.cmds[i] + " tid: " + string(err.stateIDs[i]) + ";"
+		msg += " cmd: " + err.cmds[i] + " sid: " + string(err.stateIDs[i]) + ";"
 		if err.errs[i] != nil {
 			msg += " err: " + err.errs[i].Error() + ";"
 		}
@@ -37,9 +37,9 @@ func (err *ErrCommitConflict) TaskIDs() []StateID {
 	return err.stateIDs
 }
 
-func (err *ErrCommitConflict) Contains(tid StateID) bool {
-	for _, t := range err.stateIDs {
-		if t == tid {
+func (err *ErrCommitConflict) Contains(sID StateID) bool {
+	for _, s := range err.stateIDs {
+		if s == sID {
 			return true
 		}
 	}
