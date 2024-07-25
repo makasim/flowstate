@@ -91,7 +91,7 @@ func TestWatcher(main *testing.T) {
 				Rev:    3,
 				Labels: map[string]string{"foo": "fooVal"},
 			},
-		}, collectStates(t, w, 2))
+		}, collectStates(w, 2))
 	})
 
 	main.Run("SeveralStateChanges", func(t *testing.T) {
@@ -137,7 +137,7 @@ func TestWatcher(main *testing.T) {
 				Rev:    3,
 				Labels: map[string]string{"foo": "fooVal"},
 			},
-		}, collectStates(t, w, 3))
+		}, collectStates(w, 3))
 	})
 
 	main.Run("SeveralLabels", func(t *testing.T) {
@@ -163,7 +163,7 @@ func TestWatcher(main *testing.T) {
 				Rev:    1,
 				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
 			},
-		}, collectStates(t, w, 1))
+		}, collectStates(w, 1))
 	})
 
 	main.Run("SinceRev", func(t *testing.T) {
@@ -194,19 +194,28 @@ func TestWatcher(main *testing.T) {
 				Rev:    6,
 				Labels: map[string]string{"foo": "fooVal"},
 			},
-		}, collectStates(t, w, 1))
+		}, collectStates(w, 1))
 	})
 
-	main.Run("SinceTimeFound", func(t *testing.T) {
+	main.Run("SinceTime", func(t *testing.T) {
 		d, db := setUp(t)
 
+		now := time.Now().UnixMilli()
+
 		insertStateLog(t, db, flowstate.State{
-			ID:     "1",
-			Rev:    6,
-			Labels: map[string]string{"foo": "fooVal"},
+			ID:                   "1",
+			Rev:                  5,
+			Labels:               map[string]string{"foo": "fooVal"},
+			CommittedAtUnixMilli: time.Now().Add(-time.Hour).UnixMilli(),
+		})
+		insertStateLog(t, db, flowstate.State{
+			ID:                   "1",
+			Rev:                  6,
+			Labels:               map[string]string{"foo": "fooVal"},
+			CommittedAtUnixMilli: now,
 		})
 
-		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"}).WithSinceTime(time.Now().Add(-time.Hour))
+		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"}).WithSinceTime(time.Now().Add(-time.Minute * 30))
 		err := d.Do(cmd)
 		require.NoError(t, err)
 		require.NotNil(t, cmd.Listener)
@@ -216,35 +225,16 @@ func TestWatcher(main *testing.T) {
 
 		require.Equal(t, []flowstate.State{
 			{
-				ID:     "1",
-				Rev:    6,
-				Labels: map[string]string{"foo": "fooVal"},
+				ID:                   "1",
+				Rev:                  6,
+				Labels:               map[string]string{"foo": "fooVal"},
+				CommittedAtUnixMilli: now,
 			},
-		}, collectStates(t, w, 1))
-	})
-
-	main.Run("SinceTimeNotFound", func(t *testing.T) {
-		d, db := setUp(t)
-
-		insertStateLog(t, db, flowstate.State{
-			ID:     "1",
-			Rev:    6,
-			Labels: map[string]string{"foo": "fooVal"},
-		})
-
-		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"}).WithSinceTime(time.Now().Add(time.Hour))
-		err := d.Do(cmd)
-		require.NoError(t, err)
-		require.NotNil(t, cmd.Listener)
-
-		w := cmd.Listener
-		defer w.Close()
-
-		require.Equal(t, []flowstate.State{}, collectStates(t, w, 1))
+		}, collectStates(w, 1))
 	})
 }
 
-func collectStates(t *testing.T, w flowstate.WatchListener, limit int) []flowstate.State {
+func collectStates(w flowstate.WatchListener, limit int) []flowstate.State {
 	states := make([]flowstate.State, 0, limit)
 
 	timeoutT := time.NewTimer(time.Second)
@@ -259,7 +249,7 @@ loop:
 				break loop
 			}
 		case <-timeoutT.C:
-			t.Fatal("timeout")
+			return nil
 		}
 	}
 

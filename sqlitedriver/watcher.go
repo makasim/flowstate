@@ -147,9 +147,6 @@ func (lis *listener) findStates() ([]flowstate.State, error) {
 		labelsWhere += `json_extract(state, '$.labels.` + k + `') = ?`
 		args = append(args, v)
 	}
-
-	args = append(args, lis.sinceRev, 10)
-
 	if labelsWhere == "" {
 		labelsWhere = " TRUE "
 	}
@@ -158,6 +155,8 @@ func (lis *listener) findStates() ([]flowstate.State, error) {
 		labelsWhere += " AND json_extract(state, '$.committed_at_unix_milli') > ?"
 		args = append(args, lis.sinceTime.UnixMilli())
 	}
+
+	args = append(args, lis.sinceRev, 10)
 
 	q := fmt.Sprintf(`
 SELECT 
