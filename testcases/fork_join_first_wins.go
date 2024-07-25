@@ -55,20 +55,20 @@ func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			}
 		}
 
-		w, err := e.Watch(0, map[string]string{
+		lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
 			`theForkJoinLabel`: stateCtx.Current.Labels[`theForkJoinLabel`],
-		})
+		}))
 		if err != nil {
 			return nil, err
 		}
-		defer w.Close()
+		defer lis.Close()
 
 		cnt := 0
 		for {
 			select {
 			case <-stateCtx.Done():
 				return flowstate.Noop(stateCtx), nil
-			case changedState := <-w.Watch():
+			case changedState := <-lis.Listen():
 				changedStateCtx := changedState.CopyToCtx(&flowstate.StateCtx{})
 
 				if changedStateCtx.Current.Transition.ToID != `join` {

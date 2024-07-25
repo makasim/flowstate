@@ -92,7 +92,7 @@ func TestDriver_Commit(main *testing.T) {
 		err = d.Do(flowstate.Commit(
 			flowstate.Transit(stateCtx, `aFlowID`),
 		))
-		require.EqualError(t, err, `*sqlitedriver.Commiter: do: conflict; cmd: *flowstate.CommitCommand tid: fooID; err: UNIQUE constraint failed: flowstate_state_latest.id;`)
+		require.EqualError(t, err, `*sqlitedriver.Commiter: do: conflict; cmd: *flowstate.CommitCommand sid: fooID; err: UNIQUE constraint failed: flowstate_state_latest.id;`)
 		require.True(t, errors.As(err, &flowstate.ErrCommitConflict{}))
 	})
 
@@ -153,7 +153,7 @@ func TestDriver_Commit(main *testing.T) {
 		err = d.Do(flowstate.Commit(
 			flowstate.Transit(stateCtx, `aFlowID`),
 		))
-		require.EqualError(t, err, `*sqlitedriver.Commiter: do: conflict; cmd: *flowstate.CommitCommand tid: fooID; err: rev mismatch;`)
+		require.EqualError(t, err, `*sqlitedriver.Commiter: do: conflict; cmd: *flowstate.CommitCommand sid: fooID; err: rev mismatch;`)
 		require.True(t, errors.As(err, &flowstate.ErrCommitConflict{}))
 
 		var cntLatest int

@@ -36,11 +36,11 @@ func Watch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
-	w, err := e.Watch(0, map[string]string{
+	lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
 		`theWatchLabel`: `theValue`,
-	})
+	}))
 	require.NoError(t, err)
-	defer w.Close()
+	defer lis.Close()
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -63,7 +63,7 @@ func Watch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 loop:
 	for {
 		select {
-		case state := <-w.Watch():
+		case state := <-lis.Listen():
 			visited = append(visited, state.Transition.ToID)
 
 			if len(visited) >= 3 {

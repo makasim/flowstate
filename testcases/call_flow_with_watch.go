@@ -48,19 +48,19 @@ func CallFlowWithWatch(t TestingT, d flowstate.Doer, fr flowRegistry) {
 			}
 		}
 
-		w, err := e.Watch(stateCtx.Committed.Rev, map[string]string{
+		lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
 			`theWatchLabel`: string(stateCtx.Current.ID),
-		})
+		}).WithSinceRev(stateCtx.Committed.Rev))
 		if err != nil {
 			return nil, err
 		}
-		defer w.Close()
+		defer lis.Close()
 
 		for {
 			select {
 			case <-stateCtx.Done():
 				return flowstate.Noop(stateCtx), nil
-			case nextState := <-w.Watch():
+			case nextState := <-lis.Listen():
 				nextStateCtx := nextState.CopyToCtx(&flowstate.StateCtx{})
 
 				if !flowstate.Ended(nextStateCtx.Current) {
