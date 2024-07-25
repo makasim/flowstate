@@ -12,6 +12,7 @@ import (
 )
 
 var _ flowstate.Doer = &Watcher{}
+var _ flowstate.WatchListener = &listener{}
 
 type Watcher struct {
 	db *sql.DB
@@ -27,7 +28,7 @@ func NewWatcher(db *sql.DB) *Watcher {
 }
 
 func (w *Watcher) Do(cmd0 flowstate.Command) error {
-	cmd, ok := cmd0.(*flowstate.GetWatcherCommand)
+	cmd, ok := cmd0.(*flowstate.WatchCommand)
 	if !ok {
 		return flowstate.ErrCommandNotSupported
 	}
@@ -37,6 +38,7 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 
 		sinceRev:    cmd.SinceRev,
 		sinceLatest: cmd.SinceLatest,
+		sinceTime:   cmd.SinceTime,
 
 		labels:  make(map[string]string),
 		watchCh: make(chan flowstate.State, 1),
@@ -49,7 +51,7 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 
 	go lis.listen()
 
-	cmd.Watcher = lis
+	cmd.Listener = lis
 
 	return nil
 }
@@ -68,14 +70,15 @@ type listener struct {
 
 	sinceRev    int64
 	sinceLatest bool
+	sinceTime   time.Time
+	labels      map[string]string
 
-	labels  map[string]string
 	watchCh chan flowstate.State
 
 	closeCh chan struct{}
 }
 
-func (lis *listener) Watch() <-chan flowstate.State {
+func (lis *listener) Listen() <-chan flowstate.State {
 	return lis.watchCh
 }
 
@@ -149,6 +152,11 @@ func (lis *listener) findStates() ([]flowstate.State, error) {
 
 	if labelsWhere == "" {
 		labelsWhere = " TRUE "
+	}
+
+	if !lis.sinceTime.IsZero() {
+		labelsWhere += " AND json_extract(state, '$.committed_at_unix_milli') > ?"
+		args = append(args, lis.sinceTime.UnixMilli())
 	}
 
 	q := fmt.Sprintf(`

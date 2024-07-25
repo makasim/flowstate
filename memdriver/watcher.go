@@ -2,11 +2,13 @@ package memdriver
 
 import (
 	"context"
+	"time"
 
 	"github.com/makasim/flowstate"
 )
 
 var _ flowstate.Doer = &Watcher{}
+var _ flowstate.WatchListener = &listener{}
 
 type Watcher struct {
 	l *Log
@@ -22,7 +24,7 @@ func NewWatcher(l *Log) *Watcher {
 }
 
 func (w *Watcher) Do(cmd0 flowstate.Command) error {
-	cmd, ok := cmd0.(*flowstate.GetWatcherCommand)
+	cmd, ok := cmd0.(*flowstate.WatchCommand)
 	if !ok {
 		return flowstate.ErrCommandNotSupported
 	}
@@ -32,8 +34,9 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 
 		sinceRev:    cmd.SinceRev,
 		sinceLatest: cmd.SinceLatest,
+		sinceTime:   cmd.SinceTime,
+		labels:      make(map[string]string),
 
-		labels:   make(map[string]string),
 		watchCh:  make(chan flowstate.State, 1),
 		changeCh: make(chan int64, 1),
 		closeCh:  make(chan struct{}),
@@ -51,7 +54,7 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 
 	go lis.listen()
 
-	cmd.Watcher = lis
+	cmd.Listener = lis
 
 	return nil
 }
@@ -70,15 +73,17 @@ type listener struct {
 
 	sinceRev    int64
 	sinceLatest bool
+	sinceTime   time.Time
+	labels      map[string]string
+	limit       int
 
-	labels   map[string]string
 	watchCh  chan flowstate.State
 	changeCh chan int64
 
 	closeCh chan struct{}
 }
 
-func (lis *listener) Watch() <-chan flowstate.State {
+func (lis *listener) Listen() <-chan flowstate.State {
 	return lis.watchCh
 }
 
@@ -119,6 +124,9 @@ skip:
 
 			next:
 				for _, s := range states {
+					if !lis.sinceTime.IsZero() && lis.sinceTime.UnixMilli() < s.Committed.CommittedAtUnixMilli {
+						continue next
+					}
 					for k, v := range lis.labels {
 						if s.Committed.Labels[k] != v {
 							continue next

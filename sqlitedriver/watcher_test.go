@@ -34,18 +34,18 @@ func TestWatcher(main *testing.T) {
 	main.Run("EmptyDB", func(t *testing.T) {
 		d, _ := setUp(t)
 
-		cmd := flowstate.GetWatcher(0, map[string]string{"foo": "fooVal"})
+		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"})
 		err := d.Do(cmd)
 		require.NoError(t, err)
-		require.NotNil(t, cmd.Watcher)
+		require.NotNil(t, cmd.Listener)
 
-		w := cmd.Watcher
+		w := cmd.Listener
 		defer w.Close()
 
 		timeoutT := time.NewTimer(time.Millisecond * 200)
 
 		select {
-		case <-w.Watch():
+		case <-w.Listen():
 			t.Fatal("unexpected watch")
 		case <-timeoutT.C:
 			break
@@ -71,12 +71,12 @@ func TestWatcher(main *testing.T) {
 			Labels: map[string]string{"foo": "fooVal"},
 		})
 
-		cmd := flowstate.GetWatcher(0, map[string]string{"foo": "fooVal"})
+		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"})
 		err := d.Do(cmd)
 		require.NoError(t, err)
-		require.NotNil(t, cmd.Watcher)
+		require.NotNil(t, cmd.Listener)
 
-		w := cmd.Watcher
+		w := cmd.Listener
 		defer w.Close()
 
 		require.Equal(t, []flowstate.State{
@@ -113,12 +113,12 @@ func TestWatcher(main *testing.T) {
 			Labels: map[string]string{"foo": "fooVal"},
 		})
 
-		cmd := flowstate.GetWatcher(0, map[string]string{"foo": "fooVal"})
+		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"})
 		err := d.Do(cmd)
 		require.NoError(t, err)
-		require.NotNil(t, cmd.Watcher)
+		require.NotNil(t, cmd.Listener)
 
-		w := cmd.Watcher
+		w := cmd.Listener
 		defer w.Close()
 
 		require.Equal(t, []flowstate.State{
@@ -149,12 +149,12 @@ func TestWatcher(main *testing.T) {
 			Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
 		})
 
-		cmd := flowstate.GetWatcher(0, map[string]string{"foo": "fooVal", "bar": "barVal"})
+		cmd := flowstate.Watch(map[string]string{"foo": "fooVal", "bar": "barVal"})
 		err := d.Do(cmd)
 		require.NoError(t, err)
-		require.NotNil(t, cmd.Watcher)
+		require.NotNil(t, cmd.Listener)
 
-		w := cmd.Watcher
+		w := cmd.Listener
 		defer w.Close()
 
 		require.Equal(t, []flowstate.State{
@@ -180,12 +180,12 @@ func TestWatcher(main *testing.T) {
 			Labels: map[string]string{"foo": "fooVal"},
 		})
 
-		cmd := flowstate.GetWatcher(5, map[string]string{"foo": "fooVal"})
+		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"}).WithSinceRev(5)
 		err := d.Do(cmd)
 		require.NoError(t, err)
-		require.NotNil(t, cmd.Watcher)
+		require.NotNil(t, cmd.Listener)
 
-		w := cmd.Watcher
+		w := cmd.Listener
 		defer w.Close()
 
 		require.Equal(t, []flowstate.State{
@@ -196,9 +196,55 @@ func TestWatcher(main *testing.T) {
 			},
 		}, collectStates(t, w, 1))
 	})
+
+	main.Run("SinceTimeFound", func(t *testing.T) {
+		d, db := setUp(t)
+
+		insertStateLog(t, db, flowstate.State{
+			ID:     "1",
+			Rev:    6,
+			Labels: map[string]string{"foo": "fooVal"},
+		})
+
+		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"}).WithSinceTime(time.Now().Add(-time.Hour))
+		err := d.Do(cmd)
+		require.NoError(t, err)
+		require.NotNil(t, cmd.Listener)
+
+		w := cmd.Listener
+		defer w.Close()
+
+		require.Equal(t, []flowstate.State{
+			{
+				ID:     "1",
+				Rev:    6,
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+		}, collectStates(t, w, 1))
+	})
+
+	main.Run("SinceTimeNotFound", func(t *testing.T) {
+		d, db := setUp(t)
+
+		insertStateLog(t, db, flowstate.State{
+			ID:     "1",
+			Rev:    6,
+			Labels: map[string]string{"foo": "fooVal"},
+		})
+
+		cmd := flowstate.Watch(map[string]string{"foo": "fooVal"}).WithSinceTime(time.Now().Add(time.Hour))
+		err := d.Do(cmd)
+		require.NoError(t, err)
+		require.NotNil(t, cmd.Listener)
+
+		w := cmd.Listener
+		defer w.Close()
+
+		require.Equal(t, []flowstate.State{}, collectStates(t, w, 1))
+	})
 }
 
-func collectStates(t *testing.T, w flowstate.Watcher, limit int) []flowstate.State {
+func collectStates(t *testing.T, w flowstate.WatchListener, limit int) []flowstate.State {
 	states := make([]flowstate.State, 0, limit)
 
 	timeoutT := time.NewTimer(time.Second)
@@ -207,7 +253,7 @@ func collectStates(t *testing.T, w flowstate.Watcher, limit int) []flowstate.Sta
 loop:
 	for {
 		select {
-		case s := <-w.Watch():
+		case s := <-w.Listen():
 			states = append(states, s)
 			if len(states) >= limit {
 				break loop

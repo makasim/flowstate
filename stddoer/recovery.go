@@ -13,7 +13,7 @@ import (
 type RecoveryDoer struct {
 	failoverDur time.Duration
 
-	w         flowstate.Watcher
+	wl        flowstate.WatchListener
 	e         *flowstate.Engine
 	doneCh    chan struct{}
 	stoppedCh chan struct{}
@@ -33,12 +33,12 @@ func (d *RecoveryDoer) Do(_ flowstate.Command) error {
 }
 
 func (d *RecoveryDoer) Init(e *flowstate.Engine) error {
-	w, err := e.Watch(0, nil)
-	if err != nil {
+	cmd := flowstate.Watch(nil)
+	if err := e.Do(cmd); err != nil {
 		return err
 	}
 
-	d.w = w
+	d.wl = cmd.Listener
 	d.e = e
 
 	go func() {
@@ -51,7 +51,7 @@ func (d *RecoveryDoer) Init(e *flowstate.Engine) error {
 			select {
 			case <-d.doneCh:
 				return
-			case state0 := <-w.Watch():
+			case state0 := <-d.wl.Listen():
 				state := state0.CopyTo(&flowstate.State{})
 				d.log = append(d.log, state)
 			case <-t.C:
@@ -126,7 +126,7 @@ func (d *RecoveryDoer) checkLog() error {
 }
 
 func (d *RecoveryDoer) Shutdown(ctx context.Context) error {
-	d.w.Close()
+	d.wl.Close()
 	close(d.doneCh)
 
 	select {

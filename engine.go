@@ -108,15 +108,6 @@ func (e *Engine) Do(cmds ...Command) error {
 	return nil
 }
 
-func (e *Engine) Watch(rev int64, labels map[string]string) (Watcher, error) {
-	cmd := GetWatcher(rev, labels)
-	if err := e.Do(cmd); err != nil {
-		return nil, err
-	}
-
-	return cmd.Watcher, nil
-}
-
 func (e *Engine) Shutdown(ctx context.Context) error {
 	select {
 	case <-e.doneCh:

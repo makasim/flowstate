@@ -51,19 +51,19 @@ func RecoveryFirstAttemptFail(t TestingT, d flowstate.Doer, fr flowRegistry) {
 	)
 	require.NoError(t, e.Execute(stateCtx))
 
-	wCmd := flowstate.GetWatcher(0, map[string]string{
+	wCmd := flowstate.Watch(map[string]string{
 		`theRecovery`: `aTID`,
 	})
 	require.NoError(t, e.Do(wCmd))
 
-	w := wCmd.Watcher
+	w := wCmd.Listener
 	defer w.Close()
 
 	var visited []string
 loop:
 	for {
 		select {
-		case latestState := <-w.Watch():
+		case latestState := <-w.Listen():
 			if flowstate.Ended(latestState) {
 				visited = append(visited, "ended")
 				break loop
