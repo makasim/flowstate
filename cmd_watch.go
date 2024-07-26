@@ -8,7 +8,7 @@ type WatchListener interface {
 }
 
 func Watch(labels map[string]string) *WatchCommand {
-	return (&WatchCommand{}).WithLabels(labels)
+	return (&WatchCommand{}).WithORLabels(labels)
 }
 
 func DoWatch(e *Engine, cmd *WatchCommand) (WatchListener, error) {
@@ -24,7 +24,7 @@ type WatchCommand struct {
 	SinceRev    int64
 	SinceLatest bool
 	SinceTime   time.Time
-	Labels      map[string]string
+	Labels      []map[string]string
 
 	Listener WatchListener
 }
@@ -46,7 +46,11 @@ func (c *WatchCommand) WithSinceTime(since time.Time) *WatchCommand {
 	return c
 }
 
-func (c *WatchCommand) WithLabels(labels map[string]string) *WatchCommand {
-	c.Labels = labels
+func (c *WatchCommand) WithORLabels(labels map[string]string) *WatchCommand {
+	if len(labels) == 0 {
+		return c
+	}
+
+	c.Labels = append(c.Labels, labels)
 	return c
 }

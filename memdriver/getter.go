@@ -26,7 +26,7 @@ func (d *Getter) Do(cmd0 flowstate.Command) error {
 	}
 
 	if len(cmd.Labels) > 0 {
-		stateCtx, _ := d.l.GetLatestByLabels(cmd.Labels)
+		stateCtx, _ := d.l.GetLatestByLabels([]map[string]string{cmd.Labels})
 		if stateCtx == nil {
 			return fmt.Errorf("state not found by labels %v", cmd.Labels)
 		}

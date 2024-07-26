@@ -99,14 +99,12 @@ func (l *Log) GetByIDAndRev(id flowstate.StateID, rev int64) *flowstate.StateCtx
 	return nil
 }
 
-func (l *Log) GetLatestByLabels(labels map[string]string) (*flowstate.StateCtx, int64) {
+func (l *Log) GetLatestByLabels(orLabels []map[string]string) (*flowstate.StateCtx, int64) {
 	var since int64
 next:
 	for i := len(l.entries) - 1; i >= 0; i-- {
-		for k, v := range labels {
-			if l.entries[i].Committed.Labels[k] != v {
-				continue next
-			}
+		if !matchLabels(l.entries[i].Committed, orLabels) {
+			continue next
 		}
 
 		since = l.entries[i].Committed.Rev
@@ -161,4 +159,23 @@ func (l *Log) UnsubscribeCommit(notifyCh chan int64) {
 			return
 		}
 	}
+}
+
+func matchLabels(state flowstate.State, orLabels []map[string]string) bool {
+	if len(orLabels) == 0 {
+		return true
+	}
+
+next:
+	for _, labels := range orLabels {
+		for k, v := range labels {
+			if state.Labels[k] != v {
+				continue next
+			}
+		}
+
+		return true
+	}
+
+	return false
 }
