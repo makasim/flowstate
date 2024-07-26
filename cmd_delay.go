@@ -44,6 +44,11 @@ func (cmd *DelayCommand) Prepare() error {
 		ToID:        delayedStateCtx.Current.Transition.ToID,
 		Annotations: nil,
 	}
+
+	if Paused(delayedStateCtx.Current) {
+		nextTs.SetAnnotation(StateAnnotation, `resumed`)
+	}
+
 	nextTs.SetAnnotation(DelayAtAnnotation, time.Now().Format(time.RFC3339Nano))
 	nextTs.SetAnnotation(DelayDurationAnnotation, cmd.Duration.String())
 	nextTs.SetAnnotation(DelayCommitAnnotation, fmt.Sprintf("%v", cmd.Commit))
