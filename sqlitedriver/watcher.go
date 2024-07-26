@@ -40,13 +40,17 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 		sinceLatest: cmd.SinceLatest,
 		sinceTime:   cmd.SinceTime,
 
-		labels:  make(map[string]string),
+		labels:  make([]map[string]string, 0),
 		watchCh: make(chan flowstate.State, 1),
 		closeCh: make(chan struct{}),
 	}
 
-	for k, v := range cmd.Labels {
-		lis.labels[k] = v
+	for _, labels := range cmd.Labels {
+		lisLabels := make(map[string]string)
+		for k, v := range labels {
+			lisLabels[k] = v
+		}
+		lis.labels = append(lis.labels, lisLabels)
 	}
 
 	go lis.listen()
@@ -71,7 +75,7 @@ type listener struct {
 	sinceRev    int64
 	sinceLatest bool
 	sinceTime   time.Time
-	labels      map[string]string
+	labels      []map[string]string
 
 	watchCh chan flowstate.State
 
@@ -135,21 +139,8 @@ skip:
 }
 
 func (lis *listener) findStates() ([]flowstate.State, error) {
-	args := make([]interface{}, 0, len(lis.labels)+2)
-
-	var labelsWhere string
-	for k, v := range lis.labels {
-		if labelsWhere != "" {
-			labelsWhere += " AND "
-		}
-
-		// TODO: somewhat ? does not work inside josn_extract, sanitize k to prevent sql injection
-		labelsWhere += `json_extract(state, '$.labels.` + k + `') = ?`
-		args = append(args, v)
-	}
-	if labelsWhere == "" {
-		labelsWhere = " TRUE "
-	}
+	labelsWhere, labelsArgs := buildLabelsWhere(lis.labels)
+	args := append([]interface{}{}, labelsArgs...)
 
 	if !lis.sinceTime.IsZero() {
 		labelsWhere += " AND json_extract(state, '$.committed_at_unix_milli') > ?"
@@ -199,24 +190,8 @@ LIMIT ?`, labelsWhere)
 }
 
 func (lis *listener) findSinceLatest() (int64, error) {
-	args := make([]interface{}, 0, len(lis.labels)+2)
-
-	var labelsWhere string
-	for k, v := range lis.labels {
-		if labelsWhere != "" {
-			labelsWhere += " AND "
-		}
-
-		// TODO: somewhat ? does not work inside josn_extract, sanitize k to prevent sql injection
-		labelsWhere += `json_extract(state, '$.labels.` + k + `') = ?`
-		args = append(args, v)
-	}
-
-	args = append(args, lis.sinceRev, 10)
-
-	if labelsWhere == "" {
-		labelsWhere = " TRUE "
-	}
+	labelsWhere, labelsArgs := buildLabelsWhere(lis.labels)
+	args := append([]interface{}{}, labelsArgs...)
 
 	q := fmt.Sprintf(`
 SELECT 
@@ -236,4 +211,33 @@ LIMIT 1`, labelsWhere)
 	sinceRev -= 1
 
 	return sinceRev, nil
+}
+
+func buildLabelsWhere(orLabels []map[string]string) (string, []interface{}) {
+	if len(orLabels) == 0 {
+		return " TRUE ", nil
+	}
+
+	var args []interface{}
+	var labelsWhere string
+	for _, labels := range orLabels {
+
+		_labelsWhere := ""
+		for k, v := range labels {
+			if _labelsWhere != "" {
+				_labelsWhere += " AND "
+			}
+
+			// TODO: somewhat ? does not work inside josn_extract, sanitize k to prevent sql injection
+			_labelsWhere += `json_extract(state, '$.labels.` + k + `') = ?`
+			args = append(args, v)
+		}
+
+		if labelsWhere != "" {
+			labelsWhere += " OR "
+		}
+		labelsWhere += "(" + _labelsWhere + ")"
+	}
+
+	return labelsWhere, args
 }

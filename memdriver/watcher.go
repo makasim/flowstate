@@ -35,15 +35,19 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 		sinceRev:    cmd.SinceRev,
 		sinceLatest: cmd.SinceLatest,
 		sinceTime:   cmd.SinceTime,
-		labels:      make(map[string]string),
+		labels:      make([]map[string]string, 0),
 
 		watchCh:  make(chan flowstate.State, 1),
 		changeCh: make(chan int64, 1),
 		closeCh:  make(chan struct{}),
 	}
 
-	for k, v := range cmd.Labels {
-		lis.labels[k] = v
+	for _, labels := range cmd.Labels {
+		lisLabels := make(map[string]string)
+		for k, v := range labels {
+			lisLabels[k] = v
+		}
+		lis.labels = append(lis.labels, lisLabels)
 	}
 
 	lis.change(cmd.SinceRev)
@@ -74,7 +78,7 @@ type listener struct {
 	sinceRev    int64
 	sinceLatest bool
 	sinceTime   time.Time
-	labels      map[string]string
+	labels      []map[string]string
 	limit       int
 
 	watchCh  chan flowstate.State
@@ -124,13 +128,11 @@ skip:
 
 			next:
 				for _, s := range states {
-					if !lis.sinceTime.IsZero() && lis.sinceTime.UnixMilli() < s.Committed.CommittedAtUnixMilli {
+					if !lis.sinceTime.IsZero() && s.Committed.CommittedAtUnixMilli < lis.sinceTime.UnixMilli() {
 						continue next
 					}
-					for k, v := range lis.labels {
-						if s.Committed.Labels[k] != v {
-							continue next
-						}
+					if !matchLabels(s.Committed, lis.labels) {
+						continue next
 					}
 
 					select {

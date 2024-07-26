@@ -7,8 +7,8 @@ import (
 	"github.com/makasim/flowstate/testcases"
 )
 
-func TestWatch(t *testing.T) {
+func TestWatchSinceLatest(t *testing.T) {
 	d := memdriver.New()
 
-	testcases.Watch(t, d, d)
+	testcases.WatchSinceLatest(t, d, d)
 }

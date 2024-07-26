@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWatch(t *testing.T) {
+func TestWatchLabels(t *testing.T) {
 	db, err := sql.Open("sqlite3", `:memory:`)
 	require.NoError(t, err)
 	db.SetMaxOpenConns(1)
@@ -17,5 +17,5 @@ func TestWatch(t *testing.T) {
 
 	d := sqlitedriver.New(db)
 
-	testcases.Watch(t, d, d)
+	testcases.WatchLabels(t, d, d)
 }

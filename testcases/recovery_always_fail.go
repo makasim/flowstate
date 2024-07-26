@@ -63,7 +63,8 @@ loop:
 			}
 			visited = append(visited, string(latestState.Transition.ToID))
 		case <-time.NewTimer(time.Second * 2).C:
-			t.Fatalf("expected to receive a state")
+			t.Errorf("expected to receive a state")
+			break loop
 		}
 	}
 

@@ -31,6 +31,7 @@ func (s *State) CommittedAt() time.Time {
 func (s *State) CopyTo(to *State) State {
 	to.ID = s.ID
 	to.Rev = s.Rev
+	to.CommittedAtUnixMilli = s.CommittedAtUnixMilli
 	s.Transition.CopyTo(&to.Transition)
 
 	for k, v := range s.Annotations {
