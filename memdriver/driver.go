@@ -31,7 +31,7 @@ func New() *Driver {
 		stddoer.Resume(),
 		stddoer.End(),
 		stddoer.Noop(),
-		stddoer.Recovery(time.Millisecond * 500),
+		stddoer.Recoverer(time.Millisecond * 500),
 		stddoer.NewSerializer(),
 		stddoer.NewDeserializer(),
 

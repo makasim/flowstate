@@ -10,7 +10,7 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-type RecoveryDoer struct {
+type RecovererDoer struct {
 	failoverDur time.Duration
 
 	wl        flowstate.WatchListener
@@ -20,19 +20,19 @@ type RecoveryDoer struct {
 	log       []flowstate.State
 }
 
-func Recovery(failoverDur time.Duration) flowstate.Doer {
-	return &RecoveryDoer{
+func Recoverer(failoverDur time.Duration) flowstate.Doer {
+	return &RecovererDoer{
 		failoverDur: failoverDur,
 		doneCh:      make(chan struct{}),
 		stoppedCh:   make(chan struct{}),
 	}
 }
 
-func (d *RecoveryDoer) Do(_ flowstate.Command) error {
+func (d *RecovererDoer) Do(_ flowstate.Command) error {
 	return flowstate.ErrCommandNotSupported
 }
 
-func (d *RecoveryDoer) Init(e *flowstate.Engine) error {
+func (d *RecovererDoer) Init(e *flowstate.Engine) error {
 	cmd := flowstate.Watch(nil)
 	if err := e.Do(cmd); err != nil {
 		return err
@@ -65,7 +65,7 @@ func (d *RecoveryDoer) Init(e *flowstate.Engine) error {
 	return nil
 }
 
-func (d *RecoveryDoer) checkLog() error {
+func (d *RecovererDoer) checkLog() error {
 
 	visited := make(map[flowstate.StateID]struct{})
 
@@ -125,7 +125,7 @@ func (d *RecoveryDoer) checkLog() error {
 	return nil
 }
 
-func (d *RecoveryDoer) Shutdown(ctx context.Context) error {
+func (d *RecovererDoer) Shutdown(ctx context.Context) error {
 	d.wl.Close()
 	close(d.doneCh)
 
