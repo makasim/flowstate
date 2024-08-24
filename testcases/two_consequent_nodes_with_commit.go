@@ -9,11 +9,11 @@ import (
 	"go.uber.org/goleak"
 )
 
-type flowRegistry interface {
+type FlowRegistry interface {
 	SetFlow(id flowstate.FlowID, f flowstate.Flow)
 }
 
-func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}

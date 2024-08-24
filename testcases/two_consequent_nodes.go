@@ -9,14 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-type TestingT interface {
-	Error(...interface{})
-	Errorf(format string, args ...interface{})
-	Fatalf(format string, args ...any)
-	FailNow()
-}
-
-func TwoConsequentNodes(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func TwoConsequentNodes(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}

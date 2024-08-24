@@ -10,7 +10,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func DataFlowConfig(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func DataFlowConfig(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	type fooConfig struct {

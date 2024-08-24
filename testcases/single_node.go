@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func SingleNode(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func SingleNode(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
