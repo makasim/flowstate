@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var forkedStateCtx *flowstate.StateCtx

@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func CallFlow(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func CallFlow(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var nextStateCtx *flowstate.StateCtx

@@ -11,7 +11,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Mutex(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func Mutex(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var raceDetector int

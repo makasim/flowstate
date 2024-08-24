@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func CallFlowWithWatch(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func CallFlowWithWatch(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var nextStateCtx *flowstate.StateCtx

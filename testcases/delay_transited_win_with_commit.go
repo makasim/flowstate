@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}

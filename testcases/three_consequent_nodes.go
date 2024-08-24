@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func ThreeConsequentNodes(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func ThreeConsequentNodes(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}

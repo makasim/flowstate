@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func WatchSinceTime(t TestingT, d flowstate.Doer, _ flowRegistry) {
+func WatchSinceTime(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	e, err := flowstate.NewEngine(d)

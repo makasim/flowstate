@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func DataStoreGet(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func DataStoreGet(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	stateCtx := &flowstate.StateCtx{

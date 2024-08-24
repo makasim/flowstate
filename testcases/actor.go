@@ -10,7 +10,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Actor(t TestingT, d flowstate.Doer, fr flowRegistry) {
+func Actor(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{IncludeTaskID: true}
