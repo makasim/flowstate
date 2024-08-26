@@ -9,8 +9,6 @@ import (
 
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/memdriver"
-	"github.com/makasim/flowstate/stddoer"
-
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -31,16 +29,19 @@ func New(db *sql.DB) *Driver {
 	dl := NewDataLog(d.db)
 
 	d.doers = []flowstate.Doer{
-		stddoer.Transit(),
-		stddoer.Pause(),
-		stddoer.Resume(),
-		stddoer.End(),
-		stddoer.Noop(),
-		stddoer.Recoverer(time.Millisecond * 500),
-		stddoer.NewSerializer(),
-		stddoer.NewDeserializer(),
+		flowstate.DefaultTransitDoer,
+		flowstate.DefaultPauseDoer,
+		flowstate.DefaultResumeDoer,
+		flowstate.DefaultEndDoer,
+		flowstate.DefaultNoopDoer,
+		flowstate.DefaultSerializerDoer,
+		flowstate.DefaultDeserializeDoer,
+		flowstate.DefaultDereferenceDataDoer,
+		flowstate.DefaultReferenceDataDoer,
 		flowstate.DefaultReferenceDataDoer,
 		flowstate.DefaultDereferenceDataDoer,
+
+		flowstate.Recoverer(time.Millisecond * 500),
 
 		memdriver.NewFlowGetter(d.FlowRegistry),
 

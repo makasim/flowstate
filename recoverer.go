@@ -1,4 +1,4 @@
-package stddoer
+package flowstate
 
 import (
 	"context"
@@ -6,21 +6,19 @@ import (
 	"log"
 	"strconv"
 	"time"
-
-	"github.com/makasim/flowstate"
 )
 
 type RecovererDoer struct {
 	failoverDur time.Duration
 
-	wl        flowstate.WatchListener
-	e         *flowstate.Engine
+	wl        WatchListener
+	e         *Engine
 	doneCh    chan struct{}
 	stoppedCh chan struct{}
-	log       []flowstate.State
+	log       []State
 }
 
-func Recoverer(failoverDur time.Duration) flowstate.Doer {
+func Recoverer(failoverDur time.Duration) Doer {
 	return &RecovererDoer{
 		failoverDur: failoverDur,
 		doneCh:      make(chan struct{}),
@@ -28,12 +26,12 @@ func Recoverer(failoverDur time.Duration) flowstate.Doer {
 	}
 }
 
-func (d *RecovererDoer) Do(_ flowstate.Command) error {
-	return flowstate.ErrCommandNotSupported
+func (d *RecovererDoer) Do(_ Command) error {
+	return ErrCommandNotSupported
 }
 
-func (d *RecovererDoer) Init(e *flowstate.Engine) error {
-	cmd := flowstate.Watch(nil)
+func (d *RecovererDoer) Init(e *Engine) error {
+	cmd := Watch(nil)
 	if err := e.Do(cmd); err != nil {
 		return err
 	}
@@ -52,7 +50,7 @@ func (d *RecovererDoer) Init(e *flowstate.Engine) error {
 			case <-d.doneCh:
 				return
 			case state0 := <-d.wl.Listen():
-				state := state0.CopyTo(&flowstate.State{})
+				state := state0.CopyTo(&State{})
 				d.log = append(d.log, state)
 			case <-t.C:
 				if err := d.checkLog(); err != nil {
@@ -67,15 +65,15 @@ func (d *RecovererDoer) Init(e *flowstate.Engine) error {
 
 func (d *RecovererDoer) checkLog() error {
 
-	visited := make(map[flowstate.StateID]struct{})
+	visited := make(map[StateID]struct{})
 
 	failoverTime := time.Now().Add(-d.failoverDur)
 
-	newLog := make([]flowstate.State, 0, len(d.log))
+	newLog := make([]State, 0, len(d.log))
 	for i := len(d.log) - 1; i >= 0; i-- {
 		state := d.log[i]
 
-		if flowstate.Paused(state) || flowstate.Ended(state) {
+		if Paused(state) || Ended(state) {
 			continue
 		} else if _, ok := visited[state.ID]; ok {
 			continue
@@ -87,13 +85,13 @@ func (d *RecovererDoer) checkLog() error {
 			continue
 		}
 
-		conflictErr := &flowstate.ErrCommitConflict{}
+		conflictErr := &ErrCommitConflict{}
 
-		recoveryAttempt := flowstate.RecoveryAttempt(state)
+		recoveryAttempt := RecoveryAttempt(state)
 		if recoveryAttempt >= 2 {
-			stateCtx := state.CopyToCtx(&flowstate.StateCtx{})
+			stateCtx := state.CopyToCtx(&StateCtx{})
 			if err := d.e.Do(
-				flowstate.Commit(flowstate.End(stateCtx)),
+				Commit(End(stateCtx)),
 			); errors.As(err, conflictErr) {
 				visited[state.ID] = struct{}{}
 				continue
@@ -105,11 +103,11 @@ func (d *RecovererDoer) checkLog() error {
 			continue
 		}
 
-		stateCtx := state.CopyToCtx(&flowstate.StateCtx{})
-		stateCtx.Current.Transition.SetAnnotation(flowstate.RecoveryAttemptAnnotation, strconv.Itoa(recoveryAttempt+1))
+		stateCtx := state.CopyToCtx(&StateCtx{})
+		stateCtx.Current.Transition.SetAnnotation(RecoveryAttemptAnnotation, strconv.Itoa(recoveryAttempt+1))
 		if err := d.e.Do(
-			flowstate.Commit(flowstate.CommitStateCtx(stateCtx)),
-			flowstate.Execute(stateCtx),
+			Commit(CommitStateCtx(stateCtx)),
+			Execute(stateCtx),
 		); errors.As(err, conflictErr) {
 			visited[state.ID] = struct{}{}
 			continue

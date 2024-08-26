@@ -18,7 +18,7 @@ type ReferenceDataCommand struct {
 	Annotation string
 }
 
-var DefaultReferenceDataDoer = DoerFunc(func(cmd0 Command) error {
+var DefaultReferenceDataDoer DoerFunc = func(cmd0 Command) error {
 	cmd, ok := cmd0.(*ReferenceDataCommand)
 	if !ok {
 		return ErrCommandNotSupported
@@ -33,4 +33,4 @@ var DefaultReferenceDataDoer = DoerFunc(func(cmd0 Command) error {
 
 	cmd.StateCtx.Current.SetAnnotation(cmd.Annotation, fmt.Sprintf("data:%s:%d", cmd.Data.ID, cmd.Data.Rev))
 	return nil
-})
+}
