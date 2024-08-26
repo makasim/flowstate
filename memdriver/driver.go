@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/stddoer"
 )
 
 type Driver struct {
@@ -26,17 +25,17 @@ func New() *Driver {
 	}
 
 	doers := []flowstate.Doer{
-		stddoer.Transit(),
-		stddoer.Pause(),
-		stddoer.Resume(),
-		stddoer.End(),
-		stddoer.Noop(),
-		stddoer.Recoverer(time.Millisecond * 500),
-		stddoer.NewSerializer(),
-		stddoer.NewDeserializer(),
-
+		flowstate.DefaultTransitDoer,
+		flowstate.DefaultPauseDoer,
+		flowstate.DefaultResumeDoer,
+		flowstate.DefaultEndDoer,
+		flowstate.DefaultNoopDoer,
+		flowstate.DefaultSerializerDoer,
+		flowstate.DefaultDeserializeDoer,
 		flowstate.DefaultDereferenceDataDoer,
 		flowstate.DefaultReferenceDataDoer,
+
+		flowstate.Recoverer(time.Millisecond * 500),
 
 		NewDataLog(),
 		NewFlowGetter(d.FlowRegistry),
