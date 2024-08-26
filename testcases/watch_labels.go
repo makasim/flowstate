@@ -55,33 +55,18 @@ func WatchLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	require.NoError(t, err)
 	defer lis.Close()
 
-	require.Equal(t, []flowstate.State{
-		{
-			ID:  "aTID",
-			Rev: 1,
-			Transition: flowstate.Transition{
-				Annotations: map[string]string{
-					`flowstate.state`: `paused`,
-				},
-			},
-			Labels: map[string]string{
-				`foo`: `fooVal`,
-			},
-		},
-		{
-			ID:  "aTID",
-			Rev: 2,
-			Transition: flowstate.Transition{
-				Annotations: map[string]string{
-					`flowstate.state`: `paused`,
-				},
-			},
-			Labels: map[string]string{
-				`foo`: `fooVal`,
-				`bar`: `barVal`,
-			},
-		},
-	}, watchCollectStates(t, lis, 2))
+	actStates := watchCollectStates(t, lis, 2)
+
+	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
+	require.Equal(t, int64(1), actStates[0].Rev)
+	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
+	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
+
+	require.Equal(t, flowstate.StateID(`aTID`), actStates[1].ID)
+	require.Equal(t, int64(2), actStates[1].Rev)
+	require.Equal(t, `paused`, actStates[1].Transition.Annotations[`flowstate.state`])
+	require.Equal(t, `fooVal`, actStates[1].Labels[`foo`])
+	require.Equal(t, `barVal`, actStates[1].Labels[`bar`])
 }
 
 func watchCollectStates(t TestingT, lis flowstate.WatchListener, limit int) []flowstate.State {

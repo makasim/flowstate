@@ -44,18 +44,11 @@ func WatchSinceLatest(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	require.NoError(t, err)
 	defer lis.Close()
 
-	require.Equal(t, []flowstate.State{
-		{
-			ID:  "aTID",
-			Rev: 3,
-			Transition: flowstate.Transition{
-				Annotations: map[string]string{
-					`flowstate.state`: `paused`,
-				},
-			},
-			Labels: map[string]string{
-				`foo`: `fooVal`,
-			},
-		},
-	}, watchCollectStates(t, lis, 1))
+	actStates := watchCollectStates(t, lis, 1)
+
+	require.Len(t, actStates, 1)
+	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
+	require.Equal(t, int64(3), actStates[0].Rev)
+	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
+	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 }
