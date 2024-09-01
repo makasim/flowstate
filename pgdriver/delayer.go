@@ -1,0 +1,152 @@
+package pgdriver
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/makasim/flowstate"
+)
+
+var _ flowstate.Doer = &Delayer{}
+
+type delayerQueries interface {
+	InsertDelayedState(ctx context.Context, tx conntx, s flowstate.State, executeAt time.Time) error
+	UpsertDelayerMeta(ctx context.Context, tx conntx, dm delayerMeta) error
+	GetDelayerMeta(ctx context.Context, tx conntx, shard int, dm *delayerMeta) error
+	GetDelayedStates(ctx context.Context, tx conntx, dm delayerMeta) ([]delayedState, error)
+}
+
+type delayerMeta struct {
+	Shard int   `json:"shard"`
+	Limit int   `json:"limit"`
+	Since int64 `json:"since"`
+
+	Until int64 `json:"-"`
+}
+
+type delayedState struct {
+	ExecuteAt int64
+	State     flowstate.State
+}
+
+type Delayer struct {
+	conn   conn
+	q      delayerQueries
+	now    func() time.Time
+	doneCh chan struct{}
+
+	e *flowstate.Engine
+}
+
+func NewDelayer(conn conn, q delayerQueries, now func() time.Time) *Delayer {
+	return &Delayer{
+		conn: conn,
+		q:    q,
+		now:  now,
+
+		doneCh: make(chan struct{}),
+	}
+}
+
+func (d *Delayer) Do(cmd0 flowstate.Command) error {
+	cmd, ok := cmd0.(*flowstate.DelayCommand)
+	if !ok {
+		return flowstate.ErrCommandNotSupported
+	}
+
+	if err := cmd.Prepare(); err != nil {
+		return err
+	}
+
+	executeAt := time.Now().Add(cmd.Duration)
+
+	if err := d.q.InsertDelayedState(context.Background(), d.conn, cmd.DelayStateCtx.Current, executeAt); err != nil {
+		return fmt.Errorf("insert delayed state query: %w", err)
+	}
+
+	return nil
+}
+
+func (d *Delayer) Init(e *flowstate.Engine) error {
+	d.e = e
+
+	go func() {
+		t := time.NewTicker(time.Millisecond * 100)
+		defer t.Stop()
+
+		for {
+			select {
+			case <-t.C:
+				if err := d.do(); err != nil {
+					log.Printf(`ERROR: sqlitedriver: delayer: do: %s`, err)
+				}
+			case <-d.doneCh:
+				return
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (d *Delayer) do() error {
+	dm := delayerMeta{}
+	if err := d.q.GetDelayerMeta(context.Background(), d.conn, 0, &dm); errors.Is(err, sql.ErrNoRows) {
+		dm = delayerMeta{
+			Shard: 0,
+			Limit: 10,
+			Since: 0,
+		}
+	} else if err != nil {
+		return fmt.Errorf(`get delayer meta query: %w`, err)
+	}
+
+	dm.Until = d.now().Unix()
+
+	dss, err := d.q.GetDelayedStates(context.Background(), d.conn, dm)
+	if err != nil {
+		return fmt.Errorf(`query delayed states: %w`, err)
+	}
+	if len(dss) == 0 {
+		return nil
+	}
+
+	for _, ds := range dss {
+		stateCtx := ds.State.CopyToCtx(&flowstate.StateCtx{})
+		if stateCtx.Current.Transition.Annotations[flowstate.DelayCommitAnnotation] == `true` {
+			conflictErr := &flowstate.ErrCommitConflict{}
+			if err := d.e.Do(flowstate.Commit(
+				flowstate.CommitStateCtx(stateCtx),
+			)); errors.As(err, conflictErr) {
+				log.Printf("ERROR: engine: commit: %s\n", conflictErr)
+				continue
+			} else if err != nil {
+				return fmt.Errorf("engine: commit: %w", err)
+			}
+		}
+
+		go func() {
+			if err := d.e.Execute(stateCtx); err != nil {
+				log.Printf(`ERROR: pgdriver: delayer: engine: execute: %s`, err)
+			}
+		}()
+
+		dm.Since = ds.ExecuteAt
+	}
+
+	if err := d.q.UpsertDelayerMeta(context.Background(), d.conn, dm); err != nil {
+		return fmt.Errorf(`upsert delayer meta query: %w`, err)
+	}
+
+	return nil
+}
+
+func (d *Delayer) Shutdown(_ context.Context) error {
+	close(d.doneCh)
+
+	return nil
+}
