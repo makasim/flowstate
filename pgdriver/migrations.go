@@ -46,8 +46,12 @@ CREATE INDEX IF NOT EXISTS flowstate_delayed_states_execute_at ON flowstate_dela
 		Desc: "create flowstate_delayer_meta",
 		SQL: `
 CREATE TABLE IF NOT EXISTS flowstate_delayer_meta (
-    executed_until bigint
-);`,
+    shard int NOT NULL,
+    meta JSONB NOT NULL
+);
+
+CREATE UNIQUE INDEX flowstate_delayer_meta_shard_idx ON flowstate_delayer_meta(shard);
+`,
 	},
 	{
 		Desc: "create flowstate_data",

@@ -29,8 +29,8 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d := flowstate.Data{ID: ``}
-		err := q.GetData(context.Background(), conn, &d)
+		d := flowstate.Data{}
+		err := q.GetData(context.Background(), conn, ``, 0, &d)
 		require.EqualError(t, err, `id is empty`)
 	})
 
@@ -39,8 +39,8 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d := flowstate.Data{ID: `anID`, Rev: 0}
-		err := q.GetData(context.Background(), conn, &d)
+		d := flowstate.Data{}
+		err := q.GetData(context.Background(), conn, `anID`, 0, &d)
 		require.EqualError(t, err, `rev is empty`)
 	})
 
@@ -49,8 +49,8 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d1 := &flowstate.Data{ID: `anID`, Rev: 123}
-		err := q.GetData(context.Background(), conn, d1)
+		d1 := &flowstate.Data{}
+		err := q.GetData(context.Background(), conn, `anID`, 123, d1)
 		require.EqualError(t, err, `no rows in result set`)
 		require.True(t, errors.Is(err, pgx.ErrNoRows))
 		require.Equal(t, []byte(nil), d1.B)
@@ -68,8 +68,8 @@ func TestQuery_GetData(main *testing.T) {
 		require.NoError(t, err)
 		require.Greater(t, d0.Rev, int64(0))
 
-		d1 := &flowstate.Data{ID: d0.ID, Rev: 123}
-		err = q.GetData(context.Background(), conn, d1)
+		d1 := &flowstate.Data{}
+		err = q.GetData(context.Background(), conn, d0.ID, 123, d1)
 		require.EqualError(t, err, `no rows in result set`)
 		require.True(t, errors.Is(err, pgx.ErrNoRows))
 		require.Equal(t, []byte(nil), d1.B)
@@ -94,8 +94,8 @@ func TestQuery_GetData(main *testing.T) {
 		require.NoError(t, err)
 		require.Greater(t, d0.Rev, int64(0))
 
-		d1 := &flowstate.Data{ID: d0.ID, Rev: d0.Rev}
-		err = q.GetData(context.Background(), conn, d1)
+		d1 := &flowstate.Data{}
+		err = q.GetData(context.Background(), conn, d0.ID, d0.Rev, d1)
 		require.NoError(t, err)
 		require.Equal(t, d0, d1)
 
@@ -123,8 +123,8 @@ func TestQuery_GetData(main *testing.T) {
 		require.NoError(t, err)
 		defer tx.Rollback(context.Background())
 
-		d1 := &flowstate.Data{ID: d0.ID, Rev: d0.Rev}
-		err = q.GetData(context.Background(), tx, d1)
+		d1 := &flowstate.Data{}
+		err = q.GetData(context.Background(), tx, d0.ID, d0.Rev, d1)
 		require.NoError(t, err)
 		require.Equal(t, d0, d1)
 

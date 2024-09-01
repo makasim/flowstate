@@ -24,6 +24,7 @@ func FindAllStates(t *testing.T, conn *pgx.Conn) []StateRow {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer rows.Close()
 
 	var scannedRows []StateRow
 	for rows.Next() {
@@ -48,6 +49,7 @@ func FindAllLatestStates(t *testing.T, conn *pgx.Conn) []LatestStateRow {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer rows.Close()
 
 	var scannedRows []LatestStateRow
 	for rows.Next() {
@@ -100,6 +102,7 @@ func FindAllData(t *testing.T, conn *pgx.Conn) []DataRow {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer rows.Close()
 
 	var scannedRows []DataRow
 	for rows.Next() {
@@ -124,11 +127,37 @@ func FindAllDelayedStates(t *testing.T, conn *pgx.Conn) []DelayedStateRow {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer rows.Close()
 
 	var scannedRows []DelayedStateRow
 	for rows.Next() {
 		r := DelayedStateRow{}
 		require.NoError(t, rows.Scan(&r.ExecuteAt, &r.State))
+		scannedRows = append(scannedRows, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	return scannedRows
+}
+
+type DelayMetaRow struct {
+	Shard int
+	Meta  string
+}
+
+func FindAllDelayMeta(t *testing.T, conn *pgx.Conn) []DelayMetaRow {
+	rows, err := conn.Query(context.Background(), `SELECT shard, meta FROM flowstate_delayer_meta ORDER BY shard ASC`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	var scannedRows []DelayMetaRow
+	for rows.Next() {
+		r := DelayMetaRow{}
+		require.NoError(t, rows.Scan(&r.Shard, &r.Meta))
 		scannedRows = append(scannedRows, r)
 	}
 	if err := rows.Err(); err != nil {
