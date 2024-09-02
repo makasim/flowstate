@@ -142,22 +142,22 @@ func FindAllDelayedStates(t *testing.T, conn *pgx.Conn) []DelayedStateRow {
 	return scannedRows
 }
 
-type DelayMetaRow struct {
-	Shard int
-	Meta  string
+type MetaRow struct {
+	Key   string
+	Value string
 }
 
-func FindAllDelayMeta(t *testing.T, conn *pgx.Conn) []DelayMetaRow {
-	rows, err := conn.Query(context.Background(), `SELECT shard, meta FROM flowstate_delayer_meta ORDER BY shard ASC`)
+func FindAllMeta(t *testing.T, conn *pgx.Conn) []MetaRow {
+	rows, err := conn.Query(context.Background(), `SELECT "key", "value" FROM flowstate_meta ORDER BY "key" ASC`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close()
 
-	var scannedRows []DelayMetaRow
+	var scannedRows []MetaRow
 	for rows.Next() {
-		r := DelayMetaRow{}
-		require.NoError(t, rows.Scan(&r.Shard, &r.Meta))
+		r := MetaRow{}
+		require.NoError(t, rows.Scan(&r.Key, &r.Value))
 		scannedRows = append(scannedRows, r)
 	}
 	if err := rows.Err(); err != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestQuery_UpsertDelayerMetaQuery(main *testing.T) {
+func TestQuery_UpsertMetaQuery(main *testing.T) {
 	openDB := func(t *testing.T, dsn0, dbName string) *pgx.Conn {
 		conn := testpgdriver.OpenFreshDB(t, dsn0, dbName)
 
@@ -27,20 +27,19 @@ func TestQuery_UpsertDelayerMetaQuery(main *testing.T) {
 
 		q := &queries{}
 
-		err := q.UpsertDelayerMeta(context.Background(), conn, delayerMeta{
-			Shard: 1,
+		err := q.UpsertMeta(context.Background(), conn, `aKey`, delayerMeta{
 			Limit: 100,
 			Since: 123,
 			Until: 234,
 		})
 		require.NoError(t, err)
 
-		require.Equal(t, []testpgdriver.DelayMetaRow{
+		require.Equal(t, []testpgdriver.MetaRow{
 			{
-				Shard: 1,
-				Meta:  `{"limit": 100, "shard": 1, "since": 123}`,
+				Key:   `aKey`,
+				Value: `{"limit": 100, "since": 123}`,
 			},
-		}, testpgdriver.FindAllDelayMeta(t, conn))
+		}, testpgdriver.FindAllMeta(t, conn))
 	})
 
 	main.Run("Update", func(t *testing.T) {
@@ -48,28 +47,26 @@ func TestQuery_UpsertDelayerMetaQuery(main *testing.T) {
 
 		q := &queries{}
 
-		err := q.UpsertDelayerMeta(context.Background(), conn, delayerMeta{
-			Shard: 1,
+		err := q.UpsertMeta(context.Background(), conn, `aKey`, delayerMeta{
 			Limit: 1,
 			Since: 1,
 			Until: 1,
 		})
 		require.NoError(t, err)
 
-		err = q.UpsertDelayerMeta(context.Background(), conn, delayerMeta{
-			Shard: 1,
+		err = q.UpsertMeta(context.Background(), conn, `aKey`, delayerMeta{
 			Limit: 100,
 			Since: 123,
 			Until: 234,
 		})
 		require.NoError(t, err)
 
-		require.Equal(t, []testpgdriver.DelayMetaRow{
+		require.Equal(t, []testpgdriver.MetaRow{
 			{
-				Shard: 1,
-				Meta:  `{"limit": 100, "shard": 1, "since": 123}`,
+				Key:   `aKey`,
+				Value: `{"limit": 100, "since": 123}`,
 			},
-		}, testpgdriver.FindAllDelayMeta(t, conn))
+		}, testpgdriver.FindAllMeta(t, conn))
 	})
 
 	main.Run("Tx", func(t *testing.T) {
@@ -81,8 +78,7 @@ func TestQuery_UpsertDelayerMetaQuery(main *testing.T) {
 
 		q := &queries{}
 
-		err = q.UpsertDelayerMeta(context.Background(), tx, delayerMeta{
-			Shard: 1,
+		err = q.UpsertMeta(context.Background(), tx, `aKey`, delayerMeta{
 			Since: 123,
 			Limit: 100,
 		})
@@ -90,12 +86,12 @@ func TestQuery_UpsertDelayerMetaQuery(main *testing.T) {
 
 		require.NoError(t, tx.Commit(context.Background()))
 
-		require.Equal(t, []testpgdriver.DelayMetaRow{
+		require.Equal(t, []testpgdriver.MetaRow{
 			{
-				Shard: 1,
-				Meta:  `{"limit": 100, "shard": 1, "since": 123}`,
+				Key:   `aKey`,
+				Value: `{"limit": 100, "since": 123}`,
 			},
-		}, testpgdriver.FindAllDelayMeta(t, conn))
+		}, testpgdriver.FindAllMeta(t, conn))
 	})
 
 	main.Run("Several", func(t *testing.T) {
@@ -103,40 +99,37 @@ func TestQuery_UpsertDelayerMetaQuery(main *testing.T) {
 
 		q := &queries{}
 
-		err := q.UpsertDelayerMeta(context.Background(), conn, delayerMeta{
-			Shard: 0,
+		err := q.UpsertMeta(context.Background(), conn, `aKey0`, delayerMeta{
 			Since: 10,
 			Limit: 100,
 		})
 		require.NoError(t, err)
 
-		err = q.UpsertDelayerMeta(context.Background(), conn, delayerMeta{
-			Shard: 1,
+		err = q.UpsertMeta(context.Background(), conn, `aKey1`, delayerMeta{
 			Since: 20,
 			Limit: 200,
 		})
 		require.NoError(t, err)
 
-		err = q.UpsertDelayerMeta(context.Background(), conn, delayerMeta{
-			Shard: 2,
+		err = q.UpsertMeta(context.Background(), conn, `aKey2`, delayerMeta{
 			Since: 30,
 			Limit: 300,
 		})
 		require.NoError(t, err)
 
-		require.Equal(t, []testpgdriver.DelayMetaRow{
+		require.Equal(t, []testpgdriver.MetaRow{
 			{
-				Shard: 0,
-				Meta:  `{"limit": 100, "shard": 0, "since": 10}`,
+				Key:   `aKey0`,
+				Value: `{"limit": 100, "since": 10}`,
 			},
 			{
-				Shard: 1,
-				Meta:  `{"limit": 200, "shard": 1, "since": 20}`,
+				Key:   `aKey1`,
+				Value: `{"limit": 200, "since": 20}`,
 			},
 			{
-				Shard: 2,
-				Meta:  `{"limit": 300, "shard": 2, "since": 30}`,
+				Key:   `aKey2`,
+				Value: `{"limit": 300, "since": 30}`,
 			},
-		}, testpgdriver.FindAllDelayMeta(t, conn))
+		}, testpgdriver.FindAllMeta(t, conn))
 	})
 }
