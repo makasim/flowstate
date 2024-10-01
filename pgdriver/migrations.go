@@ -43,14 +43,13 @@ CREATE INDEX IF NOT EXISTS flowstate_delayed_states_execute_at ON flowstate_dela
 `,
 	},
 	{
-		Desc: "create flowstate_delayer_meta",
+		Desc: "create flowstate_meta",
 		SQL: `
-CREATE TABLE IF NOT EXISTS flowstate_delayer_meta (
-    shard int NOT NULL,
-    meta JSONB NOT NULL
+CREATE TABLE IF NOT EXISTS flowstate_meta (
+    "key" text NOT NULL,
+    "value" JSONB NOT NULL,
+	PRIMARY KEY ("key")       
 );
-
-CREATE UNIQUE INDEX flowstate_delayer_meta_shard_idx ON flowstate_delayer_meta(shard);
 `,
 	},
 	{

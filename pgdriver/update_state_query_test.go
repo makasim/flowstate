@@ -3,16 +3,20 @@ package pgdriver
 import (
 	"context"
 	"fmt"
+	"log"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/pgdriver/testpgdriver"
 	"github.com/stretchr/testify/require"
 )
 
 func TestQuery_UpdateState(main *testing.T) {
-	openDB := func(t *testing.T, dsn0, dbName string) *pgx.Conn {
+	openDB := func(t *testing.T, dsn0, dbName string) *pgxpool.Pool {
 		conn := testpgdriver.OpenFreshDB(t, dsn0, dbName)
 
 		for i, m := range Migrations {
@@ -399,5 +403,113 @@ func TestQuery_UpdateState(main *testing.T) {
 				Rev: 3,
 			},
 		}, testpgdriver.FindAllLatestStates(t, conn))
+	})
+
+	main.Run("Deadlock", func(t *testing.T) {
+		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
+
+		q := &queries{}
+
+		s0 := flowstate.State{ID: `0`}
+		err := q.InsertState(context.Background(), conn, &s0)
+		require.NoError(t, err)
+
+		s1 := flowstate.State{ID: `1`}
+		err = q.InsertState(context.Background(), conn, &s1)
+		require.NoError(t, err)
+
+		wg := &sync.WaitGroup{}
+		doneCh := make(chan struct{})
+
+		go func() {
+			time.Sleep(time.Second * 5)
+			close(doneCh)
+		}()
+
+		ok := atomic.Int64{}
+		noRowsErr := atomic.Int64{}
+
+		s0Rev := atomic.Int64{}
+		s0Rev.Store(s0.Rev)
+		s1Rev := atomic.Int64{}
+		s1Rev.Store(s1.Rev)
+
+		testTx := func(s0, s1 *flowstate.State, zeroFirst bool) {
+			tx, err := conn.Begin(context.Background())
+			require.NoError(t, err)
+			defer tx.Rollback(context.Background())
+
+			s0PrevRev := s0.Rev
+			s1PrevRev := s1.Rev
+
+			var firstS *flowstate.State
+			var secondS *flowstate.State
+			if zeroFirst {
+				firstS = s0
+				secondS = s1
+			} else {
+				firstS = s1
+				secondS = s0
+			}
+
+			err = q.UpdateState(context.Background(), tx, firstS)
+			if err != nil && err.Error() == "no rows in result set" {
+				noRowsErr.Add(1)
+				return
+			} else if err != nil {
+				require.NoError(t, err)
+			}
+
+			err = q.UpdateState(context.Background(), tx, secondS)
+			if err != nil && err.Error() == "no rows in result set" {
+				noRowsErr.Add(1)
+				return
+			} else if err != nil {
+				require.NoError(t, err)
+			}
+
+			_, err = tx.Exec(context.Background(), `SELECT pg_sleep(0.1)`)
+			require.NoError(t, err)
+
+			require.NoError(t, tx.Commit(context.Background()))
+
+			s0Rev.CompareAndSwap(s0PrevRev, s0.Rev)
+			s1Rev.CompareAndSwap(s1PrevRev, s1.Rev)
+
+			ok.Add(1)
+		}
+
+		for i := 0; i < 10; i++ {
+			wg.Add(1)
+
+			i := i
+
+			go func() {
+				defer wg.Done()
+
+				s0 := s0.CopyTo(&flowstate.State{})
+				s1 := s1.CopyTo(&flowstate.State{})
+
+				for {
+					select {
+					case <-doneCh:
+						return
+					default:
+					}
+
+					s0.Rev = s0Rev.Load()
+					s1.Rev = s1Rev.Load()
+
+					testTx(&s0, &s1, i%2 == 0)
+					testTx(&s0, &s1, i%2 == 0)
+				}
+			}()
+		}
+
+		<-doneCh
+		wg.Wait()
+
+		log.Println("ok", ok.Load())
+		log.Println("noRowsErr", noRowsErr.Load())
 	})
 }
