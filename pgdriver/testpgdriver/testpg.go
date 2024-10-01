@@ -7,10 +7,15 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
 	"github.com/xo/dburl"
 )
+
+type conn interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
 
 type StateRow struct {
 	ID     flowstate.StateID
@@ -19,7 +24,7 @@ type StateRow struct {
 	State  flowstate.State
 }
 
-func FindAllStates(t *testing.T, conn *pgx.Conn) []StateRow {
+func FindAllStates(t *testing.T, conn conn) []StateRow {
 	rows, err := conn.Query(context.Background(), `SELECT rev, id, state, labels FROM flowstate_states ORDER BY rev DESC`)
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +49,7 @@ type LatestStateRow struct {
 	Rev int64
 }
 
-func FindAllLatestStates(t *testing.T, conn *pgx.Conn) []LatestStateRow {
+func FindAllLatestStates(t *testing.T, conn conn) []LatestStateRow {
 	rows, err := conn.Query(context.Background(), `SELECT rev, id FROM flowstate_latest_states ORDER BY rev DESC`)
 	if err != nil {
 		t.Fatal(err)
@@ -64,13 +69,13 @@ func FindAllLatestStates(t *testing.T, conn *pgx.Conn) []LatestStateRow {
 	return scannedRows
 }
 
-func OpenFreshDB(t *testing.T, dsn0, dbName string) *pgx.Conn {
+func OpenFreshDB(t *testing.T, dsn0, dbName string) *pgxpool.Pool {
 	dsn, err := dburl.Parse(dsn0)
 	require.NoError(t, err)
 
-	conn0, err := pgx.Connect(context.Background(), dsn.String())
+	conn0, err := pgxpool.New(context.Background(), dsn.String())
 	require.NoError(t, err)
-	defer conn0.Close(context.Background())
+	defer conn0.Close()
 
 	if dbName == `` {
 		dbName = fmt.Sprintf(`flowstate_testdb_%d`, time.Now().UnixNano())
@@ -80,11 +85,11 @@ func OpenFreshDB(t *testing.T, dsn0, dbName string) *pgx.Conn {
 	require.NoError(t, err)
 
 	dsn.Path = dbName
-	conn, err := pgx.Connect(context.Background(), dsn.String())
+	conn, err := pgxpool.New(context.Background(), dsn.String())
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		conn.Close(context.Background())
+		conn.Close()
 	})
 
 	return conn
@@ -97,7 +102,7 @@ type DataRow struct {
 	B           []byte
 }
 
-func FindAllData(t *testing.T, conn *pgx.Conn) []DataRow {
+func FindAllData(t *testing.T, conn conn) []DataRow {
 	rows, err := conn.Query(context.Background(), `SELECT rev, id, annotations, bytes FROM flowstate_data ORDER BY rev DESC`)
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +127,7 @@ type DelayedStateRow struct {
 	State     flowstate.State
 }
 
-func FindAllDelayedStates(t *testing.T, conn *pgx.Conn) []DelayedStateRow {
+func FindAllDelayedStates(t *testing.T, conn conn) []DelayedStateRow {
 	rows, err := conn.Query(context.Background(), `SELECT execute_at, state FROM flowstate_delayed_states ORDER BY execute_at DESC`)
 	if err != nil {
 		t.Fatal(err)
@@ -147,7 +152,7 @@ type MetaRow struct {
 	Value string
 }
 
-func FindAllMeta(t *testing.T, conn *pgx.Conn) []MetaRow {
+func FindAllMeta(t *testing.T, conn conn) []MetaRow {
 	rows, err := conn.Query(context.Background(), `SELECT "key", "value" FROM flowstate_meta ORDER BY "key" ASC`)
 	if err != nil {
 		t.Fatal(err)
