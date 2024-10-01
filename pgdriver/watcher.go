@@ -2,6 +2,7 @@ package pgdriver
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/makasim/flowstate"
@@ -11,6 +12,7 @@ var _ flowstate.Doer = &Watcher{}
 var _ flowstate.WatchListener = &listener{}
 
 type watcherQueries interface {
+	GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map[string]string, sinceRev int64, ss []flowstate.State) ([]flowstate.State, error)
 }
 
 type Watcher struct {
@@ -93,154 +95,48 @@ func (lis *listener) Close() {
 }
 
 func (lis *listener) listen() {
-	//	if lis.sinceLatest {
-	//		sinceLatest, err := lis.findSinceLatest()
-	//		if err != nil {
-	//			log.Printf("ERROR: listner: find since latest: %s", err)
-	//			return
-	//		}
-	//
-	//		lis.sinceRev = sinceLatest
-	//	}
-	//
-	//	var states []flowstate.State
-	//
-	//	t := time.NewTicker(time.Millisecond * 100)
-	//	defer t.Stop()
-	//
-	//skip:
-	//	for {
-	//
-	//		select {
-	//		case <-t.C:
-	//			var err error
-	//			states, err = lis.findStates()
-	//			if err != nil {
-	//				log.Printf("ERROR: lstener: find states: %s", err)
-	//				continue skip
-	//			}
-	//
-	//			if len(states) == 0 {
-	//				continue skip
-	//			}
-	//
-	//		next:
-	//			for _, s := range states {
-	//				select {
-	//				case lis.watchCh <- s:
-	//					lis.sinceRev = s.Rev
-	//					continue next
-	//				case <-lis.closeCh:
-	//					return
-	//				}
-	//			}
-	//		case <-lis.closeCh:
-	//			return
-	//		}
-	//	}
-}
+	if lis.sinceLatest {
+		lis.sinceRev = -1
+	}
 
-//
-//func (lis *listener) findStates() ([]flowstate.State, error) {
-//	labelsWhere, labelsArgs := buildLabelsWhere(lis.labels)
-//	args := append([]interface{}{}, labelsArgs...)
-//
-//	if !lis.sinceTime.IsZero() {
-//		labelsWhere += " AND json_extract(state, '$.committed_at_unix_milli') > ?"
-//		args = append(args, lis.sinceTime.UnixMilli())
-//	}
-//
-//	args = append(args, lis.sinceRev, 10)
-//
-//	q := fmt.Sprintf(`
-//SELECT
-//    state
-//FROM
-//    flowstate_state_log
-//WHERE
-//    %s AND rev > ?
-//ORDER BY rev
-//LIMIT ?`, labelsWhere)
-//
-//	rows, err := lis.db.Query(q, args...)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer rows.Close()
-//
-//	var stateJSON []byte
-//
-//	var states []flowstate.State
-//	for rows.Next() {
-//		stateJSON = stateJSON[:0]
-//
-//		if err := rows.Scan(&stateJSON); err != nil {
-//			return nil, err
-//		}
-//
-//		var state flowstate.State
-//		if err := json.Unmarshal(stateJSON, &state); err != nil {
-//			return nil, err
-//		}
-//
-//		states = append(states, state)
-//	}
-//	if rows.Err() != nil {
-//		return nil, rows.Err()
-//	}
-//
-//	return states, nil
-//}
-//
-//func (lis *listener) findSinceLatest() (int64, error) {
-//	labelsWhere, labelsArgs := buildLabelsWhere(lis.labels)
-//	args := append([]interface{}{}, labelsArgs...)
-//
-//	q := fmt.Sprintf(`
-//SELECT
-//    rev
-//FROM
-//    flowstate_state_log
-//WHERE
-//    %s
-//ORDER BY rev DESC
-//LIMIT 1`, labelsWhere)
-//
-//	var sinceRev int64
-//	if err := lis.db.QueryRow(q, args...).Scan(&sinceRev); err != nil {
-//		return 0, err
-//	}
-//
-//	sinceRev -= 1
-//
-//	return sinceRev, nil
-//}
-//
-//func buildLabelsWhere(orLabels []map[string]string) (string, []interface{}) {
-//	if len(orLabels) == 0 {
-//		return " TRUE ", nil
-//	}
-//
-//	var args []interface{}
-//	var labelsWhere string
-//	for _, labels := range orLabels {
-//
-//		_labelsWhere := ""
-//		for k, v := range labels {
-//			if _labelsWhere != "" {
-//				_labelsWhere += " AND "
-//			}
-//
-//			// TODO: somewhat ? does not work inside josn_extract, sanitize k to prevent sql injection
-//			_labelsWhere += `json_extract(state, '$.labels.` + k + `') = ?`
-//			args = append(args, v)
-//		}
-//
-//		if labelsWhere != "" {
-//			labelsWhere += " OR "
-//		}
-//		labelsWhere += "(" + _labelsWhere + ")"
-//	}
-//
-//	return labelsWhere, args
-//}
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+
+	ss := make([]flowstate.State, 50)
+
+skip:
+	for {
+		select {
+		case <-t.C:
+			ss = ss[0:50:50]
+			for i := range ss {
+				ss[i] = flowstate.State{}
+			}
+
+			var err error
+			ss0, err := lis.q.GetStatesByLabels(context.Background(), lis.conn, lis.labels, lis.sinceRev, ss)
+			if err != nil {
+				log.Printf("ERROR: lstener: find states: %s", err)
+				continue skip
+			}
+			if len(ss0) == 0 {
+				continue skip
+			}
+
+			ss = ss0
+
+		next:
+			for i := range ss {
+				select {
+				case lis.watchCh <- ss[i]:
+					lis.sinceRev = ss[i].Rev
+					continue next
+				case <-lis.closeCh:
+					return
+				}
+			}
+		case <-lis.closeCh:
+			return
+		}
+	}
+}
