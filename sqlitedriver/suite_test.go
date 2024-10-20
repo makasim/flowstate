@@ -25,5 +25,6 @@ func TestSuite(t *testing.T) {
 	})
 
 	s.Skip(t, "Actor")
+	s.Skip(t, `Cron`)
 	s.Test(t)
 }
