@@ -44,6 +44,8 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		}
 
 		nextTimes := cron.NextN(now, 2)
+
+		// can run task right now ?
 		if nextTimes[0].After(now) && nextTimes[0].Before(now.Add(time.Second)) {
 			taskStateCtx := &flowstate.StateCtx{
 				Current: flowstate.State{
@@ -68,7 +70,7 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 			return flowstate.Noop(stateCtx), nil
 		}
-
+		
 		if err := e.Do(flowstate.Commit(
 			flowstate.Pause(stateCtx),
 			flowstate.Delay(stateCtx, nextTimes[0].Sub(now)),
