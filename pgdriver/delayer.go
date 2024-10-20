@@ -2,12 +2,12 @@ package pgdriver
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/makasim/flowstate"
 )
 
@@ -93,10 +93,10 @@ func (d *Delayer) Init(e *flowstate.Engine) error {
 
 func (d *Delayer) do() error {
 	dm := delayerMeta{}
-	if err := d.q.GetMeta(context.Background(), d.conn, d.key(), &dm); errors.Is(err, sql.ErrNoRows) {
+	if err := d.q.GetMeta(context.Background(), d.conn, d.key(), &dm); errors.Is(err, pgx.ErrNoRows) {
 		dm = delayerMeta{
 			Limit: 100,
-			Since: 0,
+			Since: 1,
 		}
 	} else if err != nil {
 		return fmt.Errorf(`get delayer meta query: %w`, err)
