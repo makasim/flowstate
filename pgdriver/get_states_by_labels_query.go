@@ -49,7 +49,7 @@ func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map
 SELECT state, rev 
 FROM flowstate_states 
 WHERE ` + where + `
-ORDER BY "rev" DESC LIMIT ` + strconv.Itoa(len(ss)) + `;`
+ORDER BY "rev" ASC LIMIT ` + strconv.Itoa(len(ss)) + `;`
 
 	rows, err := tx.Query(ctx, q, args...)
 	if err != nil {

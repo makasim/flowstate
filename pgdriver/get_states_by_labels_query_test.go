@@ -57,10 +57,10 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4},
-			{ID: `3`, Rev: 3},
-			{ID: `2`, Rev: 2},
 			{ID: `1`, Rev: 1},
+			{ID: `2`, Rev: 2},
+			{ID: `3`, Rev: 3},
+			{ID: `4`, Rev: 4},
 		}, ss)
 	})
 
@@ -78,9 +78,9 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4},
-			{ID: `3`, Rev: 3},
+			{ID: `1`, Rev: 1},
 			{ID: `2`, Rev: 2},
+			{ID: `3`, Rev: 3},
 		}, ss)
 	})
 
@@ -98,8 +98,8 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(2), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4},
 			{ID: `3`, Rev: 3},
+			{ID: `4`, Rev: 4},
 		}, ss)
 	})
 
@@ -159,8 +159,8 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `2`, Rev: 2, Labels: map[string]string{`foo`: `fooVal`}},
 			{ID: `1`, Rev: 1, Labels: map[string]string{`foo`: `fooVal`}},
+			{ID: `2`, Rev: 2, Labels: map[string]string{`foo`: `fooVal`}},
 		}, ss)
 
 		ss = make([]flowstate.State, 4)
@@ -171,8 +171,8 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4, Labels: map[string]string{`bar`: `barVal`}},
 			{ID: `3`, Rev: 3, Labels: map[string]string{`bar`: `barVal`}},
+			{ID: `4`, Rev: 4, Labels: map[string]string{`bar`: `barVal`}},
 		}, ss)
 	})
 
@@ -214,9 +214,9 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`}},
-			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`}},
+			{ID: `1`, Rev: 1, Labels: map[string]string{`foo`: `fooVal`}},
 			{ID: `2`, Rev: 2, Labels: map[string]string{`foo`: `fooVal`}},
+			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`}},
 		}, ss)
 	})
 
@@ -258,8 +258,8 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(2), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`}},
 			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`}},
+			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`}},
 		}, ss)
 	})
 
@@ -346,8 +346,8 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `2`, Rev: 2, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
 			{ID: `1`, Rev: 1, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
+			{ID: `2`, Rev: 2, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
 		}, ss)
 	})
 
@@ -394,9 +394,9 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
-			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
+			{ID: `1`, Rev: 1, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
 			{ID: `2`, Rev: 2, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
+			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
 		}, ss)
 	})
 
@@ -443,8 +443,8 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(2), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
 			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
+			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
 		}, ss)
 	})
 
@@ -538,10 +538,10 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
-			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
-			{ID: `2`, Rev: 2, Labels: map[string]string{`bar`: `barVal`}},
 			{ID: `1`, Rev: 1, Labels: map[string]string{`foo`: `fooVal`}},
+			{ID: `2`, Rev: 2, Labels: map[string]string{`bar`: `barVal`}},
+			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
+			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
 		}, ss)
 	})
 
@@ -588,9 +588,9 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(0), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
-			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
+			{ID: `1`, Rev: 1, Labels: map[string]string{`foo`: `fooVal`}},
 			{ID: `2`, Rev: 2, Labels: map[string]string{`bar`: `barVal`}},
+			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`, `bar`: `barVal`}},
 		}, ss)
 	})
 
@@ -635,8 +635,8 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, int64(2), ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `4`, Rev: 4, Labels: map[string]string{`bar`: `barVal`}},
 			{ID: `3`, Rev: 3, Labels: map[string]string{`foo`: `fooVal`}},
+			{ID: `4`, Rev: 4, Labels: map[string]string{`bar`: `barVal`}},
 		}, ss)
 	})
 

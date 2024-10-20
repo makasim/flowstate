@@ -98,7 +98,7 @@ func (lis *listener) listen() {
 		lis.sinceRev = -1
 	}
 
-	t := time.NewTicker(time.Second)
+	t := time.NewTicker(time.Millisecond * 100)
 	defer t.Stop()
 
 	ss := make([]flowstate.State, 50)
@@ -123,12 +123,12 @@ skip:
 			}
 
 			ss = ss0
-
 		next:
 			for i := range ss {
+				nextSinceRev := ss[i].Rev
 				select {
 				case lis.watchCh <- ss[i]:
-					lis.sinceRev = ss[i].Rev
+					lis.sinceRev = nextSinceRev
 					continue next
 				case <-lis.closeCh:
 					return

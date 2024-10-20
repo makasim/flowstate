@@ -67,7 +67,7 @@ func (trkr *Tracker) WaitSortedVisitedEqual(t TestingT, expVisited []string, wai
 		visited = trkr.VisitedSorted()
 		return len(visited) >= len(expVisited)
 	}, wait, time.Millisecond*50)
-	require.Equal(t, visited, expVisited)
+	require.Equal(t, expVisited, visited)
 
 	return visited
 }

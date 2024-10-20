@@ -57,6 +57,7 @@ func WatchLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 
 	actStates := watchCollectStates(t, lis, 2)
 
+	require.Len(t, actStates, 2)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
 	require.Equal(t, int64(1), actStates[0].Rev)
 	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
