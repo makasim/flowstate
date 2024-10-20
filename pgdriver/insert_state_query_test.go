@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/pgdriver/testpgdriver"
 	"github.com/stretchr/testify/require"
 )
 
 func TestQuery_InsertState(main *testing.T) {
-	openDB := func(t *testing.T, dsn0, dbName string) *pgx.Conn {
+	openDB := func(t *testing.T, dsn0, dbName string) *pgxpool.Pool {
 		conn := testpgdriver.OpenFreshDB(t, dsn0, dbName)
 
 		for i, m := range Migrations {
