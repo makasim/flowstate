@@ -47,7 +47,7 @@ func New(conn conn) *Driver {
 		NewGetter(d.conn, d.q),
 
 		NewWatcher(d.conn, d.q),
-		//NewDelayer(d.db)
+		NewDelayer(d.conn, d.q, time.Now),
 	}
 
 	return d
