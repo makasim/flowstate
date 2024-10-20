@@ -92,6 +92,8 @@ func Get(setUp func(t TestingT) (flowstate.Doer, FlowRegistry)) *Suite {
 			"WatchSinceLatest": WatchSinceLatest,
 			"WatchSinceRev":    WatchSinceRev,
 			"WatchSinceTime":   WatchSinceTime,
+
+			"Cron": Cron,
 		},
 	}
 }
