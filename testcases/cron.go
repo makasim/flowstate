@@ -16,30 +16,30 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("cron", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
-		Track(stateCtx, trkr)
+	fr.SetFlow("cron", flowstate.FlowFunc(func(cronStateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+		Track(cronStateCtx, trkr)
 
 		now := time.Now()
 
-		cron, err := cronexpr.Parse(stateCtx.Current.Annotations[`cron`])
+		cron, err := cronexpr.Parse(cronStateCtx.Current.Annotations[`cron`])
 		if err != nil {
-			stateCtx.Current.SetAnnotation(`error`, err.Error())
+			cronStateCtx.Current.SetAnnotation(`error`, err.Error())
 			return flowstate.Commit(
-				flowstate.End(stateCtx),
+				flowstate.End(cronStateCtx),
 			), nil
 		}
 		if cron.Next(now).IsZero() {
-			stateCtx.Current.SetAnnotation(`error`, `next time is zero`)
+			cronStateCtx.Current.SetAnnotation(`error`, `next time is zero`)
 			return flowstate.Commit(
-				flowstate.End(stateCtx),
+				flowstate.End(cronStateCtx),
 			), nil
 		}
 
-		taskFlowID := stateCtx.Current.Annotations[`cron_task_flow_id`]
+		taskFlowID := cronStateCtx.Current.Annotations[`cron_task_flow_id`]
 		if taskFlowID == "" {
-			stateCtx.Current.SetAnnotation(`error`, `taskFlowID is empty`)
+			cronStateCtx.Current.SetAnnotation(`error`, `taskFlowID is empty`)
 			return flowstate.Commit(
-				flowstate.End(stateCtx),
+				flowstate.End(cronStateCtx),
 			), nil
 		}
 
@@ -51,7 +51,7 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 				Current: flowstate.State{
 					ID: flowstate.StateID("task_" + strconv.FormatInt(nextTimes[0].Unix(), 10)),
 					Annotations: map[string]string{
-						"cron":      stateCtx.Current.Annotations[`cron`],
+						"cron":      cronStateCtx.Current.Annotations[`cron`],
 						"cron_task": "true",
 					},
 				},
@@ -59,8 +59,8 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 			if err := e.Do(
 				flowstate.Commit(
-					flowstate.Pause(stateCtx),
-					flowstate.Delay(stateCtx, nextTimes[1].Sub(now)),
+					flowstate.Pause(cronStateCtx),
+					flowstate.Delay(cronStateCtx, nextTimes[1].Sub(now)),
 					flowstate.Transit(taskStateCtx, flowstate.FlowID(taskFlowID)),
 				),
 				flowstate.Execute(taskStateCtx),
@@ -68,17 +68,17 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 				return nil, err
 			}
 
-			return flowstate.Noop(stateCtx), nil
+			return flowstate.Noop(cronStateCtx), nil
 		}
 
 		if err := e.Do(flowstate.Commit(
-			flowstate.Pause(stateCtx),
-			flowstate.Delay(stateCtx, nextTimes[0].Sub(now)),
+			flowstate.Pause(cronStateCtx),
+			flowstate.Delay(cronStateCtx, nextTimes[0].Sub(now)),
 		)); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Noop(cronStateCtx), nil
 	}))
 	fr.SetFlow("task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
