@@ -15,16 +15,14 @@ var _ flowstate.Doer = &Delayer{}
 
 type delayerQueries interface {
 	InsertDelayedState(ctx context.Context, tx conntx, s flowstate.State, executeAt time.Time) error
-	UpsertDelayerMeta(ctx context.Context, tx conntx, dm delayerMeta) error
-	GetDelayerMeta(ctx context.Context, tx conntx, shard int, dm *delayerMeta) error
 	GetDelayedStates(ctx context.Context, tx conntx, dm delayerMeta) ([]delayedState, error)
+	GetMeta(ctx context.Context, tx conntx, key string, value any) error
+	UpsertMeta(ctx context.Context, tx conntx, key string, value any) error
 }
 
 type delayerMeta struct {
-	Shard int   `json:"shard"`
 	Limit int   `json:"limit"`
 	Since int64 `json:"since"`
-
 	Until int64 `json:"-"`
 }
 
@@ -95,10 +93,9 @@ func (d *Delayer) Init(e *flowstate.Engine) error {
 
 func (d *Delayer) do() error {
 	dm := delayerMeta{}
-	if err := d.q.GetDelayerMeta(context.Background(), d.conn, 0, &dm); errors.Is(err, sql.ErrNoRows) {
+	if err := d.q.GetMeta(context.Background(), d.conn, d.key(), &dm); errors.Is(err, sql.ErrNoRows) {
 		dm = delayerMeta{
-			Shard: 0,
-			Limit: 10,
+			Limit: 100,
 			Since: 0,
 		}
 	} else if err != nil {
@@ -138,11 +135,15 @@ func (d *Delayer) do() error {
 		dm.Since = ds.ExecuteAt
 	}
 
-	if err := d.q.UpsertDelayerMeta(context.Background(), d.conn, dm); err != nil {
+	if err := d.q.UpsertMeta(context.Background(), d.conn, d.key(), dm); err != nil {
 		return fmt.Errorf(`upsert delayer meta query: %w`, err)
 	}
 
 	return nil
+}
+
+func (*Delayer) key() string {
+	return `delayer.0.meta`
 }
 
 func (d *Delayer) Shutdown(_ context.Context) error {
