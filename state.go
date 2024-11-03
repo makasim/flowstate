@@ -45,7 +45,9 @@ func (s *State) CopyTo(to *State) State {
 }
 
 func (s *State) CopyToCtx(to *StateCtx) *StateCtx {
-	s.CopyTo(&to.Committed)
+	if s.Rev > 0 {
+		s.CopyTo(&to.Committed)
+	}
 	s.CopyTo(&to.Current)
 	return to
 }
