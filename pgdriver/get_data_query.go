@@ -19,10 +19,21 @@ func (*queries) GetData(ctx context.Context, tx conntx, id flowstate.DataID, rev
 
 	if err := tx.QueryRow(
 		ctx,
-		`SELECT id, rev, bytes FROM flowstate_data WHERE id = $1 AND rev = $2`,
+		`
+SELECT 
+    id, 
+    rev, 
+    "binary", 
+    CASE 
+        WHEN "binary" THEN decode(data, 'base64')::bytea
+        ELSE data::bytea
+    END
+FROM flowstate_data 
+WHERE id = $1 AND rev = $2;
+`,
 		id,
 		rev,
-	).Scan(&d.ID, &d.Rev, &d.B); err != nil {
+	).Scan(&d.ID, &d.Rev, &d.Binary, &d.B); err != nil {
 		return err
 	}
 	return nil

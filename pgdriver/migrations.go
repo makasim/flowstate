@@ -65,4 +65,18 @@ CREATE TABLE IF NOT EXISTS flowstate_data (
 	PRIMARY KEY (rev, id)
 );`,
 	},
+	{
+		Desc: "bytes to b column in flowstate_data",
+		SQL: `
+ALTER TABLE flowstate_data
+	ADD COLUMN IF NOT EXISTS "binary" BOOLEAN NOT NULL DEFAULT FALSE,
+	ADD COLUMN IF NOT EXISTS data TEXT;
+
+UPDATE flowstate_data SET data = encode(bytes, 'base64'), "binary" = true;
+
+ALTER TABLE flowstate_data 
+	DROP COLUMN bytes,
+	ALTER COLUMN data SET NOT NULL;
+`,
+	},
 }

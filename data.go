@@ -5,9 +5,11 @@ type DataID string
 type Data struct {
 	noCopy
 
-	ID  DataID
-	Rev int64
-	B   []byte
+	ID     DataID
+	Rev    int64
+	Binary bool
+
+	B []byte
 }
 
 func (d *Data) CopyTo(to *Data) *Data {
