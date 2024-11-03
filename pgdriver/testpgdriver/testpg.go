@@ -96,14 +96,14 @@ func OpenFreshDB(t *testing.T, dsn0, dbName string) *pgxpool.Pool {
 }
 
 type DataRow struct {
-	ID          flowstate.DataID
-	Rev         int64
-	Annotations map[string]string
-	B           []byte
+	ID     flowstate.DataID
+	Rev    int64
+	Binary bool
+	Data   []byte
 }
 
 func FindAllData(t *testing.T, conn conn) []DataRow {
-	rows, err := conn.Query(context.Background(), `SELECT rev, id, annotations, bytes FROM flowstate_data ORDER BY rev DESC`)
+	rows, err := conn.Query(context.Background(), `SELECT rev, id, "binary", data::bytea FROM flowstate_data ORDER BY rev DESC`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func FindAllData(t *testing.T, conn conn) []DataRow {
 	var scannedRows []DataRow
 	for rows.Next() {
 		r := DataRow{}
-		require.NoError(t, rows.Scan(&r.Rev, &r.ID, &r.Annotations, &r.B))
+		require.NoError(t, rows.Scan(&r.Rev, &r.ID, &r.Binary, &r.Data))
 		scannedRows = append(scannedRows, r)
 	}
 	if err := rows.Err(); err != nil {

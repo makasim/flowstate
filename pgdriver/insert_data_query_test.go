@@ -2,6 +2,7 @@ package pgdriver
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -55,12 +56,37 @@ func TestQuery_InsertData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "anID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "anID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
+	})
+
+	main.Run("OKBinary", func(t *testing.T) {
+		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
+
+		q := &queries{}
+
+		d := &flowstate.Data{ID: `anID`, B: []byte(`abc`), Binary: true}
+		err := q.InsertData(context.Background(), conn, d)
+		require.NoError(t, err)
+		require.Greater(t, d.Rev, int64(0))
+
+		rows := testpgdriver.FindAllData(t, conn)
+		require.Equal(t, []testpgdriver.DataRow{
+			{
+				ID:     "anID",
+				Rev:    1,
+				Binary: true,
+				Data:   []byte(`YWJj`),
+			},
+		}, rows)
+
+		actD, err := base64.StdEncoding.DecodeString(string(rows[0].Data))
+		require.NoError(t, err)
+		require.Equal(t, []byte(`abc`), actD)
 	})
 
 	main.Run("TxOK", func(t *testing.T) {
@@ -81,10 +107,10 @@ func TestQuery_InsertData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "anID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "anID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -106,16 +132,16 @@ func TestQuery_InsertData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "aBarID",
-				Rev:         2,
-				Annotations: nil,
-				B:           []byte(`123`),
+				ID:     "aBarID",
+				Rev:    2,
+				Binary: false,
+				Data:   []byte(`123`),
 			},
 			{
-				ID:          "aFooID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "aFooID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -137,16 +163,16 @@ func TestQuery_InsertData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "anID",
-				Rev:         2,
-				Annotations: nil,
-				B:           []byte(`123`),
+				ID:     "anID",
+				Rev:    2,
+				Binary: false,
+				Data:   []byte(`123`),
 			},
 			{
-				ID:          "anID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "anID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})

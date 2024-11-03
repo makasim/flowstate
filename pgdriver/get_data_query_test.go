@@ -77,10 +77,10 @@ func TestQuery_GetData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "anID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "anID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -102,10 +102,35 @@ func TestQuery_GetData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "anID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "anID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
+			},
+		}, testpgdriver.FindAllData(t, conn))
+	})
+
+	main.Run("OKBinary", func(t *testing.T) {
+		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
+
+		q := &queries{}
+
+		d0 := &flowstate.Data{ID: `anID`, B: []byte(`abc`), Binary: true}
+		err := q.InsertData(context.Background(), conn, d0)
+		require.NoError(t, err)
+		require.Greater(t, d0.Rev, int64(0))
+
+		d1 := &flowstate.Data{}
+		err = q.GetData(context.Background(), conn, d0.ID, d0.Rev, d1)
+		require.NoError(t, err)
+		require.Equal(t, d0, d1)
+
+		require.Equal(t, []testpgdriver.DataRow{
+			{
+				ID:     "anID",
+				Rev:    1,
+				Binary: true,
+				Data:   []byte(`YWJj`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -133,10 +158,10 @@ func TestQuery_GetData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "anID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "anID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -158,16 +183,16 @@ func TestQuery_GetData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "aBarID",
-				Rev:         2,
-				Annotations: nil,
-				B:           []byte(`123`),
+				ID:     "aBarID",
+				Rev:    2,
+				Binary: false,
+				Data:   []byte(`123`),
 			},
 			{
-				ID:          "aFooID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "aFooID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -189,16 +214,16 @@ func TestQuery_GetData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:          "anID",
-				Rev:         2,
-				Annotations: nil,
-				B:           []byte(`123`),
+				ID:     "anID",
+				Rev:    2,
+				Binary: false,
+				Data:   []byte(`123`),
 			},
 			{
-				ID:          "anID",
-				Rev:         1,
-				Annotations: nil,
-				B:           []byte(`abc`),
+				ID:     "anID",
+				Rev:    1,
+				Binary: false,
+				Data:   []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
