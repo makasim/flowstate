@@ -36,6 +36,15 @@ func RecoveryFirstAttemptFail(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
+	r := flowstate.Recoverer(time.Millisecond * 500)
+	require.NoError(t, r.Init(e))
+	defer func() {
+		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer sCtxCancel()
+
+		require.NoError(t, r.Shutdown(sCtx))
+	}()
+
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID:  "aTID",

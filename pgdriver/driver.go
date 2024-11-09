@@ -16,9 +16,11 @@ type Driver struct {
 	conn  conn
 	q     *queries
 	doers []flowstate.Doer
+
+	recoverer flowstate.Doer
 }
 
-func New(conn conn) *Driver {
+func New(conn conn, opts ...Option) *Driver {
 	d := &Driver{
 		conn: conn,
 
@@ -39,8 +41,6 @@ func New(conn conn) *Driver {
 		flowstate.DefaultReferenceDataDoer,
 		flowstate.DefaultDereferenceDataDoer,
 
-		flowstate.Recoverer(time.Millisecond * 500),
-
 		memdriver.NewFlowGetter(d.FlowRegistry),
 		NewDataer(d.conn, d.q),
 		NewCommiter(d.conn, d.q),
@@ -48,6 +48,10 @@ func New(conn conn) *Driver {
 
 		NewWatcher(d.conn, d.q),
 		NewDelayer(d.conn, d.q, time.Now),
+	}
+
+	for _, opt := range opts {
+		opt(d)
 	}
 
 	return d
@@ -68,24 +72,18 @@ func (d *Driver) Do(cmd0 flowstate.Command) error {
 }
 
 func (d *Driver) Init(e *flowstate.Engine) error {
-	//if _, err := d.db.Exec(createRevTableSQL); err != nil {
-	//	return fmt.Errorf("create flowstate_rev table: db: exec: %w", err)
-	//}
-	//if _, err := d.db.Exec(createStateLatestTableSQL); err != nil {
-	//	return fmt.Errorf("create flowstate_state_latest table: db: exec: %w", err)
-	//}
-	//if _, err := d.db.Exec(createStateLogTableSQL); err != nil {
-	//	return fmt.Errorf("create flowstate_state_log table: db: exec: %w", err)
-	//}
-	//if _, err := d.db.Exec(createDataLogTableSQL); err != nil {
-	//	return fmt.Errorf("create flowstate_data_log table: db: exec: %w", err)
-	//}
-
 	for _, doer := range d.doers {
 		if err := doer.Init(e); err != nil {
 			return fmt.Errorf("%T: init: %w", doer, err)
 		}
 	}
+
+	if d.recoverer != nil {
+		if err := d.recoverer.Init(e); err != nil {
+			return fmt.Errorf("%T: init: %w", d.recoverer, err)
+		}
+	}
+
 	return nil
 }
 
@@ -97,5 +95,19 @@ func (d *Driver) Shutdown(ctx context.Context) error {
 		}
 	}
 
+	if d.recoverer != nil {
+		if err := d.recoverer.Shutdown(ctx); err != nil {
+			res = errors.Join(res, fmt.Errorf("%T: shutdown: %w", d.recoverer, err))
+		}
+	}
+
 	return res
+}
+
+type Option func(*Driver)
+
+func WithRecoverer(r flowstate.Doer) Option {
+	return func(d *Driver) {
+		d.recoverer = r
+	}
 }

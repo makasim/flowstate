@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/makasim/flowstate"
 )
@@ -12,11 +11,12 @@ import (
 type Driver struct {
 	*FlowRegistry
 
-	l     *Log
-	doers []flowstate.Doer
+	l         *Log
+	doers     []flowstate.Doer
+	recoverer flowstate.Doer
 }
 
-func New() *Driver {
+func New(opts ...Option) *Driver {
 	l := &Log{}
 
 	d := &Driver{
@@ -35,8 +35,6 @@ func New() *Driver {
 		flowstate.DefaultDereferenceDataDoer,
 		flowstate.DefaultReferenceDataDoer,
 
-		flowstate.Recoverer(time.Millisecond * 500),
-
 		NewDataLog(),
 		NewFlowGetter(d.FlowRegistry),
 		NewCommiter(l),
@@ -45,6 +43,10 @@ func New() *Driver {
 		NewDelayer(),
 	}
 	d.doers = doers
+
+	for _, opt := range opts {
+		opt(d)
+	}
 
 	return d
 }
@@ -69,16 +71,37 @@ func (d *Driver) Init(e *flowstate.Engine) error {
 			return fmt.Errorf("%T: init: %w", doer, err)
 		}
 	}
+
+	if d.recoverer != nil {
+		if err := d.recoverer.Init(e); err != nil {
+			return fmt.Errorf("%T: init: %w", d.recoverer, err)
+		}
+	}
+
 	return nil
 }
 
-func (d *Driver) Shutdown(_ context.Context) error {
+func (d *Driver) Shutdown(ctx context.Context) error {
 	var res error
 	for _, doer := range d.doers {
-		if err := doer.Shutdown(context.Background()); err != nil {
+		if err := doer.Shutdown(ctx); err != nil {
 			res = errors.Join(res, fmt.Errorf("%T: shutdown: %w", doer, err))
 		}
 	}
 
+	if d.recoverer != nil {
+		if err := d.recoverer.Shutdown(ctx); err != nil {
+			res = errors.Join(res, fmt.Errorf("%T: shutdown: %w", d.recoverer, err))
+		}
+	}
+
 	return res
+}
+
+type Option func(*Driver)
+
+func WithRecoverer(r flowstate.Doer) Option {
+	return func(d *Driver) {
+		d.recoverer = r
+	}
 }
