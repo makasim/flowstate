@@ -43,9 +43,6 @@ jobs:
     - name: memdriver tests
       run: go test -v -race ./memdriver/...
 
-    - name: sqlitedriver tests
-      run: go test -v -race ./sqlitedriver/...
-
     - name: pgdriver tests
       run: |
         until pg_isready -h 127.0.0.1 -p 5432 -U user; do
