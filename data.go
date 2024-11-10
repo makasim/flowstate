@@ -15,6 +15,7 @@ type Data struct {
 func (d *Data) CopyTo(to *Data) *Data {
 	to.ID = d.ID
 	to.Rev = d.Rev
+	to.Binary = d.Binary
 	to.B = append(to.B[:0], d.B...)
 
 	return to
