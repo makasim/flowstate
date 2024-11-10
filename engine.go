@@ -7,9 +7,11 @@ import (
 	"log"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
+var doIDS = &atomic.Int64{}
 
 type Engine struct {
 	d Doer
@@ -68,11 +70,13 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 			return err
 		}
 
-		e.l.Info("flowstate: executing", logWithStateCtx(stateCtx, []any{"flow", stateCtx.Current.Transition.ToID})...)
+		logExecute(stateCtx, e.l)
 		cmd0, err := f.Execute(stateCtx, e)
 		if err != nil {
 			return err
 		}
+
+		cmd0.setDoID(doIDS.Add(1))
 
 		if cmd, ok := cmd0.(*ExecuteCommand); ok {
 			cmd.sync = true
@@ -103,7 +107,18 @@ func (e *Engine) Do(cmds ...Command) error {
 		return fmt.Errorf("no commands to do")
 	}
 
+	doID := doIDS.Add(1)
 	for _, cmd := range cmds {
+		if cmd.doID() == 0 {
+			cmd.setDoID(doID)
+
+			if cmtCmd, ok := cmd.(*CommitCommand); ok {
+				for _, subCmd := range cmtCmd.Commands {
+					subCmd.setDoID(doID)
+				}
+			}
+		}
+
 		if err := e.do(cmd); err != nil {
 			return err
 		}
@@ -140,6 +155,8 @@ func (e *Engine) Shutdown(ctx context.Context) error {
 }
 
 func (e *Engine) do(cmd0 Command) error {
+	logDo(cmd0, e.l)
+
 	switch cmd := cmd0.(type) {
 	case *ExecuteCommand:
 		if cmd.sync {
@@ -152,6 +169,8 @@ func (e *Engine) do(cmd0 Command) error {
 			}
 		}()
 		return nil
+	case *CommitCommand:
+		return e.d.Do(cmd0)
 	default:
 		return e.d.Do(cmd0)
 	}
