@@ -12,7 +12,8 @@ import (
 func GetLatestByLabel(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	e, err := flowstate.NewEngine(d)
+	l, _ := newTestLogger(t)
+	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)

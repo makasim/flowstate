@@ -7,22 +7,22 @@ import (
 	"log"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
-var execIDS = &atomic.Int64{}
 
 type Engine struct {
 	d Doer
+	l *slog.Logger
 
 	wg     *sync.WaitGroup
 	doneCh chan struct{}
 }
 
-func NewEngine(d Doer) (*Engine, error) {
+func NewEngine(d Doer, l *slog.Logger) (*Engine, error) {
 	e := &Engine{
 		d: d,
+		l: l,
 
 		wg:     &sync.WaitGroup{},
 		doneCh: make(chan struct{}),
@@ -46,11 +46,6 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 		defer e.wg.Done()
 	}
 
-	if stateCtx.ExecID == 0 {
-		stateCtx.ExecID = execIDS.Add(1)
-	}
-	execID := stateCtx.ExecID
-
 	stateCtx.e = e
 
 	if stateCtx.Current.ID == `` {
@@ -73,7 +68,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 			return err
 		}
 
-		slog.Info("executing", "exec_id", execID, "state_id", stateCtx.Current.ID, "state_rev", stateCtx.Current.Rev, "flow", stateCtx.Current.Transition.ToID)
+		e.l.Info("flowstate: executing", logWithStateCtx(stateCtx, []any{"flow", stateCtx.Current.Transition.ToID}))
 		cmd0, err := f.Execute(stateCtx, e)
 		if err != nil {
 			return err

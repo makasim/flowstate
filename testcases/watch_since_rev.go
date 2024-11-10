@@ -12,7 +12,8 @@ import (
 func WatchSinceRev(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	e, err := flowstate.NewEngine(d)
+	l, _ := newTestLogger(t)
+	e, err := flowstate.NewEngine(d, l)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer sCtxCancel()

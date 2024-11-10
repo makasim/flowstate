@@ -75,8 +75,7 @@ type StateCtx struct {
 	// Transitions between committed and current states
 	Transitions []Transition `json:"transitions"`
 
-	ExecID int64   `json:"-"`
-	e      *Engine `json:"-"`
+	e *Engine `json:"-"`
 }
 
 func (s *StateCtx) CopyTo(to *StateCtx) *StateCtx {
