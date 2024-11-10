@@ -97,14 +97,14 @@ func (cmtr *Commiter) Do(cmd0 flowstate.Command) error {
 		if committableStateCtx.Committed.Rev > 0 {
 			if err := cmtr.q.UpdateState(context.Background(), tx, &nextState); isConflict(err) {
 				conflictErr.Add(fmt.Sprintf("%T", cmd), committableStateCtx.Current.ID, err)
-				continue
+				return conflictErr
 			} else if err != nil {
 				return fmt.Errorf("update state: %w", err)
 			}
 		} else {
 			if err := cmtr.q.InsertState(context.Background(), tx, &nextState); isConflict(err) {
 				conflictErr.Add(fmt.Sprintf("%T", cmd), committableStateCtx.Current.ID, err)
-				continue
+				return conflictErr
 			} else if err != nil {
 				return fmt.Errorf("insert state: %w", err)
 			}
