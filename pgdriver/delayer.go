@@ -147,7 +147,11 @@ func (*Delayer) key() string {
 }
 
 func (d *Delayer) Shutdown(_ context.Context) error {
-	close(d.doneCh)
-
-	return nil
+	select {
+	case <-d.doneCh:
+		return fmt.Errorf(`already shutdown`)
+	default:
+		close(d.doneCh)
+		return nil
+	}
 }

@@ -68,7 +68,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 			return err
 		}
 
-		e.l.Info("flowstate: executing", logWithStateCtx(stateCtx, []any{"flow", stateCtx.Current.Transition.ToID}))
+		e.l.Info("flowstate: executing", logWithStateCtx(stateCtx, []any{"flow", stateCtx.Current.Transition.ToID})...)
 		cmd0, err := f.Execute(stateCtx, e)
 		if err != nil {
 			return err
