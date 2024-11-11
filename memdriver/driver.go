@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/makasim/flowstate"
 )
@@ -11,17 +13,25 @@ import (
 type Driver struct {
 	*FlowRegistry
 
-	l         *Log
+	log       *Log
 	doers     []flowstate.Doer
 	recoverer flowstate.Doer
+
+	l *slog.Logger
 }
 
 func New(opts ...Option) *Driver {
-	l := &Log{}
+	log := &Log{}
 
 	d := &Driver{
-		l:            l,
+		log:          log,
 		FlowRegistry: &FlowRegistry{},
+
+		l: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
+	}
+
+	for _, opt := range opts {
+		opt(d)
 	}
 
 	doers := []flowstate.Doer{
@@ -37,16 +47,12 @@ func New(opts ...Option) *Driver {
 
 		NewDataLog(),
 		NewFlowGetter(d.FlowRegistry),
-		NewCommiter(l),
-		NewGetter(l),
-		NewWatcher(l),
-		NewDelayer(),
+		NewCommiter(log),
+		NewGetter(log),
+		NewWatcher(log),
+		NewDelayer(d.l),
 	}
 	d.doers = doers
-
-	for _, opt := range opts {
-		opt(d)
-	}
 
 	return d
 }
@@ -103,5 +109,11 @@ type Option func(*Driver)
 func WithRecoverer(r flowstate.Doer) Option {
 	return func(d *Driver) {
 		d.recoverer = r
+	}
+}
+
+func WithLogger(l *slog.Logger) Option {
+	return func(d *Driver) {
+		d.l = l
 	}
 }

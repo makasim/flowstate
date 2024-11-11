@@ -12,7 +12,7 @@ import (
 func GetLatestByLabel(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	l, _ := newTestLogger(t)
+	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {

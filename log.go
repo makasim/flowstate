@@ -27,7 +27,7 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 		args = append(args, "recovered", currTs.Annotations[RecoveryAttemptAnnotation])
 	}
 
-	l.Info("execute flow", args...)
+	l.Info("engine: execute", args...)
 }
 
 func logDo(cmd0 Command, l *slog.Logger) {
@@ -35,9 +35,6 @@ func logDo(cmd0 Command, l *slog.Logger) {
 
 	switch cmd := cmd0.(type) {
 	case *CommitCommand:
-		//for _, c := range cmd.Commands {
-		//	log.Printf("commit: %T", c)
-		//}
 		args = append(args, "cmd", "commit", "len", len(cmd.Commands))
 	case *CommitStateCtxCommand:
 		args = append(args, "cmd", "commit_state_ctx", "id", cmd.StateCtx.Current.ID, "rev", cmd.StateCtx.Current.Rev)
@@ -92,6 +89,6 @@ func logDo(cmd0 Command, l *slog.Logger) {
 		args = append(args, "cmd", fmt.Sprintf("%T", cmd))
 	}
 
-	l.Info("do commands", args...)
+	l.Info("engine: do", args...)
 
 }

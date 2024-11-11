@@ -103,7 +103,7 @@ func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		return flowstate.End(stateCtx), nil
 	}))
 
-	l, _ := newTestLogger(t)
+	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {

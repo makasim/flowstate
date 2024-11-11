@@ -86,7 +86,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 		conflictErr := &ErrCommitConflict{}
 
 		if err = e.do(cmd0); errors.As(err, conflictErr) {
-			e.l.Info("do conflict",
+			e.l.Info("engine: do conflict",
 				"sess", cmd0.SessID(),
 				"conflict", err.Error(),
 				"id", stateCtx.Current.ID,

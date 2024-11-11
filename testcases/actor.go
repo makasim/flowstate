@@ -49,7 +49,7 @@ func Actor(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		return nil, fmt.Errorf("must never be executed")
 	}))
 
-	l, _ := newTestLogger(t)
+	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {

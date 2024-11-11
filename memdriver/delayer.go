@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -17,11 +17,13 @@ type Delayer struct {
 	e      *flowstate.Engine
 	stopCh chan struct{}
 	wg     sync.WaitGroup
+	l      *slog.Logger
 }
 
-func NewDelayer() *Delayer {
+func NewDelayer(l *slog.Logger) *Delayer {
 	return &Delayer{
 		stopCh: make(chan struct{}),
+		l:      l,
 	}
 }
 
@@ -43,26 +45,46 @@ func (d *Delayer) Do(cmd0 flowstate.Command) error {
 		t := time.NewTimer(cmd.Duration)
 		defer t.Stop()
 
+		stateCtx := cmd.DelayStateCtx
+
 		select {
 		case <-t.C:
-			if cmd.DelayStateCtx.Current.Transition.Annotations[flowstate.DelayCommitAnnotation] == `true` {
+			if stateCtx.Current.Transition.Annotations[flowstate.DelayCommitAnnotation] == `true` {
 				conflictErr := &flowstate.ErrCommitConflict{}
 				if err := d.e.Do(flowstate.Commit(
 					flowstate.CommitStateCtx(cmd.DelayStateCtx),
 				)); errors.As(err, conflictErr) {
-					log.Printf(`ERROR: memdriver: delayer: engine: commit: %s\n`, conflictErr)
+					d.l.Info("delayer: commit conflict",
+						"sess", cmd.SessID(),
+						"conflict", err.Error(),
+						"id", stateCtx.Current.ID,
+						"rev", stateCtx.Current.Rev,
+					)
 					return
 				} else if err != nil {
-					log.Printf(`ERROR: memdriver: delayer: engine: commit: %s`, err)
+					d.l.Error("delayer: commit failed",
+						"sess", cmd.SessID(),
+						"error", err,
+						"id", stateCtx.Current.ID,
+						"rev", stateCtx.Current.Rev,
+					)
 					return
 				}
 			}
 
-			if err := d.e.Execute(cmd.DelayStateCtx); err != nil {
-				log.Printf(`ERROR: memdriver: delayer: engine: execute: %s`, err)
+			if err := d.e.Execute(stateCtx); err != nil {
+				d.l.Error("delayer: execute failed",
+					"sess", stateCtx.SessID(),
+					"error", err,
+					"id", stateCtx.Current.ID,
+					"rev", stateCtx.Current.Rev,
+				)
 			}
 		case <-d.stopCh:
-			log.Printf(`ERROR: memdriver: delayer: state delay was terminated`)
+			d.l.Error("delayer: delaying terminated",
+				"id", stateCtx.Current.ID,
+				"rev", stateCtx.Current.Rev,
+			)
 			return
 		}
 	}()

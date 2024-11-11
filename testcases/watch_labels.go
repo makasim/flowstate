@@ -13,7 +13,7 @@ import (
 func WatchLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	l, _ := newTestLogger(t)
+	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)

@@ -20,7 +20,7 @@ func RecoveryAlwaysFail(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		return flowstate.Noop(stateCtx), nil
 	}))
 
-	l, _ := newTestLogger(t)
+	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {

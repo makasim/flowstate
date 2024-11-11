@@ -7,7 +7,7 @@ import (
 	"github.com/thejerf/slogassert"
 )
 
-func newTestLogger(t TestingT) (*slog.Logger, *slogassert.Handler) {
+func NewTestLogger(t TestingT) (*slog.Logger, *slogassert.Handler) {
 	var wrappedH slog.Handler
 	if os.Getenv(`TEST_OUTPUT_LOG`) == `true` {
 		wrappedH = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
