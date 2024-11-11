@@ -11,7 +11,7 @@ import (
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
-var doIDS = &atomic.Int64{}
+var sessIDS = &atomic.Int64{}
 
 type Engine struct {
 	d Doer
@@ -48,6 +48,8 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 		defer e.wg.Done()
 	}
 
+	sessID := sessIDS.Add(1)
+	stateCtx.sessID = sessID
 	stateCtx.e = e
 
 	if stateCtx.Current.ID == `` {
@@ -76,7 +78,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 			return err
 		}
 
-		cmd0.setDoID(doIDS.Add(1))
+		cmd0.setSessID(sessID)
 
 		if cmd, ok := cmd0.(*ExecuteCommand); ok {
 			cmd.sync = true
@@ -107,14 +109,18 @@ func (e *Engine) Do(cmds ...Command) error {
 		return fmt.Errorf("no commands to do")
 	}
 
-	doID := doIDS.Add(1)
+	var sessID int64
 	for _, cmd := range cmds {
-		if cmd.doID() == 0 {
-			cmd.setDoID(doID)
+		if cmd.SessID() == 0 {
+			if sessID == 0 {
+				sessID = sessIDS.Add(1)
+			}
+
+			cmd.setSessID(sessID)
 
 			if cmtCmd, ok := cmd.(*CommitCommand); ok {
 				for _, subCmd := range cmtCmd.Commands {
-					subCmd.setDoID(doID)
+					subCmd.setSessID(sessID)
 				}
 			}
 		}

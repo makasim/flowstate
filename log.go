@@ -2,13 +2,12 @@ package flowstate
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
-	"strconv"
 )
 
 func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 	args := []any{
+		"sess", stateCtx.sessID,
 		"flow", stateCtx.Current.Transition.ToID,
 		"id", stateCtx.Current.ID,
 		"rev", stateCtx.Current.Rev,
@@ -28,18 +27,17 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 		args = append(args, "recovered", currTs.Annotations[RecoveryAttemptAnnotation])
 	}
 
-	l.Info("execute", args...)
+	l.Info("execute flow", args...)
 }
 
 func logDo(cmd0 Command, l *slog.Logger) {
-	var args []any
+	args := []any{"sess", cmd0.SessID()}
 
 	switch cmd := cmd0.(type) {
 	case *CommitCommand:
-		for _, c := range cmd.Commands {
-			log.Printf("commit: %T", c)
-		}
-
+		//for _, c := range cmd.Commands {
+		//	log.Printf("commit: %T", c)
+		//}
 		args = append(args, "cmd", "commit", "len", len(cmd.Commands))
 	case *CommitStateCtxCommand:
 		args = append(args, "cmd", "commit_state_ctx", "id", cmd.StateCtx.Current.ID, "rev", cmd.StateCtx.Current.Rev)
@@ -94,6 +92,6 @@ func logDo(cmd0 Command, l *slog.Logger) {
 		args = append(args, "cmd", fmt.Sprintf("%T", cmd))
 	}
 
-	l.Info("do #"+strconv.FormatInt(cmd0.doID(), 10), args...)
+	l.Info("do commands", args...)
 
 }
