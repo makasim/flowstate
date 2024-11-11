@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -87,7 +86,12 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 		conflictErr := &ErrCommitConflict{}
 
 		if err = e.do(cmd0); errors.As(err, conflictErr) {
-			log.Printf("INFO: engine: execute: %s\n", conflictErr)
+			e.l.Info("do conflict",
+				"sess", cmd0.SessID(),
+				"conflict", err.Error(),
+				"id", stateCtx.Current.ID,
+				"rev", stateCtx.Current.Rev,
+			)
 			return nil
 		} else if err != nil {
 			return err
@@ -170,8 +174,14 @@ func (e *Engine) do(cmd0 Command) error {
 		}
 
 		go func() {
-			if err := e.Execute(cmd.StateCtx); err != nil {
-				log.Printf("ERROR: engine: go execute: %s\n", err)
+			stateCtx := cmd.StateCtx
+			if err := e.Execute(stateCtx); err != nil {
+				e.l.Error("execute failed",
+					"sess", stateCtx.SessID(),
+					"error", err,
+					"id", stateCtx.Current.ID,
+					"rev", stateCtx.Current.Rev,
+				)
 			}
 		}()
 		return nil
