@@ -92,7 +92,8 @@ func RateLimit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		states = append(states, stateCtx)
 	}
 
-	e, err := flowstate.NewEngine(d)
+	l, _ := NewTestLogger(t)
+	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)

@@ -4,22 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
+	"sync/atomic"
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
+var sessIDS = &atomic.Int64{}
 
 type Engine struct {
 	d Doer
+	l *slog.Logger
 
 	wg     *sync.WaitGroup
 	doneCh chan struct{}
 }
 
-func NewEngine(d Doer) (*Engine, error) {
+func NewEngine(d Doer, l *slog.Logger) (*Engine, error) {
 	e := &Engine{
 		d: d,
+		l: l,
 
 		wg:     &sync.WaitGroup{},
 		doneCh: make(chan struct{}),
@@ -43,6 +47,8 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 		defer e.wg.Done()
 	}
 
+	sessID := sessIDS.Add(1)
+	stateCtx.sessID = sessID
 	stateCtx.e = e
 
 	if stateCtx.Current.ID == `` {
@@ -65,10 +71,13 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 			return err
 		}
 
+		logExecute(stateCtx, e.l)
 		cmd0, err := f.Execute(stateCtx, e)
 		if err != nil {
 			return err
 		}
+
+		cmd0.setSessID(sessID)
 
 		if cmd, ok := cmd0.(*ExecuteCommand); ok {
 			cmd.sync = true
@@ -77,7 +86,12 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 		conflictErr := &ErrCommitConflict{}
 
 		if err = e.do(cmd0); errors.As(err, conflictErr) {
-			log.Printf("INFO: engine: execute: %s\n", conflictErr)
+			e.l.Info("engine: do conflict",
+				"sess", cmd0.SessID(),
+				"conflict", err.Error(),
+				"id", stateCtx.Current.ID,
+				"rev", stateCtx.Current.Rev,
+			)
 			return nil
 		} else if err != nil {
 			return err
@@ -99,7 +113,22 @@ func (e *Engine) Do(cmds ...Command) error {
 		return fmt.Errorf("no commands to do")
 	}
 
+	var sessID int64
 	for _, cmd := range cmds {
+		if cmd.SessID() == 0 {
+			if sessID == 0 {
+				sessID = sessIDS.Add(1)
+			}
+
+			cmd.setSessID(sessID)
+
+			if cmtCmd, ok := cmd.(*CommitCommand); ok {
+				for _, subCmd := range cmtCmd.Commands {
+					subCmd.setSessID(sessID)
+				}
+			}
+		}
+
 		if err := e.do(cmd); err != nil {
 			return err
 		}
@@ -136,6 +165,8 @@ func (e *Engine) Shutdown(ctx context.Context) error {
 }
 
 func (e *Engine) do(cmd0 Command) error {
+	logDo(cmd0, e.l)
+
 	switch cmd := cmd0.(type) {
 	case *ExecuteCommand:
 		if cmd.sync {
@@ -143,11 +174,19 @@ func (e *Engine) do(cmd0 Command) error {
 		}
 
 		go func() {
-			if err := e.Execute(cmd.StateCtx); err != nil {
-				log.Printf("ERROR: engine: go execute: %s\n", err)
+			stateCtx := cmd.StateCtx
+			if err := e.Execute(stateCtx); err != nil {
+				e.l.Error("execute failed",
+					"sess", stateCtx.SessID(),
+					"error", err,
+					"id", stateCtx.Current.ID,
+					"rev", stateCtx.Current.Rev,
+				)
 			}
 		}()
 		return nil
+	case *CommitCommand:
+		return e.d.Do(cmd0)
 	default:
 		return e.d.Do(cmd0)
 	}

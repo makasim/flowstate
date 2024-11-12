@@ -12,8 +12,6 @@ import (
 func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	var forkedStateCtx *flowstate.StateCtx
-	var forkedTwoStateCtx *flowstate.StateCtx
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -26,16 +24,17 @@ func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		Track(stateCtx, trkr)
 
 		stateCtx.Current.SetLabel(`theForkJoinLabel`, string(stateCtx.Current.ID))
-		forkedStateCtx = stateCtx.NewTo(`forkedTID`, &flowstate.StateCtx{})
-		forkedTwoStateCtx = stateCtx.NewTo(`forkedTwoTID`, &flowstate.StateCtx{})
+		forkedStateCtx := stateCtx.NewTo(`forkedTID`, &flowstate.StateCtx{})
+		forkedTwoStateCtx := stateCtx.NewTo(`forkedTwoTID`, &flowstate.StateCtx{})
+		copyStateCtx := stateCtx.CopyTo(&flowstate.StateCtx{})
 
 		if err := e.Do(
 			flowstate.Commit(
-				flowstate.Transit(stateCtx, `forked`),
+				flowstate.Transit(copyStateCtx, `forked`),
 				flowstate.Transit(forkedStateCtx, `forked`),
 				flowstate.Transit(forkedTwoStateCtx, `forked`),
 			),
-			flowstate.Execute(stateCtx),
+			flowstate.Execute(copyStateCtx),
 			flowstate.Execute(forkedStateCtx),
 			flowstate.Execute(forkedTwoStateCtx),
 		); err != nil {
@@ -104,7 +103,8 @@ func ForkJoin_FirstWins(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		return flowstate.End(stateCtx), nil
 	}))
 
-	e, err := flowstate.NewEngine(d)
+	l, _ := NewTestLogger(t)
+	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)

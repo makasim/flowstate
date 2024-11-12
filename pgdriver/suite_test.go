@@ -32,7 +32,8 @@ func TestSuite(t *testing.T) {
 			conn.Close()
 		})
 
-		d := pgdriver.New(conn)
+		l, _ := testcases.NewTestLogger(t)
+		d := pgdriver.New(conn, pgdriver.WithLogger(l))
 		return d, d
 	})
 

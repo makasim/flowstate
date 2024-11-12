@@ -75,7 +75,12 @@ type StateCtx struct {
 	// Transitions between committed and current states
 	Transitions []Transition `json:"transitions"`
 
-	e *Engine `json:"-"`
+	sessID int64   `json:"-"`
+	e      *Engine `json:"-"`
+}
+
+func (s *StateCtx) SessID() int64 {
+	return s.sessID
 }
 
 func (s *StateCtx) CopyTo(to *StateCtx) *StateCtx {

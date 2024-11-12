@@ -29,7 +29,8 @@ func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry)
 		return flowstate.End(stateCtx), nil
 	}))
 
-	e, err := flowstate.NewEngine(d)
+	l, _ := NewTestLogger(t)
+	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)

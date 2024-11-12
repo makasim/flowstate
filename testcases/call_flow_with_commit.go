@@ -12,13 +12,6 @@ import (
 func CallFlowWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
-	var nextStateCtx *flowstate.StateCtx
-	stateCtx := &flowstate.StateCtx{
-		Current: flowstate.State{
-			ID: "aTID",
-		},
-	}
-
 	endedCh := make(chan struct{})
 	trkr := &Tracker{}
 
@@ -29,7 +22,7 @@ func CallFlowWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 			return flowstate.Transit(stateCtx, `callEnd`), nil
 		}
 
-		nextStateCtx = &flowstate.StateCtx{
+		nextStateCtx := &flowstate.StateCtx{
 			Current: flowstate.State{
 				ID: "aNextTID",
 			},
@@ -89,7 +82,8 @@ func CallFlowWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		return flowstate.End(stateCtx), nil
 	}))
 
-	e, err := flowstate.NewEngine(d)
+	l, _ := NewTestLogger(t)
+	e, err := flowstate.NewEngine(d, l)
 	require.NoError(t, err)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -98,6 +92,11 @@ func CallFlowWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
+			ID: "aTID",
+		},
+	}
 	err = e.Do(flowstate.Commit(
 		flowstate.Transit(stateCtx, `call`),
 	))

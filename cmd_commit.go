@@ -15,6 +15,13 @@ type CommitCommand struct {
 	Commands []Command
 }
 
+func (cmd *CommitCommand) setSessID(id int64) {
+	cmd.command.setSessID(id)
+	for _, subCmd := range cmd.Commands {
+		subCmd.setSessID(id)
+	}
+}
+
 func CommitStateCtx(stateCtx *StateCtx) *CommitStateCtxCommand {
 	return &CommitStateCtxCommand{
 		StateCtx: stateCtx,

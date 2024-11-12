@@ -7,6 +7,7 @@ import (
 )
 
 type TestingT interface {
+	Helper()
 	Error(...interface{})
 	Errorf(format string, args ...interface{})
 	Fatalf(format string, args ...any)
