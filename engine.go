@@ -173,8 +173,8 @@ func (e *Engine) do(cmd0 Command) error {
 			return nil
 		}
 
+		stateCtx := cmd.StateCtx.CopyTo(&StateCtx{})
 		go func() {
-			stateCtx := cmd.StateCtx
 			if err := e.Execute(stateCtx); err != nil {
 				e.l.Error("execute failed",
 					"sess", stateCtx.SessID(),
