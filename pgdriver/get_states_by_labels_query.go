@@ -46,10 +46,19 @@ func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map
 	}
 
 	q := `
-SELECT state, rev 
-FROM flowstate_states 
-WHERE ` + where + `
-ORDER BY "rev" ASC LIMIT ` + strconv.Itoa(len(ss)) + `;`
+SELECT 
+    state, rev 
+FROM (
+	SELECT xmin, state, rev 
+	FROM flowstate_states 
+	WHERE ` + where + `
+	ORDER BY "rev" ASC LIMIT ` + strconv.Itoa(len(ss)) + `
+) 
+WHERE 
+	xmin::text::int < (SELECT split_part(pg_current_snapshot()::text, ':', 1)::int AS xmin) OR
+    xmin::text::int > (SELECT split_part(pg_current_snapshot()::text, ':', 2)::int AS xmax)
+;
+`
 
 	rows, err := tx.Query(ctx, q, args...)
 	if err != nil {

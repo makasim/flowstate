@@ -684,4 +684,44 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 			{ID: `4`, Rev: 4, Labels: map[string]string{`bar`: `barVal`}},
 		}, ss)
 	})
+
+	main.Run("PreserveOrder", func(t *testing.T) {
+		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
+
+		q := &queries{}
+
+		// past
+		require.NoError(t, q.InsertState(context.Background(), conn, &flowstate.State{ID: `1`}))
+
+		// still active
+		tx0, err := conn.Begin(context.Background())
+		require.NoError(t, err)
+		defer tx0.Rollback(context.Background())
+		require.NoError(t, q.InsertState(context.Background(), tx0, &flowstate.State{ID: `2`}))
+
+		// should not be visible
+		tx1, err := conn.Begin(context.Background())
+		require.NoError(t, err)
+		defer tx1.Rollback(context.Background())
+		require.NoError(t, q.InsertState(context.Background(), tx1, &flowstate.State{ID: `3`}))
+		require.NoError(t, tx1.Commit(context.Background()))
+
+		ss := make([]flowstate.State, 4)
+		ss, err = q.GetStatesByLabels(context.Background(), conn, nil, int64(0), ss)
+		require.NoError(t, err)
+		require.Equal(t, []flowstate.State{
+			{ID: `1`, Rev: 1},
+		}, ss)
+
+		require.NoError(t, tx0.Commit(context.Background()))
+
+		ss = make([]flowstate.State, 4)
+		ss, err = q.GetStatesByLabels(context.Background(), conn, nil, int64(0), ss)
+		require.NoError(t, err)
+		require.Equal(t, []flowstate.State{
+			{ID: `1`, Rev: 1},
+			{ID: `2`, Rev: 2},
+			{ID: `3`, Rev: 3},
+		}, ss)
+	})
 }
