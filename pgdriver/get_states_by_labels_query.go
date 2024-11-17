@@ -3,7 +3,6 @@ package pgdriver
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/makasim/flowstate"
@@ -63,8 +62,6 @@ FROM
 WHERE subquery.xmin < snapshot.xmin OR subquery.xmin > snapshot.xmax
 ;
 `
-
-	log.Println(q)
 
 	rows, err := tx.Query(ctx, q, args...)
 	if err != nil {
