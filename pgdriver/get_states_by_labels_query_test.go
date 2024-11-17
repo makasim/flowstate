@@ -699,12 +699,18 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		defer tx0.Rollback(context.Background())
 		require.NoError(t, q.InsertState(context.Background(), tx0, &flowstate.State{ID: `2`}))
 
-		// should not be visible
+		// still active
 		tx1, err := conn.Begin(context.Background())
 		require.NoError(t, err)
 		defer tx1.Rollback(context.Background())
 		require.NoError(t, q.InsertState(context.Background(), tx1, &flowstate.State{ID: `3`}))
-		require.NoError(t, tx1.Commit(context.Background()))
+
+		// commited but should not be visible
+		tx2, err := conn.Begin(context.Background())
+		require.NoError(t, err)
+		defer tx2.Rollback(context.Background())
+		require.NoError(t, q.InsertState(context.Background(), tx2, &flowstate.State{ID: `4`}))
+		require.NoError(t, tx2.Commit(context.Background()))
 
 		ss := make([]flowstate.State, 4)
 		ss, err = q.GetStatesByLabels(context.Background(), conn, nil, int64(0), ss)
@@ -713,6 +719,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 			{ID: `1`, Rev: 1},
 		}, ss)
 
+		// now, we should see 2
 		require.NoError(t, tx0.Commit(context.Background()))
 
 		ss = make([]flowstate.State, 4)
@@ -721,7 +728,19 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.Equal(t, []flowstate.State{
 			{ID: `1`, Rev: 1},
 			{ID: `2`, Rev: 2},
+		}, ss)
+
+		// now, we should everything
+		require.NoError(t, tx1.Commit(context.Background()))
+
+		ss = make([]flowstate.State, 4)
+		ss, err = q.GetStatesByLabels(context.Background(), conn, nil, int64(0), ss)
+		require.NoError(t, err)
+		require.Equal(t, []flowstate.State{
+			{ID: `1`, Rev: 1},
+			{ID: `2`, Rev: 2},
 			{ID: `3`, Rev: 3},
+			{ID: `4`, Rev: 4},
 		}, ss)
 	})
 }

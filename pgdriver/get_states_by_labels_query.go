@@ -3,6 +3,7 @@ package pgdriver
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/makasim/flowstate"
@@ -46,19 +47,24 @@ func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map
 	}
 
 	q := `
-SELECT 
-    state, rev 
-FROM (
-	SELECT xmin, state, rev 
-	FROM flowstate_states 
-	WHERE ` + where + `
-	ORDER BY "rev" ASC LIMIT ` + strconv.Itoa(len(ss)) + `
-) 
-WHERE 
-	xmin::text::int < (SELECT split_part(pg_current_snapshot()::text, ':', 1)::int AS xmin) OR
-    xmin::text::int > (SELECT split_part(pg_current_snapshot()::text, ':', 2)::int AS xmax)
+SELECT state, rev 
+FROM 
+    (
+		SELECT xmin::text::bigint, state, rev 
+		FROM flowstate_states 
+		WHERE ` + where + `
+		ORDER BY "rev" ASC LIMIT ` + strconv.Itoa(len(ss)) + `
+	) AS subquery
+	CROSS JOIN (
+    	SELECT 
+        split_part(pg_current_snapshot()::text, ':', 1)::bigint AS xmin, 
+        split_part(pg_current_snapshot()::text, ':', 2)::bigint AS xmax
+	) AS snapshot
+WHERE subquery.xmin < snapshot.xmin OR subquery.xmin > snapshot.xmax
 ;
 `
+
+	log.Println(q)
 
 	rows, err := tx.Query(ctx, q, args...)
 	if err != nil {
