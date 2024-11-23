@@ -12,7 +12,7 @@ type RecovererDoer struct {
 	failoverDur time.Duration
 
 	wl        WatchListener
-	e         *Engine
+	e         Engine
 	doneCh    chan struct{}
 	stoppedCh chan struct{}
 	log       []State
@@ -30,7 +30,7 @@ func (d *RecovererDoer) Do(_ Command) error {
 	return ErrCommandNotSupported
 }
 
-func (d *RecovererDoer) Init(e *Engine) error {
+func (d *RecovererDoer) Init(e Engine) error {
 	cmd := Watch(nil)
 	if err := e.Do(cmd); err != nil {
 		return err

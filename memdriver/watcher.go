@@ -12,7 +12,7 @@ var _ flowstate.WatchListener = &listener{}
 
 type Watcher struct {
 	l *Log
-	e *flowstate.Engine
+	e flowstate.Engine
 }
 
 func NewWatcher(l *Log) *Watcher {
@@ -63,7 +63,7 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (w *Watcher) Init(e *flowstate.Engine) error {
+func (w *Watcher) Init(e flowstate.Engine) error {
 	w.e = e
 	return nil
 }

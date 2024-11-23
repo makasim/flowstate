@@ -50,7 +50,7 @@ func (d *Getter) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (d *Getter) Init(e *flowstate.Engine) error {
+func (d *Getter) Init(_ flowstate.Engine) error {
 	return nil
 }
 

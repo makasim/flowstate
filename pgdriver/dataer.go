@@ -24,7 +24,7 @@ func NewDataer(conn conn, q dataerQueries) *Dataer {
 	}
 }
 
-func (d *Dataer) Init(_ *flowstate.Engine) error {
+func (d *Dataer) Init(_ flowstate.Engine) error {
 	return nil
 }
 

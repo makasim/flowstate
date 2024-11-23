@@ -18,7 +18,7 @@ func NewDataLog() *DataLog {
 	return &DataLog{}
 }
 
-func (l *DataLog) Init(_ *flowstate.Engine) error {
+func (l *DataLog) Init(_ flowstate.Engine) error {
 	return nil
 }
 

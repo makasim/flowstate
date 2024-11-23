@@ -11,7 +11,7 @@ var _ flowstate.Doer = &Commiter{}
 
 type Commiter struct {
 	l *Log
-	e *flowstate.Engine
+	e flowstate.Engine
 }
 
 func NewCommiter(l *Log) *Commiter {
@@ -76,7 +76,7 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (d *Commiter) Init(e *flowstate.Engine) error {
+func (d *Commiter) Init(e flowstate.Engine) error {
 	d.e = e
 	return nil
 }

@@ -15,7 +15,7 @@ func Actor(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{IncludeTaskID: true}
 
-	fr.SetFlow("actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		w, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
 			"actor.foo": "inbox",
@@ -45,7 +45,7 @@ func Actor(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 			}
 		}
 	}))
-	fr.SetFlow("inbox", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("inbox", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must never be executed")
 	}))
 

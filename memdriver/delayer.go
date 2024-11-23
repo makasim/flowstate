@@ -14,7 +14,7 @@ import (
 var _ flowstate.Doer = &Delayer{}
 
 type Delayer struct {
-	e      *flowstate.Engine
+	e      flowstate.Engine
 	stopCh chan struct{}
 	wg     sync.WaitGroup
 	l      *slog.Logger
@@ -92,7 +92,7 @@ func (d *Delayer) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (d *Delayer) Init(e *flowstate.Engine) error {
+func (d *Delayer) Init(e flowstate.Engine) error {
 	d.e = e
 	d.wg.Add(1)
 	return nil

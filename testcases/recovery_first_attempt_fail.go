@@ -14,7 +14,7 @@ func RecoveryFirstAttemptFail(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{IncludeState: true}
 
-	fr.SetFlow("first_attempt_fail", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("first_attempt_fail", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if flowstate.RecoveryAttempt(stateCtx.Current) < 1 {

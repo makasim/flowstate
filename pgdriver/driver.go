@@ -75,7 +75,7 @@ func (d *Driver) Do(cmd0 flowstate.Command) error {
 	return fmt.Errorf("no doer for command %T", cmd0)
 }
 
-func (d *Driver) Init(e *flowstate.Engine) error {
+func (d *Driver) Init(e flowstate.Engine) error {
 	for _, doer := range d.doers {
 		if err := doer.Init(e); err != nil {
 			return fmt.Errorf("%T: init: %w", doer, err)

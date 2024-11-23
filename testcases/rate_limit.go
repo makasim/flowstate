@@ -19,7 +19,7 @@ func RateLimit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		IncludeState: true,
 	}
 
-	fr.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
@@ -59,7 +59,7 @@ func RateLimit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 			}
 		}
 	}))
-	fr.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx.Current) {

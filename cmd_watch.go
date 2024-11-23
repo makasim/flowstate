@@ -11,7 +11,7 @@ func Watch(labels map[string]string) *WatchCommand {
 	return (&WatchCommand{}).WithORLabels(labels)
 }
 
-func DoWatch(e *Engine, cmd *WatchCommand) (WatchListener, error) {
+func DoWatch(e Engine, cmd *WatchCommand) (WatchListener, error) {
 	if err := e.Do(cmd); err != nil {
 		return nil, err
 	}

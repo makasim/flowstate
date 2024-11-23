@@ -12,7 +12,13 @@ import (
 var ErrFlowNotFound = errors.New("flow not found")
 var sessIDS = &atomic.Int64{}
 
-type Engine struct {
+type Engine interface {
+	Execute(stateCtx *StateCtx) error
+	Do(cmds ...Command) error
+	Shutdown(ctx context.Context) error
+}
+
+type engine struct {
 	d Doer
 	l *slog.Logger
 
@@ -20,8 +26,8 @@ type Engine struct {
 	doneCh chan struct{}
 }
 
-func NewEngine(d Doer, l *slog.Logger) (*Engine, error) {
-	e := &Engine{
+func NewEngine(d Doer, l *slog.Logger) (Engine, error) {
+	e := &engine{
 		d: d,
 		l: l,
 
@@ -38,10 +44,10 @@ func NewEngine(d Doer, l *slog.Logger) (*Engine, error) {
 	return e, nil
 }
 
-func (e *Engine) Execute(stateCtx *StateCtx) error {
+func (e *engine) Execute(stateCtx *StateCtx) error {
 	select {
 	case <-e.doneCh:
-		return nil
+		return fmt.Errorf("engine stopped")
 	default:
 		e.wg.Add(1)
 		defer e.wg.Done()
@@ -50,6 +56,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 	sessID := sessIDS.Add(1)
 	stateCtx.sessID = sessID
 	stateCtx.e = e
+	stateCtx.doneCh = e.doneCh
 
 	if stateCtx.Current.ID == `` {
 		return fmt.Errorf(`state id empty`)
@@ -108,7 +115,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 	}
 }
 
-func (e *Engine) Do(cmds ...Command) error {
+func (e *engine) Do(cmds ...Command) error {
 	if len(cmds) == 0 {
 		return fmt.Errorf("no commands to do")
 	}
@@ -137,7 +144,7 @@ func (e *Engine) Do(cmds ...Command) error {
 	return nil
 }
 
-func (e *Engine) Shutdown(ctx context.Context) error {
+func (e *engine) Shutdown(ctx context.Context) error {
 	select {
 	case <-e.doneCh:
 		return nil
@@ -164,7 +171,7 @@ func (e *Engine) Shutdown(ctx context.Context) error {
 	return e.d.Shutdown(ctx)
 }
 
-func (e *Engine) do(cmd0 Command) error {
+func (e *engine) do(cmd0 Command) error {
 	logDo(cmd0, e.l)
 
 	switch cmd := cmd0.(type) {
@@ -192,7 +199,7 @@ func (e *Engine) do(cmd0 Command) error {
 	}
 }
 
-func (e *Engine) getFlow(stateCtx *StateCtx) (Flow, error) {
+func (e *engine) getFlow(stateCtx *StateCtx) (Flow, error) {
 	cmd := GetFlow(stateCtx)
 	if err := e.d.Do(cmd); err != nil {
 		return nil, err
@@ -201,7 +208,7 @@ func (e *Engine) getFlow(stateCtx *StateCtx) (Flow, error) {
 	return cmd.Flow, nil
 }
 
-func (e *Engine) continueExecution(cmd0 Command) (*StateCtx, error) {
+func (e *engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 	switch cmd := cmd0.(type) {
 	case *CommitCommand:
 		if len(cmd.Commands) != 1 {

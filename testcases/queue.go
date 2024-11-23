@@ -18,7 +18,7 @@ func Queue(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		IncludeState:  true,
 	}
 
-	fr.SetFlow("queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		if flowstate.Resumed(stateCtx.Current) {
 			return flowstate.Transit(stateCtx, `dequeued`), nil
@@ -30,7 +30,7 @@ func Queue(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 			flowstate.Pause(stateCtx),
 		), nil
 	}))
-	fr.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
@@ -62,7 +62,7 @@ func Queue(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 			}
 		}
 	}))
-	fr.SetFlow("dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.End(stateCtx),
