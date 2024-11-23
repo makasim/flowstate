@@ -125,10 +125,11 @@ func FindAllData(t *testing.T, conn conn) []DataRow {
 type DelayedStateRow struct {
 	ExecuteAt int64
 	State     flowstate.State
+	Pos       int64
 }
 
 func FindAllDelayedStates(t *testing.T, conn conn) []DelayedStateRow {
-	rows, err := conn.Query(context.Background(), `SELECT execute_at, state FROM flowstate_delayed_states ORDER BY execute_at DESC`)
+	rows, err := conn.Query(context.Background(), `SELECT execute_at, state, pos FROM flowstate_delayed_states ORDER BY execute_at, pos ASC`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +138,7 @@ func FindAllDelayedStates(t *testing.T, conn conn) []DelayedStateRow {
 	var scannedRows []DelayedStateRow
 	for rows.Next() {
 		r := DelayedStateRow{}
-		require.NoError(t, rows.Scan(&r.ExecuteAt, &r.State))
+		require.NoError(t, rows.Scan(&r.ExecuteAt, &r.State, &r.Pos))
 		scannedRows = append(scannedRows, r)
 	}
 	if err := rows.Err(); err != nil {

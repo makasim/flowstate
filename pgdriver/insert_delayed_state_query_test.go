@@ -61,6 +61,7 @@ func TestQuery_InsertDelayedState(main *testing.T) {
 				State: flowstate.State{
 					ID: `anID`,
 				},
+				Pos: int64(1),
 			},
 		}, testpgdriver.FindAllDelayedStates(t, conn))
 	})
@@ -88,6 +89,7 @@ func TestQuery_InsertDelayedState(main *testing.T) {
 				State: flowstate.State{
 					ID: `anID`,
 				},
+				Pos: int64(1),
 			},
 		}, testpgdriver.FindAllDelayedStates(t, conn))
 	})
@@ -111,16 +113,18 @@ func TestQuery_InsertDelayedState(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DelayedStateRow{
 			{
-				ExecuteAt: int64(23456),
-				State: flowstate.State{
-					ID: `aBarID`,
-				},
-			},
-			{
 				ExecuteAt: int64(12345),
 				State: flowstate.State{
 					ID: `aFooID`,
 				},
+				Pos: int64(1),
+			},
+			{
+				ExecuteAt: int64(23456),
+				State: flowstate.State{
+					ID: `aBarID`,
+				},
+				Pos: int64(2),
 			},
 		}, testpgdriver.FindAllDelayedStates(t, conn))
 	})

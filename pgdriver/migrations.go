@@ -79,4 +79,18 @@ ALTER TABLE flowstate_data
 	ALTER COLUMN data SET NOT NULL;
 `,
 	},
+	{
+		Desc: "add state id to flowstate_delayed_states table, recreate index",
+		SQL: `
+CREATE SEQUENCE IF NOT EXISTS flowstate_delayed_states_pos;
+
+ALTER TABLE flowstate_delayed_states ADD COLUMN pos BIGINT NOT NULL;
+
+UPDATE flowstate_delayed_states SET pos = nextval('flowstate_delayed_states_pos');
+
+DROP INDEX IF EXISTS flowstate_delayed_states_execute_at;
+
+CREATE UNIQUE INDEX IF NOT EXISTS flowstate_delayed_states_execute_at_pos ON flowstate_delayed_states(execute_at,pos);
+`,
+	},
 }

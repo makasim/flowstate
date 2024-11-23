@@ -18,7 +18,7 @@ func (*queries) InsertDelayedState(ctx context.Context, tx conntx, s flowstate.S
 
 	res, err := tx.Exec(
 		ctx,
-		`INSERT INTO flowstate_delayed_states(execute_at, state) VALUES($1, $2)`,
+		`INSERT INTO flowstate_delayed_states(execute_at, state, pos) VALUES($1, $2, nextval('flowstate_delayed_states_pos'))`,
 		executeAt.Unix(),
 		s,
 	)

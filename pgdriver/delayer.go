@@ -22,12 +22,14 @@ type delayerQueries interface {
 
 type delayerMeta struct {
 	Limit int   `json:"limit"`
+	Pos   int64 `json:"pos"`
 	Since int64 `json:"since"`
 	Until int64 `json:"-"`
 }
 
 type delayedState struct {
 	ExecuteAt int64
+	Pos       int64
 	State     flowstate.State
 }
 
@@ -97,6 +99,7 @@ func (d *Delayer) do() error {
 		dm = delayerMeta{
 			Limit: 100,
 			Since: 1,
+			Pos:   0,
 		}
 	} else if err != nil {
 		return fmt.Errorf(`get delayer meta query: %w`, err)
@@ -133,6 +136,7 @@ func (d *Delayer) do() error {
 		}()
 
 		dm.Since = ds.ExecuteAt
+		dm.Pos = ds.Pos
 	}
 
 	if err := d.q.UpsertMeta(context.Background(), d.conn, d.key(), dm); err != nil {
