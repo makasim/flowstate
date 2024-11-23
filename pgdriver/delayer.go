@@ -99,6 +99,7 @@ func (d *Delayer) do() error {
 		dm = delayerMeta{
 			Limit: 100,
 			Since: 1,
+			Pos:   0,
 		}
 	} else if err != nil {
 		return fmt.Errorf(`get delayer meta query: %w`, err)
@@ -135,6 +136,7 @@ func (d *Delayer) do() error {
 		}()
 
 		dm.Since = ds.ExecuteAt
+		dm.Pos = ds.Pos
 	}
 
 	if err := d.q.UpsertMeta(context.Background(), d.conn, d.key(), dm); err != nil {

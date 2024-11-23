@@ -31,13 +31,14 @@ func TestQuery_UpsertMetaQuery(main *testing.T) {
 			Limit: 100,
 			Since: 123,
 			Until: 234,
+			Pos:   345,
 		})
 		require.NoError(t, err)
 
 		require.Equal(t, []testpgdriver.MetaRow{
 			{
 				Key:   `aKey`,
-				Value: `{"limit": 100, "since": 123}`,
+				Value: `{"pos": 345, "limit": 100, "since": 123}`,
 			},
 		}, testpgdriver.FindAllMeta(t, conn))
 	})
@@ -51,6 +52,7 @@ func TestQuery_UpsertMetaQuery(main *testing.T) {
 			Limit: 1,
 			Since: 1,
 			Until: 1,
+			Pos:   1,
 		})
 		require.NoError(t, err)
 
@@ -58,13 +60,14 @@ func TestQuery_UpsertMetaQuery(main *testing.T) {
 			Limit: 100,
 			Since: 123,
 			Until: 234,
+			Pos:   345,
 		})
 		require.NoError(t, err)
 
 		require.Equal(t, []testpgdriver.MetaRow{
 			{
 				Key:   `aKey`,
-				Value: `{"limit": 100, "since": 123}`,
+				Value: `{"pos": 345, "limit": 100, "since": 123}`,
 			},
 		}, testpgdriver.FindAllMeta(t, conn))
 	})
@@ -81,6 +84,7 @@ func TestQuery_UpsertMetaQuery(main *testing.T) {
 		err = q.UpsertMeta(context.Background(), tx, `aKey`, delayerMeta{
 			Since: 123,
 			Limit: 100,
+			Pos:   345,
 		})
 		require.NoError(t, err)
 
@@ -89,7 +93,7 @@ func TestQuery_UpsertMetaQuery(main *testing.T) {
 		require.Equal(t, []testpgdriver.MetaRow{
 			{
 				Key:   `aKey`,
-				Value: `{"limit": 100, "since": 123}`,
+				Value: `{"pos": 345, "limit": 100, "since": 123}`,
 			},
 		}, testpgdriver.FindAllMeta(t, conn))
 	})
@@ -102,33 +106,36 @@ func TestQuery_UpsertMetaQuery(main *testing.T) {
 		err := q.UpsertMeta(context.Background(), conn, `aKey0`, delayerMeta{
 			Since: 10,
 			Limit: 100,
+			Pos:   1000,
 		})
 		require.NoError(t, err)
 
 		err = q.UpsertMeta(context.Background(), conn, `aKey1`, delayerMeta{
 			Since: 20,
 			Limit: 200,
+			Pos:   2000,
 		})
 		require.NoError(t, err)
 
 		err = q.UpsertMeta(context.Background(), conn, `aKey2`, delayerMeta{
 			Since: 30,
 			Limit: 300,
+			Pos:   3000,
 		})
 		require.NoError(t, err)
 
 		require.Equal(t, []testpgdriver.MetaRow{
 			{
 				Key:   `aKey0`,
-				Value: `{"limit": 100, "since": 10}`,
+				Value: `{"pos": 1000, "limit": 100, "since": 10}`,
 			},
 			{
 				Key:   `aKey1`,
-				Value: `{"limit": 200, "since": 20}`,
+				Value: `{"pos": 2000, "limit": 200, "since": 20}`,
 			},
 			{
 				Key:   `aKey2`,
-				Value: `{"limit": 300, "since": 30}`,
+				Value: `{"pos": 3000, "limit": 300, "since": 30}`,
 			},
 		}, testpgdriver.FindAllMeta(t, conn))
 	})

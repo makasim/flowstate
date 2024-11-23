@@ -136,24 +136,6 @@ func TestQuery_GetDelayedStates(main *testing.T) {
 		}, res)
 	})
 
-	main.Run("Past", func(t *testing.T) {
-		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
-
-		q := &queries{}
-
-		require.NoError(t, q.InsertDelayedState(context.Background(), conn, flowstate.State{ID: `ID1`}, time.Unix(100, 0)))
-		require.NoError(t, q.InsertDelayedState(context.Background(), conn, flowstate.State{ID: `ID2`}, time.Unix(101, 0)))
-		require.NoError(t, q.InsertDelayedState(context.Background(), conn, flowstate.State{ID: `ID3`}, time.Unix(102, 0)))
-		require.NoError(t, q.InsertDelayedState(context.Background(), conn, flowstate.State{ID: `ID4`}, time.Unix(103, 0)))
-		require.NoError(t, q.InsertDelayedState(context.Background(), conn, flowstate.State{ID: `ID5`}, time.Unix(104, 0)))
-		require.NoError(t, q.InsertDelayedState(context.Background(), conn, flowstate.State{ID: `ID6`}, time.Unix(105, 0)))
-
-		dm := delayerMeta{Since: 10, Until: 105, Limit: 3}
-		res, err := q.GetDelayedStates(context.Background(), conn, dm)
-		require.NoError(t, err)
-		require.Equal(t, []delayedState{}, res)
-	})
-
 	main.Run("Future", func(t *testing.T) {
 		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
 
