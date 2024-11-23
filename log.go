@@ -3,6 +3,7 @@ package flowstate
 import (
 	"fmt"
 	"log/slog"
+	"strconv"
 )
 
 func logExecute(stateCtx *StateCtx, l *slog.Logger) {
@@ -32,8 +33,14 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 	l.Info("engine: execute", args...)
 }
 
-func logDo(cmd0 Command, l *slog.Logger) {
-	args := []any{"sess", cmd0.SessID()}
+func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
+	var args []any
+
+	if execSessID > 0 {
+		args = []any{"sess", strconv.FormatInt(execSessID, 10) + ":" + strconv.FormatInt(cmd0.SessID(), 10)}
+	} else {
+		args = []any{"sess", cmd0.SessID()}
+	}
 
 	switch cmd := cmd0.(type) {
 	case *CommitCommand:

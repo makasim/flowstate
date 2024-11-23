@@ -54,6 +54,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 	}
 
 	sessID := sessIDS.Add(1)
+	sessE := &execEngine{engine: e, sessID: sessID}
 	stateCtx.sessID = sessID
 	stateCtx.e = e
 	stateCtx.doneCh = e.doneCh
@@ -79,7 +80,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 		}
 
 		logExecute(stateCtx, e.l)
-		cmd0, err := f.Execute(stateCtx, e)
+		cmd0, err := f.Execute(stateCtx, sessE)
 		if err != nil {
 			return err
 		}
@@ -92,7 +93,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 
 		conflictErr := &ErrCommitConflict{}
 
-		if err = e.do(cmd0); errors.As(err, conflictErr) {
+		if err = e.doCmd(stateCtx.SessID(), cmd0); errors.As(err, conflictErr) {
 			e.l.Info("engine: do conflict",
 				"sess", cmd0.SessID(),
 				"conflict", err.Error(),
@@ -116,6 +117,10 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 }
 
 func (e *engine) Do(cmds ...Command) error {
+	return e.do(0, cmds...)
+}
+
+func (e *engine) do(execSessID int64, cmds ...Command) error {
 	if len(cmds) == 0 {
 		return fmt.Errorf("no commands to do")
 	}
@@ -136,7 +141,7 @@ func (e *engine) Do(cmds ...Command) error {
 			}
 		}
 
-		if err := e.do(cmd); err != nil {
+		if err := e.doCmd(execSessID, cmd); err != nil {
 			return err
 		}
 	}
@@ -171,8 +176,8 @@ func (e *engine) Shutdown(ctx context.Context) error {
 	return e.d.Shutdown(ctx)
 }
 
-func (e *engine) do(cmd0 Command) error {
-	logDo(cmd0, e.l)
+func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
+	logDo(execSessID, cmd0, e.l)
 
 	switch cmd := cmd0.(type) {
 	case *ExecuteCommand:
@@ -233,4 +238,13 @@ func (e *engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 	default:
 		return nil, fmt.Errorf("unknown command 123 %T", cmd0)
 	}
+}
+
+type execEngine struct {
+	*engine
+	sessID int64
+}
+
+func (e *execEngine) Do(cmds ...Command) error {
+	return e.do(e.sessID, cmds...)
 }
