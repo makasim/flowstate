@@ -22,12 +22,14 @@ type delayerQueries interface {
 
 type delayerMeta struct {
 	Limit int   `json:"limit"`
+	Pos   int64 `json:"pos"`
 	Since int64 `json:"since"`
 	Until int64 `json:"-"`
 }
 
 type delayedState struct {
 	ExecuteAt int64
+	Pos       int64
 	State     flowstate.State
 }
 
