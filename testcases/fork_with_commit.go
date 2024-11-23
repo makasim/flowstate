@@ -21,7 +21,7 @@ func Fork_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		forkedStateCtx = &flowstate.StateCtx{}
@@ -43,12 +43,12 @@ func Fork_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Noop(stateCtx), nil
 	}))
-	fr.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
-	fr.SetFlow("origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

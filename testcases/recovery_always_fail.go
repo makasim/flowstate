@@ -14,7 +14,7 @@ func RecoveryAlwaysFail(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("always_fail", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("always_fail", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		// simulate a flow always failing
 		return flowstate.Noop(stateCtx), nil

@@ -20,7 +20,7 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		stateCtx.Current.SetLabel(`theForkJoinLabel`, string(stateCtx.Current.ID))
@@ -44,7 +44,7 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Noop(stateCtx), nil
 	}))
-	fr.SetFlow("join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if stateCtx.Committed.Transition.ToID != `join` {
@@ -94,12 +94,12 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		}
 	}))
 
-	fr.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `join`), nil
 	}))
 
-	fr.SetFlow("joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

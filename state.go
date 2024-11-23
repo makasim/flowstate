@@ -75,8 +75,9 @@ type StateCtx struct {
 	// Transitions between committed and current states
 	Transitions []Transition `json:"transitions"`
 
-	sessID int64   `json:"-"`
-	e      *Engine `json:"-"`
+	sessID int64  `json:"-"`
+	e      Engine `json:"-"`
+	doneCh chan struct{}
 }
 
 func (s *StateCtx) SessID() int64 {
@@ -117,7 +118,7 @@ func (s *StateCtx) Done() <-chan struct{} {
 		return nil
 	}
 
-	return s.e.doneCh
+	return s.doneCh
 }
 
 func (s *StateCtx) Err() error {
@@ -126,7 +127,7 @@ func (s *StateCtx) Err() error {
 	}
 
 	select {
-	case <-s.e.doneCh:
+	case <-s.doneCh:
 		return context.Canceled
 	default:
 		return nil

@@ -27,7 +27,7 @@ func DataStoreGetWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	}
 	actData := &flowstate.Data{}
 
-	fr.SetFlow("store", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("store", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		d := &flowstate.Data{
@@ -45,7 +45,7 @@ func DataStoreGetWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	fr.SetFlow("get", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("get", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if err := e.Do(flowstate.Commit(
@@ -58,7 +58,7 @@ func DataStoreGetWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	fr.SetFlow("end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

@@ -14,7 +14,7 @@ func Delay_Return(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		if flowstate.Delayed(stateCtx.Current) {
 			return flowstate.Transit(stateCtx, `second`), nil
@@ -22,7 +22,7 @@ func Delay_Return(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Delay(stateCtx, time.Millisecond*200), nil
 	}))
-	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

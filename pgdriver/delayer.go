@@ -39,7 +39,7 @@ type Delayer struct {
 	now    func() time.Time
 	doneCh chan struct{}
 
-	e *flowstate.Engine
+	e flowstate.Engine
 }
 
 func NewDelayer(conn conn, q delayerQueries, now func() time.Time) *Delayer {
@@ -71,7 +71,7 @@ func (d *Delayer) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (d *Delayer) Init(e *flowstate.Engine) error {
+func (d *Delayer) Init(e flowstate.Engine) error {
 	d.e = e
 
 	go func() {

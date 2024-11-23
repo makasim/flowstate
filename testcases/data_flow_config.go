@@ -36,7 +36,7 @@ func DataFlowConfig(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("foo", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("foo", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		data := &flowstate.Data{}
@@ -77,7 +77,7 @@ func DataFlowConfig(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	fr.SetFlow("bar", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("bar", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		data := &flowstate.Data{}
@@ -120,7 +120,7 @@ func DataFlowConfig(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	fr.SetFlow("end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

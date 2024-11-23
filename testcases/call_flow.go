@@ -22,7 +22,7 @@ func CallFlow(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	endedCh := make(chan struct{})
 	trkr := &Tracker{}
 
-	fr.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx.Current) {
@@ -46,11 +46,11 @@ func CallFlow(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Noop(stateCtx), nil
 	}))
-	fr.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	fr.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if stateCtx.Current.Annotations[`caller_state`] != "" {
@@ -71,7 +71,7 @@ func CallFlow(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		return flowstate.End(stateCtx), nil
 	}))
 
-	fr.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		close(endedCh)

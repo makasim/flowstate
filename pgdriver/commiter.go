@@ -21,7 +21,7 @@ type commiterQueries interface {
 type Commiter struct {
 	conn conn
 	q    commiterQueries
-	e    *flowstate.Engine
+	e    flowstate.Engine
 }
 
 func NewCommiter(conn conn, db commiterQueries) *Commiter {
@@ -122,7 +122,7 @@ func (cmtr *Commiter) Do(cmd0 flowstate.Command) error {
 	return tx.Commit(context.Background())
 }
 
-func (cmtr *Commiter) Init(e *flowstate.Engine) error {
+func (cmtr *Commiter) Init(e flowstate.Engine) error {
 	cmtr.e = e
 	return nil
 }

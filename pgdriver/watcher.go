@@ -63,7 +63,7 @@ func (w *Watcher) Do(cmd0 flowstate.Command) error {
 	return nil
 }
 
-func (w *Watcher) Init(_ *flowstate.Engine) error {
+func (w *Watcher) Init(_ flowstate.Engine) error {
 	return nil
 }
 

@@ -8,7 +8,7 @@ import (
 var ErrCommandNotSupported = errors.New("command not supported")
 
 type Doer interface {
-	Init(e *Engine) error
+	Init(e Engine) error
 	Do(cmd Command) error
 	Shutdown(ctx context.Context) error
 }
@@ -19,7 +19,7 @@ func (d DoerFunc) Do(cmd Command) error {
 	return d(cmd)
 }
 
-func (d DoerFunc) Init(_ *Engine) error {
+func (d DoerFunc) Init(_ Engine) error {
 	return nil
 }
 

@@ -16,7 +16,7 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("cron", flowstate.FlowFunc(func(cronStateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("cron", flowstate.FlowFunc(func(cronStateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(cronStateCtx, trkr)
 
 		now := time.Now()
@@ -80,7 +80,7 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 		return flowstate.Noop(cronStateCtx), nil
 	}))
-	fr.SetFlow("task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
+	fr.SetFlow("task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.End(stateCtx),
