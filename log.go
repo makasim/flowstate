@@ -27,7 +27,7 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 		args = append(args, "recovered", currTs.Annotations[RecoveryAttemptAnnotation])
 	}
 
-	args = logLabels(stateCtx.Current.Labels, args)
+	args = append(args, "labels", stateCtx.Current.Labels)
 
 	l.Info("engine: execute", args...)
 }
@@ -46,8 +46,8 @@ func logDo(cmd0 Command, l *slog.Logger) {
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 			"to", cmd.FlowID,
+			"labels", cmd.StateCtx.Current.Labels,
 		)
-		args = logLabels(cmd.StateCtx.Current.Labels, args)
 	case *PauseCommand:
 		args = append(args,
 			"cmd", "pause",
@@ -57,43 +57,43 @@ func logDo(cmd0 Command, l *slog.Logger) {
 		if cmd.FlowID != `` {
 			args = append(args, "to", cmd.FlowID)
 		}
-		args = logLabels(cmd.StateCtx.Current.Labels, args)
+		args = append(args, "labels", cmd.StateCtx.Current.Labels)
 	case *ResumeCommand:
 		args = append(args,
 			"cmd", "resume",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
+			"labels", cmd.StateCtx.Current.Labels,
 		)
-		args = logLabels(cmd.StateCtx.Current.Labels, args)
 	case *EndCommand:
 		args = append(args,
 			"cmd", "end",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
+			"labels", cmd.StateCtx.Current.Labels,
 		)
-		args = logLabels(cmd.StateCtx.Current.Labels, args)
 	case *DelayCommand:
 		args = append(args,
 			"cmd", "delay",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 			"dur", cmd.Duration,
+			"labels", cmd.StateCtx.Current.Labels,
 		)
-		args = logLabels(cmd.StateCtx.Current.Labels, args)
 	case *ExecuteCommand:
 		args = append(args,
 			"cmd", "execute",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
+			"labels", cmd.StateCtx.Current.Labels,
 		)
-		args = logLabels(cmd.StateCtx.Current.Labels, args)
 	case *NoopCommand:
 		args = append(args,
 			"cmd", "noop",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
+			"labels", cmd.StateCtx.Current.Labels,
 		)
-		args = logLabels(cmd.StateCtx.Current.Labels, args)
 	case *ReferenceDataCommand:
 		args = append(args,
 			"cmd", "reference_data",
@@ -142,15 +142,4 @@ func logDo(cmd0 Command, l *slog.Logger) {
 
 	l.Info("engine: do", args...)
 
-}
-
-func logLabels(labels map[string]string, args []any) []any {
-	if len(labels) == 0 {
-		return args
-	}
-
-	for k, v := range labels {
-		args = append(args, "label."+k, v)
-	}
-	return args
 }
