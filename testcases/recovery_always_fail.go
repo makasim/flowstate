@@ -54,19 +54,15 @@ func RecoveryAlwaysFail(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	)
 	require.NoError(t, e.Execute(stateCtx))
 
-	wCmd := flowstate.Watch(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 		`theRecovery`: `aTID`,
-	})
-	require.NoError(t, e.Do(wCmd))
-
-	w := wCmd.Listener
-	defer w.Close()
+	}))
 
 	var visited []string
 loop:
 	for {
 		select {
-		case latestState := <-w.Listen():
+		case latestState := <-w.Next():
 			if flowstate.Ended(latestState) {
 				visited = append(visited, "ended")
 				break loop

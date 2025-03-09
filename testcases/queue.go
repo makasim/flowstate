@@ -33,17 +33,14 @@ func Queue(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	fr.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
+		w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 			"queue": "theName",
 		}))
-		if err != nil {
-			return nil, err
-		}
-		defer lis.Close()
+		defer w.Close()
 
 		for {
 			select {
-			case queuedState := <-lis.Listen():
+			case queuedState := <-w.Next():
 				queuedStateCtx := queuedState.CopyToCtx(&flowstate.StateCtx{})
 
 				delete(queuedStateCtx.Current.Labels, "queue")

@@ -15,6 +15,8 @@ func WatchLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 
 	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
+	require.NoError(t, err)
+
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer sCtxCancel()
@@ -50,13 +52,12 @@ func WatchLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		}),
 	)))
 
-	lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}))
-	require.NoError(t, err)
-	defer lis.Close()
+	defer w.Close()
 
-	actStates := watchCollectStates(t, lis, 2)
+	actStates := watchCollectStates(t, w, 2)
 
 	require.Len(t, actStates, 2)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
@@ -71,7 +72,7 @@ func WatchLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	require.Equal(t, `barVal`, actStates[1].Labels[`bar`])
 }
 
-func watchCollectStates(t TestingT, lis flowstate.WatchListener, limit int) []flowstate.State {
+func watchCollectStates(t TestingT, w *flowstate.Watcher, limit int) []flowstate.State {
 	var states []flowstate.State
 
 	timeoutT := time.NewTimer(time.Second)
@@ -80,7 +81,7 @@ func watchCollectStates(t TestingT, lis flowstate.WatchListener, limit int) []fl
 loop:
 	for {
 		select {
-		case s := <-lis.Listen():
+		case s := <-w.Next():
 			assert.Greater(t, s.CommittedAtUnixMilli, int64(0))
 			// reset commited time to 0 to make test case deterministic
 			s.CommittedAtUnixMilli = 0

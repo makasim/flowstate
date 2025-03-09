@@ -49,7 +49,6 @@ func New(opts ...Option) *Driver {
 		NewFlowGetter(d.FlowRegistry),
 		NewCommiter(log),
 		NewGetter(log),
-		NewWatcher(log),
 		NewDelayer(d.l),
 	}
 	d.doers = doers

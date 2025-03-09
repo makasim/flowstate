@@ -23,17 +23,14 @@ func RateLimit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
-		lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
+		w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 			"limiter": "theName",
 		}))
-		if err != nil {
-			return nil, err
-		}
-		defer lis.Close()
+		defer w.Close()
 
 		for {
 			select {
-			case limitedState := <-lis.Listen():
+			case limitedState := <-w.Next():
 				limitedStateCtx := limitedState.CopyToCtx(&flowstate.StateCtx{})
 
 				ctx, _ := context.WithTimeout(context.Background(), time.Second)

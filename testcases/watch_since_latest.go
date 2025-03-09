@@ -14,6 +14,7 @@ func WatchSinceLatest(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 
 	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
+	require.NoError(t, err)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer sCtxCancel()
@@ -39,13 +40,12 @@ func WatchSinceLatest(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		flowstate.Pause(stateCtx),
 	)))
 
-	lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceLatest())
-	require.NoError(t, err)
-	defer lis.Close()
+	defer w.Close()
 
-	actStates := watchCollectStates(t, lis, 1)
+	actStates := watchCollectStates(t, w, 1)
 
 	require.Len(t, actStates, 1)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)

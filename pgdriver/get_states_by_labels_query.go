@@ -9,6 +9,17 @@ import (
 )
 
 func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map[string]string, sinceRev int64, ss []flowstate.State) ([]flowstate.State, error) {
+	return getStatesByLabelsWithFromStatement(ctx, tx, `FROM flowstate_states AS states`, orLabels, sinceRev, ss)
+}
+
+func getStatesByLabelsWithFromStatement(
+	ctx context.Context,
+	tx conntx,
+	fromStmt string,
+	orLabels []map[string]string,
+	sinceRev int64,
+	ss []flowstate.State,
+) ([]flowstate.State, error) {
 	if len(ss) == 0 {
 		return nil, fmt.Errorf("states slice len must be greater than 0")
 	}
@@ -21,7 +32,7 @@ func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map
 			labelsWhere += " OR "
 		}
 		args = append(args, orLabels[i])
-		labelsWhere += "labels::JSONB @> $" + strconv.Itoa(len(args))
+		labelsWhere += "states.labels::JSONB @> $" + strconv.Itoa(len(args))
 	}
 	if labelsWhere != "" {
 		where = "(" + labelsWhere + ")"
@@ -32,7 +43,7 @@ func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map
 			where += " AND "
 		}
 		args = append(args, sinceRev)
-		where += "rev > $" + strconv.Itoa(len(args))
+		where += "states.rev > $" + strconv.Itoa(len(args))
 	} else { // negative rev is treated as since latest
 		if where != "" {
 			where += " AND "
@@ -42,17 +53,17 @@ func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map
 			subWhere = " WHERE (" + labelsWhere + ")"
 		}
 
-		where += `rev >= (SELECT rev FROM flowstate_states ` + subWhere + ` ORDER BY "rev" DESC LIMIT 1)`
+		where += `states.rev >= (SELECT rev FROM flowstate_states ` + subWhere + ` ORDER BY "rev" DESC LIMIT 1)`
 	}
 
-	q := `
+	q := fmt.Sprintf(`
 SELECT state, rev 
 FROM 
     (
-		SELECT xmin::text::bigint, state, rev 
-		FROM flowstate_states 
-		WHERE ` + where + `
-		ORDER BY "rev" ASC LIMIT ` + strconv.Itoa(len(ss)) + `
+		SELECT states.xmin::text::bigint, states.state, states.rev 
+		%s 
+		WHERE `+where+`
+		ORDER BY "rev" ASC LIMIT `+strconv.Itoa(len(ss))+`
 	) AS subquery
 	CROSS JOIN (
     	SELECT 
@@ -61,7 +72,7 @@ FROM
 	) AS snapshot
 WHERE subquery.xmin < snapshot.xmin OR subquery.xmin > snapshot.xmax
 ;
-`
+`, fromStmt)
 
 	rows, err := tx.Query(ctx, q, args...)
 	if err != nil {

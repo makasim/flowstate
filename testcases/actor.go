@@ -17,18 +17,15 @@ func Actor(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 
 	fr.SetFlow("actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		w, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
+		w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 			"actor.foo": "inbox",
 		}))
-		if err != nil {
-			return nil, err
-		}
 		defer w.Close()
 
 		t := time.NewTimer(time.Millisecond * 100)
 		for {
 			select {
-			case msgState := <-w.Listen():
+			case msgState := <-w.Next():
 				Track(msgState.CopyToCtx(&flowstate.StateCtx{}), trkr)
 				// do stuff here
 			case <-t.C:

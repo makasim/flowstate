@@ -14,6 +14,8 @@ func WatchORLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 
 	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
+	require.NoError(t, err)
+
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer sCtxCancel()
@@ -43,15 +45,14 @@ func WatchORLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		}),
 	)))
 
-	lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithORLabels(map[string]string{
 		`bar`: `barVal`,
 	}))
-	require.NoError(t, err)
-	defer lis.Close()
+	defer w.Close()
 
-	actStates := watchCollectStates(t, lis, 2)
+	actStates := watchCollectStates(t, w, 2)
 
 	require.Len(t, actStates, 2)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)

@@ -11,7 +11,6 @@ import (
 type RecovererDoer struct {
 	failoverDur time.Duration
 
-	wl        WatchListener
 	e         Engine
 	doneCh    chan struct{}
 	stoppedCh chan struct{}
@@ -31,12 +30,6 @@ func (d *RecovererDoer) Do(_ Command) error {
 }
 
 func (d *RecovererDoer) Init(e Engine) error {
-	cmd := Watch(nil)
-	if err := e.Do(cmd); err != nil {
-		return err
-	}
-
-	d.wl = cmd.Listener
 	d.e = e
 
 	go func() {
@@ -45,11 +38,17 @@ func (d *RecovererDoer) Init(e Engine) error {
 		t := time.NewTicker(d.failoverDur)
 		defer t.Stop()
 
+		w := NewWatcher(e, &GetManyCommand{
+			SinceRev: 0,
+			Labels:   nil,
+		})
+		defer w.Close()
+
 		for {
 			select {
 			case <-d.doneCh:
 				return
-			case state0 := <-d.wl.Listen():
+			case state0 := <-w.Next():
 				state := state0.CopyTo(&State{})
 				d.log = append(d.log, state)
 			case <-t.C:
@@ -124,7 +123,6 @@ func (d *RecovererDoer) checkLog() error {
 }
 
 func (d *RecovererDoer) Shutdown(ctx context.Context) error {
-	d.wl.Close()
 	close(d.doneCh)
 
 	select {
