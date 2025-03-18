@@ -8,11 +8,20 @@ import (
 	"github.com/gorhill/cronexpr"
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
+	//"go.uber.org/goleak"
 )
 
 func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	// does not work in flowstatesrv srvdriver
+	// delayer related goroutines are started inside test by stoped with the app outside
+	//	cron.go:130: found unexpected goroutines:
+	//[Goroutine 155 in state select, with github.com/makasim/flowstate/memdriver.(*Delayer).Do.func1 on top of the stack:
+	//	github.com/makasim/flowstate/memdriver.(*Delayer).Do.func1()
+	//	/foo/flowstatesrv/vendor/github.com/makasim/flowstate/memdriver/delayer.go:59 +0x18c
+	//	created by github.com/makasim/flowstate/memdriver.(*Delayer).Do in goroutine 32
+	//	/foo/flowstatesrv/vendor/github.com/makasim/flowstate/memdriver/delayer.go:51 +0x100
+	//	]
+	// defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
 
