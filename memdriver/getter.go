@@ -59,25 +59,25 @@ func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 	cmd.Prepare()
 
-	sinceRev := cmd.SinceRev
-	if sinceRev == -1 {
-		d.l.Lock()
-		_, sinceRev = d.l.GetLatestByLabels(cmd.Labels)
-		d.l.Unlock()
-	}
-
 	states := make([]flowstate.State, 0, cmd.Limit)
 	limit := cmd.Limit + 1
 
-	for {
-		if len(states) >= cmd.Limit {
-			cmd.SetResult(&flowstate.GetManyResult{
-				States: states[:cmd.Limit],
-				More:   len(states) > cmd.Limit,
-			})
-			return nil
+	sinceRev := cmd.SinceRev
+	if sinceRev == -1 {
+		d.l.Lock()
+		var stateCtx *flowstate.StateCtx
+		stateCtx, sinceRev = d.l.GetLatestByLabels(cmd.Labels)
+		if stateCtx != nil {
+			states = append(states, stateCtx.Committed)
 		}
+		d.l.Unlock()
+	}
 
+	d.l.Lock()
+	untilRev := d.l.rev
+	d.l.Unlock()
+
+	for {
 		var logStates []*flowstate.StateCtx
 
 		d.l.Lock()
@@ -101,6 +101,20 @@ func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 
 			limit--
 			states = append(states, s.Committed)
+		}
+
+		if len(states) >= limit {
+			cmd.SetResult(&flowstate.GetManyResult{
+				States: states[:cmd.Limit],
+				More:   len(states) > cmd.Limit,
+			})
+			return nil
+		} else if sinceRev >= untilRev {
+			cmd.SetResult(&flowstate.GetManyResult{
+				States: states,
+				More:   false,
+			})
+			return nil
 		}
 	}
 }

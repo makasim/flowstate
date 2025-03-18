@@ -57,6 +57,7 @@ func RecoveryAlwaysFail(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 		`theRecovery`: `aTID`,
 	}))
+	defer w.Close()
 
 	var visited []string
 loop:

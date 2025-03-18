@@ -171,7 +171,7 @@ next:
 		if len(labels) == 0 {
 			continue
 		}
-		if len(labels) != len(state.Labels) {
+		if len(labels) > len(state.Labels) {
 			continue
 		}
 
