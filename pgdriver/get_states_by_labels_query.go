@@ -53,7 +53,7 @@ func getStatesByLabelsWithFromStatement(
 			subWhere = " WHERE (" + labelsWhere + ")"
 		}
 
-		where += `states.rev >= (SELECT rev FROM flowstate_states ` + subWhere + ` ORDER BY "rev" DESC LIMIT 1)`
+		where += `states.rev >= (SELECT rev FROM flowstate_states AS states ` + subWhere + ` ORDER BY "rev" DESC LIMIT 1)`
 	}
 
 	q := fmt.Sprintf(`
