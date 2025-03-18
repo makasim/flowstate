@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetLatestByLabel(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetOneByIDAndRev(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -25,9 +25,6 @@ func GetLatestByLabel(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
-			Labels: map[string]string{
-				"foo": "fooVal",
-			},
 		},
 	}
 
@@ -35,10 +32,13 @@ func GetLatestByLabel(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	require.NoError(t, e.Do(flowstate.Commit(
 		flowstate.CommitStateCtx(stateCtx),
 	)))
+	expectedStateCtx := stateCtx.CopyTo(&flowstate.StateCtx{})
+
 	stateCtx.Current.SetAnnotation("v", "2")
 	require.NoError(t, e.Do(flowstate.Commit(
 		flowstate.CommitStateCtx(stateCtx),
 	)))
+
 	stateCtx.Current.SetAnnotation("v", "3")
 	require.NoError(t, e.Do(flowstate.Commit(
 		flowstate.CommitStateCtx(stateCtx),
@@ -46,8 +46,6 @@ func GetLatestByLabel(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 
 	foundStateCtx := &flowstate.StateCtx{}
 
-	require.NoError(t, e.Do(flowstate.GetByLabels(foundStateCtx, map[string]string{
-		"foo": "fooVal",
-	})))
-	require.Equal(t, stateCtx, foundStateCtx)
+	require.NoError(t, e.Do(flowstate.GetByID(foundStateCtx, `aTID`, expectedStateCtx.Committed.Rev)))
+	require.Equal(t, expectedStateCtx, foundStateCtx)
 }

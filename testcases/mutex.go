@@ -24,12 +24,7 @@ func Mutex(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	fr.SetFlow("lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		wCmd := flowstate.Watch(map[string]string{"mutex": "theName"}).WithSinceLatest()
-
-		if err := e.Do(wCmd); err != nil {
-			return nil, err
-		}
-		w := wCmd.Listener
+		w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{"mutex": "theName"}).WithSinceLatest())
 		defer w.Close()
 
 		var mutexStateCtx *flowstate.StateCtx
@@ -63,7 +58,7 @@ func Mutex(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 			}
 
 			select {
-			case mutexState := <-w.Listen():
+			case mutexState := <-w.Next():
 				if mutexStateCtx == nil {
 					mutexStateCtx = &flowstate.StateCtx{}
 				}

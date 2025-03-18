@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func WatchORLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetManyORLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -45,14 +45,20 @@ func WatchORLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		}),
 	)))
 
-	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
+	cmd := flowstate.GetManyByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithORLabels(map[string]string{
 		`bar`: `barVal`,
-	}))
-	defer w.Close()
+	})
+	require.NoError(t, e.Do(cmd))
 
-	actStates := watchCollectStates(t, w, 2)
+	res, err := cmd.Result()
+	require.NoError(t, err)
+
+	require.Len(t, res.States, 2)
+	require.False(t, res.More)
+
+	actStates := res.States
 
 	require.Len(t, actStates, 2)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)

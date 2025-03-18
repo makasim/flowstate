@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func WatchSinceLatest(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetManySinceLatest(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -40,13 +40,18 @@ func WatchSinceLatest(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		flowstate.Pause(stateCtx),
 	)))
 
-	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
+	cmd := flowstate.GetManyByLabels(map[string]string{
 		`foo`: `fooVal`,
-	}).WithSinceLatest())
-	defer w.Close()
+	}).WithSinceLatest()
+	require.NoError(t, e.Do(cmd))
 
-	actStates := watchCollectStates(t, w, 1)
+	res, err := cmd.Result()
+	require.NoError(t, err)
 
+	require.Len(t, res.States, 1)
+	require.False(t, res.More)
+
+	actStates := res.States
 	require.Len(t, actStates, 1)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
 	require.Equal(t, int64(3), actStates[0].Rev)

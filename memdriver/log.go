@@ -100,18 +100,18 @@ func (l *Log) GetByIDAndRev(id flowstate.StateID, rev int64) *flowstate.StateCtx
 }
 
 func (l *Log) GetLatestByLabels(orLabels []map[string]string) (*flowstate.StateCtx, int64) {
-	var since int64
+	var nextSinceRev int64
 next:
 	for i := len(l.entries) - 1; i >= 0; i-- {
 		if !matchLabels(l.entries[i].Committed, orLabels) {
 			continue next
 		}
 
-		since = l.entries[i].Committed.Rev
-		return l.entries[i].CopyTo(&flowstate.StateCtx{}), since
+		nextSinceRev = l.entries[i].Committed.Rev
+		return l.entries[i].CopyTo(&flowstate.StateCtx{}), nextSinceRev
 	}
 
-	return nil, since
+	return nil, nextSinceRev
 }
 
 func (l *Log) Entries(since int64, limit int) ([]*flowstate.StateCtx, int64) {
@@ -168,6 +168,13 @@ func matchLabels(state flowstate.State, orLabels []map[string]string) bool {
 
 next:
 	for _, labels := range orLabels {
+		if len(labels) == 0 {
+			continue
+		}
+		if len(labels) > len(state.Labels) {
+			continue
+		}
+
 		for k, v := range labels {
 			if state.Labels[k] != v {
 				continue next

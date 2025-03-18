@@ -71,10 +71,17 @@ func Get(setUp func(t TestingT) (flowstate.Doer, FlowRegistry)) *Suite {
 			"ForkJoinLastWins":  ForkJoin_LastWins,
 			"ForkWithCommit":    Fork_WithCommit,
 
-			"GetByIDAndRev":    GetByIDAndRev,
-			"GetLatestByID":    GetLatestByID,
-			"GetLatestByLabel": GetLatestByLabel,
-			"GetNotFound":      GetNotFound,
+			"GetOneByIDAndRev":    GetOneByIDAndRev,
+			"GetOneLatestByID":    GetOneLatestByID,
+			"GetOneLatestByLabel": GetOneLatestByLabel,
+			"GetOneNotFound":      GetOneNotFound,
+
+			"GetManyLabels":      GetManyLabels,
+			"GetManyOrLabels":    GetManyORLabels,
+			"GetManySinceLatest": GetManySinceLatest,
+			"GetManySinceRev":    GetManySinceRev,
+			"GetManySinceTime":   GetManySinceTime,
+			"GetManyLatestOnly":  GetManyLatestOnly,
 
 			"Mutex":     Mutex,
 			"Queue":     Queue,

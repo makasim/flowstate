@@ -34,21 +34,20 @@ func WatchSinceTime(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	)))
 	require.Greater(t, stateCtx.Committed.CommittedAtUnixMilli, int64(0))
 
-	lis, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAtUnixMilli+5000)))
-	require.NoError(t, err)
-	defer lis.Close()
+	defer w.Close()
 
-	require.Equal(t, []flowstate.State(nil), watchCollectStates(t, lis, 0))
+	require.Equal(t, []flowstate.State(nil), watchCollectStates(t, w, 0))
 
-	lis2, err := flowstate.DoWatch(e, flowstate.Watch(map[string]string{
+	w2 := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAtUnixMilli-1000)))
 	require.NoError(t, err)
-	defer lis2.Close()
+	defer w2.Close()
 
-	actStates := watchCollectStates(t, lis2, 1)
+	actStates := watchCollectStates(t, w2, 1)
 
 	require.Len(t, actStates, 1)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)

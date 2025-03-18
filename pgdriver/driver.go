@@ -53,8 +53,6 @@ func New(conn conn, opts ...Option) *Driver {
 		NewDataer(d.conn, d.q),
 		NewCommiter(d.conn, d.q),
 		NewGetter(d.conn, d.q),
-
-		NewWatcher(d.conn, d.q),
 		NewDelayer(d.conn, d.q, time.Now),
 	}
 

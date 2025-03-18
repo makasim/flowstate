@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestQuery_GetStatesByLabels(main *testing.T) {
+func TestQuery_GetLatestStatesByLabels(main *testing.T) {
 	openDB := func(t *testing.T, dsn0, dbName string) *pgxpool.Pool {
 		conn := testpgdriver.OpenFreshDB(t, dsn0, dbName)
 
@@ -29,7 +29,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 
 		q := &queries{}
 
-		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, nil)
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, nil)
 		require.EqualError(t, err, `states slice len must be greater than 0`)
 		require.Nil(t, ss)
 	})
@@ -39,7 +39,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 
 		q := &queries{}
 
-		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, []flowstate.State{})
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, []flowstate.State{})
 		require.EqualError(t, err, `states slice len must be greater than 0`)
 		require.Nil(t, ss)
 	})
@@ -55,7 +55,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.NoError(t, q.InsertState(context.Background(), conn, &flowstate.State{ID: `4`}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
 			{ID: `1`, Rev: 1},
@@ -77,12 +77,9 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.NoError(t, q.UpdateState(context.Background(), conn, state))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
-			{ID: `1`, Rev: 1},
-			{ID: `1`, Rev: 2},
-			{ID: `1`, Rev: 3},
 			{ID: `1`, Rev: 4},
 		}, ss)
 	})
@@ -98,7 +95,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.NoError(t, q.InsertState(context.Background(), conn, &flowstate.State{ID: `4`}))
 
 		ss := make([]flowstate.State, 3)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
 			{ID: `1`, Rev: 1},
@@ -118,7 +115,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.NoError(t, q.InsertState(context.Background(), conn, &flowstate.State{ID: `4`}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(2), time.Time{}, ss)
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(2), time.Time{}, ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
 			{ID: `3`, Rev: 3},
@@ -137,7 +134,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.NoError(t, q.InsertState(context.Background(), conn, &flowstate.State{ID: `4`}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, nil, int64(-1), time.Time{}, ss)
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(-1), time.Time{}, ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
 			{ID: `4`, Rev: 4},
@@ -175,7 +172,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 			},
@@ -187,7 +184,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}, ss)
 
 		ss = make([]flowstate.State, 4)
-		ss, err = q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err = q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`bar`: `barVal`,
 			},
@@ -230,7 +227,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 3)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 			},
@@ -274,7 +271,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 			},
@@ -317,7 +314,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 			},
@@ -361,7 +358,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 				`bar`: `barVal`,
@@ -409,7 +406,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 3)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 				`bar`: `barVal`,
@@ -458,7 +455,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 				`bar`: `barVal`,
@@ -506,7 +503,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 				`bar`: `barVal`,
@@ -551,7 +548,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 			},
@@ -601,7 +598,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 3)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 			},
@@ -648,7 +645,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 			},
@@ -694,7 +691,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		}))
 
 		ss := make([]flowstate.State, 4)
-		ss, err := q.GetStatesByLabels(context.Background(), conn, []map[string]string{
+		ss, err := q.GetLatestStatesByLabels(context.Background(), conn, []map[string]string{
 			{
 				`foo`: `fooVal`,
 			},
@@ -736,7 +733,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.NoError(t, tx2.Commit(context.Background()))
 
 		ss := make([]flowstate.State, 4)
-		ss, err = q.GetStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
+		ss, err = q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
 			{ID: `1`, Rev: 1},
@@ -746,7 +743,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.NoError(t, tx0.Commit(context.Background()))
 
 		ss = make([]flowstate.State, 4)
-		ss, err = q.GetStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
+		ss, err = q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
 			{ID: `1`, Rev: 1},
@@ -757,7 +754,7 @@ func TestQuery_GetStatesByLabels(main *testing.T) {
 		require.NoError(t, tx1.Commit(context.Background()))
 
 		ss = make([]flowstate.State, 4)
-		ss, err = q.GetStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
+		ss, err = q.GetLatestStatesByLabels(context.Background(), conn, nil, int64(0), time.Time{}, ss)
 		require.NoError(t, err)
 		require.Equal(t, []flowstate.State{
 			{ID: `1`, Rev: 1},
