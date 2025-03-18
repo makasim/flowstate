@@ -37,7 +37,5 @@ func TestSuite(t *testing.T) {
 		return d, d
 	})
 
-	s.Skip(t, `WatchSinceTime`)
-
 	s.Test(t)
 }

@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/makasim/flowstate"
 )
 
-func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map[string]string, sinceRev int64, ss []flowstate.State) ([]flowstate.State, error) {
-	return getStatesByLabelsWithFromStatement(ctx, tx, `FROM flowstate_states AS states`, orLabels, sinceRev, ss)
+func (*queries) GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map[string]string, sinceRev int64, sinceTime time.Time, ss []flowstate.State) ([]flowstate.State, error) {
+	return getStatesByLabelsWithFromStatement(ctx, tx, `FROM flowstate_states AS states`, orLabels, sinceRev, sinceTime, ss)
 }
 
 func getStatesByLabelsWithFromStatement(
@@ -18,6 +19,7 @@ func getStatesByLabelsWithFromStatement(
 	fromStmt string,
 	orLabels []map[string]string,
 	sinceRev int64,
+	sinceTime time.Time,
 	ss []flowstate.State,
 ) ([]flowstate.State, error) {
 	if len(ss) == 0 {
@@ -54,6 +56,16 @@ func getStatesByLabelsWithFromStatement(
 		}
 
 		where += `states.rev >= (SELECT rev FROM flowstate_states AS states ` + subWhere + ` ORDER BY "rev" DESC LIMIT 1)`
+	}
+
+	// TODO: suboptimal implementation, find a better way
+	if !sinceTime.IsZero() {
+		if where != "" {
+			where += " AND "
+		}
+
+		args = append(args, sinceTime.UnixMilli())
+		where += `(states.state->>'committed_at_unix_milli')::bigint >= $` + strconv.Itoa(len(args))
 	}
 
 	q := fmt.Sprintf(`

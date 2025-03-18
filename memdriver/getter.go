@@ -100,7 +100,12 @@ func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 			}
 
 			limit--
+
+			if cmd.LatestOnly {
+				states = filterStatesWithID(states, s.Committed.ID)
+			}
 			states = append(states, s.Committed)
+
 		}
 
 		if len(states) >= limit {
@@ -125,4 +130,16 @@ func (d *Getter) Init(_ flowstate.Engine) error {
 
 func (d *Getter) Shutdown(_ context.Context) error {
 	return nil
+}
+
+func filterStatesWithID(states []flowstate.State, id flowstate.StateID) []flowstate.State {
+	n := 0
+	for _, state := range states {
+		if state.ID != id {
+			states[n] = state
+			n++
+		}
+	}
+
+	return states[:n]
 }

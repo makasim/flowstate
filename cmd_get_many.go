@@ -45,6 +45,11 @@ func (cmd *GetManyCommand) WithSinceRev(rev int64) *GetManyCommand {
 	return cmd
 }
 
+func (cmd *GetManyCommand) WithLatestOnly() *GetManyCommand {
+	cmd.LatestOnly = true
+	return cmd
+}
+
 func (cmd *GetManyCommand) WithSinceLatest() *GetManyCommand {
 	cmd.SinceRev = -1
 	return cmd

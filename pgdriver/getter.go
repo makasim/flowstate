@@ -3,6 +3,7 @@ package pgdriver
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/makasim/flowstate"
 )
@@ -11,8 +12,8 @@ var _ flowstate.Doer = &Getter{}
 
 type getterQueries interface {
 	GetStateByID(ctx context.Context, tx conntx, id flowstate.StateID, rev int64, s *flowstate.State) error
-	GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map[string]string, sinceRev int64, ss []flowstate.State) ([]flowstate.State, error)
-	GetLatestStatesByLabels(ctx context.Context, tx conntx, orLabels []map[string]string, sinceRev int64, ss []flowstate.State) ([]flowstate.State, error)
+	GetStatesByLabels(ctx context.Context, tx conntx, orLabels []map[string]string, sinceRev int64, sinceTime time.Time, ss []flowstate.State) ([]flowstate.State, error)
+	GetLatestStatesByLabels(ctx context.Context, tx conntx, orLabels []map[string]string, sinceRev int64, sinceTime time.Time, ss []flowstate.State) ([]flowstate.State, error)
 }
 
 type Getter struct {
@@ -51,7 +52,7 @@ func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 		}
 
 		ss := []flowstate.State{s}
-		ss, err := d.q.GetStatesByLabels(context.Background(), d.conn, []map[string]string{cmd.Labels}, rev, ss)
+		ss, err := d.q.GetStatesByLabels(context.Background(), d.conn, []map[string]string{cmd.Labels}, rev, time.Time{}, ss)
 		if err != nil {
 			return fmt.Errorf("get states by labels query: %w", err)
 		} else if len(ss) == 0 {
@@ -71,20 +72,16 @@ func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 	cmd.Prepare()
 
-	if !cmd.SinceTime.IsZero() {
-		return fmt.Errorf("since time is not supported")
-	}
-
 	ss := make([]flowstate.State, cmd.Limit+1)
 	if cmd.LatestOnly {
 		var err error
-		ss, err = d.q.GetLatestStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, ss)
+		ss, err = d.q.GetLatestStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, cmd.SinceTime, ss)
 		if err != nil {
 			return fmt.Errorf("get latest states by labels query: %w", err)
 		}
 	} else {
 		var err error
-		ss, err = d.q.GetStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, ss)
+		ss, err = d.q.GetStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, cmd.SinceTime, ss)
 		if err != nil {
 			return fmt.Errorf("get states by labels query: %w", err)
 		}
