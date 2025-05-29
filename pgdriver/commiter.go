@@ -60,7 +60,7 @@ func (cmtr *Commiter) Do(cmd0 flowstate.Command) error {
 	}
 	defer tx.Rollback(context.Background())
 
-	conflictErr := &flowstate.ErrCommitConflict{}
+	conflictErr := &flowstate.ErrRevMismatch{}
 
 	for _, subCmd0 := range cmd.Commands {
 		if subCmd, ok := subCmd0.(*flowstate.DelayCommand); ok {

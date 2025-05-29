@@ -2,7 +2,6 @@ package testcases
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -37,18 +36,14 @@ func Mutex(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 				copyMutexStateCtx := &flowstate.StateCtx{}
 				mutexStateCtx.CopyTo(copyMutexStateCtx)
 
-				conflictErr := &flowstate.ErrCommitConflict{}
-
 				if err := e.Do(flowstate.Commit(
 					flowstate.Pause(copyMutexStateCtx).WithTransit(`locked`),
 					flowstate.Serialize(copyMutexStateCtx, copyStateCtx, `mutex_state`),
 					flowstate.Transit(copyStateCtx, `protected`),
-				)); errors.As(err, conflictErr) {
-					if conflictErr.Contains(mutexStateCtx.Current.ID) {
-						mutexStateCtx = nil
-						continue
-					}
-
+				)); flowstate.IsErrRevMismatchContains(err, mutexStateCtx.Current.ID) {
+					mutexStateCtx = nil
+					continue
+				} else if flowstate.IsErrRevMismatch(err) {
 					return nil, err
 				} else if err != nil {
 					return nil, err

@@ -84,7 +84,7 @@ func (d *RecovererDoer) checkLog() error {
 			continue
 		}
 
-		conflictErr := &ErrCommitConflict{}
+		conflictErr := &ErrRevMismatch{}
 
 		recoveryAttempt := RecoveryAttempt(state)
 		if recoveryAttempt >= 2 {

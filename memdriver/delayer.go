@@ -2,7 +2,6 @@ package memdriver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -50,10 +49,9 @@ func (d *Delayer) Do(cmd0 flowstate.Command) error {
 		select {
 		case <-t.C:
 			if stateCtx.Current.Transition.Annotations[flowstate.DelayCommitAnnotation] == `true` {
-				conflictErr := &flowstate.ErrCommitConflict{}
 				if err := d.e.Do(flowstate.Commit(
 					flowstate.CommitStateCtx(cmd.DelayStateCtx),
-				)); errors.As(err, conflictErr) {
+				)); flowstate.IsErrRevMismatch(err) {
 					d.l.Info("delayer: commit conflict",
 						"sess", cmd.SessID(),
 						"conflict", err.Error(),

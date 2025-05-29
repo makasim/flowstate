@@ -63,7 +63,7 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 		}
 
 		if _, rev := d.l.GetLatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-			conflictErr := &flowstate.ErrCommitConflict{}
+			conflictErr := &flowstate.ErrRevMismatch{}
 			conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
 			return conflictErr
 		}
