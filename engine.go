@@ -91,7 +91,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 			cmd.sync = true
 		}
 
-		conflictErr := &ErrCommitConflict{}
+		conflictErr := &ErrRevMismatch{}
 
 		if err = e.doCmd(stateCtx.SessID(), cmd0); errors.As(err, conflictErr) {
 			e.l.Info("engine: do conflict",

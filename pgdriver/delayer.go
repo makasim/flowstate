@@ -118,11 +118,10 @@ func (d *Delayer) do() error {
 	for _, ds := range dss {
 		stateCtx := ds.State.CopyToCtx(&flowstate.StateCtx{})
 		if stateCtx.Current.Transition.Annotations[flowstate.DelayCommitAnnotation] == `true` {
-			conflictErr := &flowstate.ErrCommitConflict{}
 			if err := d.e.Do(flowstate.Commit(
 				flowstate.CommitStateCtx(stateCtx),
-			)); errors.As(err, conflictErr) {
-				log.Printf("ERROR: engine: commit: %s\n", conflictErr)
+			)); flowstate.IsErrRevMismatch(err) {
+				log.Printf("ERROR: engine: commit: %s\n", err)
 				continue
 			} else if err != nil {
 				return fmt.Errorf("engine: commit: %w", err)
