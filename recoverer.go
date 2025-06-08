@@ -2,7 +2,6 @@ package flowstate
 
 import (
 	"context"
-	"errors"
 	"log"
 	"strconv"
 	"time"
@@ -84,14 +83,12 @@ func (d *RecovererDoer) checkLog() error {
 			continue
 		}
 
-		conflictErr := &ErrRevMismatch{}
-
 		recoveryAttempt := RecoveryAttempt(state)
 		if recoveryAttempt >= 2 {
 			stateCtx := state.CopyToCtx(&StateCtx{})
 			if err := d.e.Do(
 				Commit(End(stateCtx)),
-			); errors.As(err, conflictErr) {
+			); IsErrRevMismatch(err) {
 				visited[state.ID] = struct{}{}
 				continue
 			} else if err != nil {
@@ -107,7 +104,7 @@ func (d *RecovererDoer) checkLog() error {
 		if err := d.e.Do(
 			Commit(CommitStateCtx(stateCtx)),
 			Execute(stateCtx),
-		); errors.As(err, conflictErr) {
+		); IsErrRevMismatch(err) {
 			visited[state.ID] = struct{}{}
 			continue
 		} else if err != nil {
