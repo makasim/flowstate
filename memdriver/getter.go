@@ -34,19 +34,19 @@ func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 	if len(cmd.Labels) > 0 {
 		stateCtx, _ := d.l.GetLatestByLabels([]map[string]string{cmd.Labels})
 		if stateCtx == nil {
-			return fmt.Errorf("state not found by labels %v", cmd.Labels)
+			return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
 		}
 		stateCtx.CopyTo(cmd.StateCtx)
 	} else if cmd.ID != "" && cmd.Rev == 0 {
 		stateCtx, _ := d.l.GetLatestByID(cmd.ID)
 		if stateCtx == nil {
-			return fmt.Errorf("state not found by id %s", cmd.ID)
+			return fmt.Errorf("%w; id=%s", flowstate.ErrNotFound, cmd.ID)
 		}
 		stateCtx.CopyTo(cmd.StateCtx)
 	} else if cmd.ID != "" && cmd.Rev > 0 {
 		stateCtx := d.l.GetByIDAndRev(cmd.ID, cmd.Rev)
 		if stateCtx == nil {
-			return fmt.Errorf("state not found by id %s and rev %d", cmd.ID, cmd.Rev)
+			return fmt.Errorf("%w; id=%s rev=%d", flowstate.ErrNotFound, cmd.ID, cmd.Rev)
 		}
 		stateCtx.CopyTo(cmd.StateCtx)
 	} else {
