@@ -2,9 +2,11 @@ package pgdriver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/makasim/flowstate"
 )
 
@@ -56,11 +58,13 @@ func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 		if err != nil {
 			return fmt.Errorf("get states by labels query: %w", err)
 		} else if len(ss) == 0 {
-			return fmt.Errorf("state not found")
+			return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
 		}
 		s = ss[0]
 	} else {
-		if err := d.q.GetStateByID(context.Background(), d.conn, cmd.ID, cmd.Rev, &s); err != nil {
+		if err := d.q.GetStateByID(context.Background(), d.conn, cmd.ID, cmd.Rev, &s); errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("%w; id=%v rev=%d", flowstate.ErrNotFound, cmd.ID, cmd.Rev)
+		} else if err != nil {
 			return fmt.Errorf("get state by id query: %w", err)
 		}
 	}

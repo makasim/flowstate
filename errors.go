@@ -70,3 +70,5 @@ func IsErrRevMismatchContains(err error, sID StateID) bool {
 
 	return revErr.Contains(sID)
 }
+
+var ErrNotFound = errors.New("state not found")
