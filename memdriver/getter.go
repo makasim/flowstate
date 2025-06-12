@@ -99,20 +99,18 @@ func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 				continue
 			}
 
-			limit--
-
 			if cmd.LatestOnly {
 				states = filterStatesWithID(states, s.Committed.ID)
 			}
 			states = append(states, s.Committed)
-
 		}
 
-		if len(states) >= limit {
+		if len(states) >= cmd.Limit {
 			cmd.SetResult(&flowstate.GetManyResult{
 				States: states[:cmd.Limit],
 				More:   len(states) > cmd.Limit,
 			})
+
 			return nil
 		} else if sinceRev >= untilRev {
 			cmd.SetResult(&flowstate.GetManyResult{
