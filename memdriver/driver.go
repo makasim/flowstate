@@ -13,9 +13,8 @@ import (
 type Driver struct {
 	*FlowRegistry
 
-	log       *Log
-	doers     []flowstate.Doer
-	recoverer flowstate.Doer
+	log   *Log
+	doers []flowstate.Doer
 
 	l *slog.Logger
 }
@@ -77,12 +76,6 @@ func (d *Driver) Init(e flowstate.Engine) error {
 		}
 	}
 
-	if d.recoverer != nil {
-		if err := d.recoverer.Init(e); err != nil {
-			return fmt.Errorf("%T: init: %w", d.recoverer, err)
-		}
-	}
-
 	return nil
 }
 
@@ -91,12 +84,6 @@ func (d *Driver) Shutdown(ctx context.Context) error {
 	for _, doer := range d.doers {
 		if err := doer.Shutdown(ctx); err != nil {
 			res = errors.Join(res, fmt.Errorf("%T: shutdown: %w", doer, err))
-		}
-	}
-
-	if d.recoverer != nil {
-		if err := d.recoverer.Shutdown(ctx); err != nil {
-			res = errors.Join(res, fmt.Errorf("%T: shutdown: %w", d.recoverer, err))
 		}
 	}
 

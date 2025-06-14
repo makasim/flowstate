@@ -1,4 +1,4 @@
-package pgdriver
+package badgerdriver
 
 import (
 	"context"
@@ -6,36 +6,26 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/memdriver"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type Driver struct {
-	*memdriver.FlowRegistry
-	conn  conn
-	q     *queries
+	db  *badger.DB
+	seq *badger.Sequence
+
 	doers []flowstate.Doer
 
 	l *slog.Logger
 }
 
-func New(conn conn, opts ...Option) *Driver {
+func New() *Driver {
 	d := &Driver{
-		conn: conn,
-
-		q:            &queries{},
-		FlowRegistry: &memdriver.FlowRegistry{},
-		l:            slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
+		l: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
 	}
 
-	for _, opt := range opts {
-		opt(d)
-	}
-
-	d.doers = []flowstate.Doer{
+	doers := []flowstate.Doer{
 		flowstate.DefaultTransitDoer,
 		flowstate.DefaultPauseDoer,
 		flowstate.DefaultResumeDoer,
@@ -45,15 +35,14 @@ func New(conn conn, opts ...Option) *Driver {
 		flowstate.DefaultDeserializeDoer,
 		flowstate.DefaultDereferenceDataDoer,
 		flowstate.DefaultReferenceDataDoer,
-		flowstate.DefaultReferenceDataDoer,
-		flowstate.DefaultDereferenceDataDoer,
 
-		memdriver.NewFlowGetter(d.FlowRegistry),
-		NewDataer(d.conn, d.q),
-		NewCommiter(d.conn, d.q),
-		NewGetter(d.conn, d.q),
-		NewDelayer(d.conn, d.q, time.Now),
+		//NewDataLog(),
+		//NewFlowGetter(d.FlowRegistry),
+		//NewCommiter(log),
+		//NewGetter(log),
+		//NewDelayer(d.l),
 	}
+	d.doers = doers
 
 	return d
 }
@@ -73,6 +62,27 @@ func (d *Driver) Do(cmd0 flowstate.Command) error {
 }
 
 func (d *Driver) Init(e flowstate.Engine) error {
+	badgerOpts := badger.DefaultOptions("")
+	//badgerOpts = badgerOpts.WithLogger(badgerzlog.New(rt.l.WithPkg("badger")))
+	badgerOpts = badgerOpts.WithInMemory(true)
+
+	db, err := badger.Open(badgerOpts)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	d.db = db
+
+	seq, err := db.GetSequence([]byte("rev"), 10000)
+	if err != nil {
+		return fmt.Errorf("get sequence: %w", err)
+	}
+	d.seq = seq
+
+	// make sure we never get rev=0
+	if _, err = seq.Next(); err != nil {
+		return fmt.Errorf("seq: next: %w", err)
+	}
+
 	for _, doer := range d.doers {
 		if err := doer.Init(e); err != nil {
 			return fmt.Errorf("%T: init: %w", doer, err)
@@ -90,13 +100,12 @@ func (d *Driver) Shutdown(ctx context.Context) error {
 		}
 	}
 
-	return res
-}
-
-type Option func(*Driver)
-
-func WithLogger(l *slog.Logger) Option {
-	return func(d *Driver) {
-		d.l = l
+	if err := d.seq.Release(); err != nil {
+		res = errors.Join(res, fmt.Errorf("seq: release: %w", err))
 	}
+	if err := d.db.Close(); err != nil {
+		res = errors.Join(res, fmt.Errorf("db: close: %w", err))
+	}
+
+	return res
 }
