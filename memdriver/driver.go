@@ -105,12 +105,6 @@ func (d *Driver) Shutdown(ctx context.Context) error {
 
 type Option func(*Driver)
 
-func WithRecoverer(r flowstate.Doer) Option {
-	return func(d *Driver) {
-		d.recoverer = r
-	}
-}
-
 func WithLogger(l *slog.Logger) Option {
 	return func(d *Driver) {
 		d.l = l
