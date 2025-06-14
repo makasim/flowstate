@@ -24,10 +24,6 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 		args = append(args, "delayed", "true")
 	}
 
-	if currTs.Annotations[RecoveryAttemptAnnotation] != `` {
-		args = append(args, "recovered", currTs.Annotations[RecoveryAttemptAnnotation])
-	}
-
 	args = append(args, "labels", stateCtx.Current.Labels)
 
 	l.Info("engine: execute", args...)

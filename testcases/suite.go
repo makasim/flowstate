@@ -87,9 +87,6 @@ func Get(setUp func(t TestingT) (flowstate.Doer, FlowRegistry)) *Suite {
 			"Queue":     Queue,
 			"RateLimit": RateLimit,
 
-			"RecoveryAlwaysFail":       RecoveryAlwaysFail,
-			"RecoveryFirstAttemptFail": RecoveryFirstAttemptFail,
-
 			"SingleNode":                   SingleNode,
 			"ThreeConsequentNodes":         ThreeConsequentNodes,
 			"TwoConsequentNodes":           TwoConsequentNodes,
