@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/makasim/flowstate"
@@ -80,16 +81,16 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 					return fmt.Errorf("state id empty")
 				}
 
-				cmdCtxs[i].committableStateCtx = stateCtx.CopyTo(&flowstate.StateCtx{})
+				cmdCtxs[i].stateCtx = stateCtx
 			}
 
 			for i := range cmdCtxs {
-				if cmdCtxs[i].committableStateCtx == nil {
+				if cmdCtxs[i].stateCtx == nil {
 					continue
 				}
-				stateCtx := cmdCtxs[i].committableStateCtx
+				stateCtx := cmdCtxs[i].stateCtx
 
-				commitedRev, err := getLatestStateRev(txn, stateCtx)
+				commitedRev, err := getLatestStateRev(txn, stateCtx.Current)
 				if err != nil {
 					return err
 				}
@@ -103,19 +104,16 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 				if err != nil {
 					return fmt.Errorf("get next sequence: %w", err)
 				}
-				stateCtx.Current.Rev = int64(nextRev)
+				commitedState := stateCtx.Current.CopyTo(&flowstate.State{})
+				commitedState.Rev = int64(nextRev)
+				commitedState.CommittedAtUnixMilli = time.Now().UnixMilli()
+				cmdCtxs[i].commitedState = commitedState
 
-				if err := setState(txn, stateCtx); err != nil {
+				if err := setState(txn, commitedState); err != nil {
 					return fmt.Errorf("set state: %w", err)
 				}
-				if err := setLatestStateRev(txn, stateCtx); err != nil {
-					return fmt.Errorf("set state: %w", err)
-				}
-
-				for lk, lv := range stateCtx.Current.Labels {
-					if err := setStateLabel(txn, stateCtx.Current.ID, stateCtx.Current.Rev, lk, lv); err != nil {
-						return err
-					}
+				if err := setLatestStateRev(txn, commitedState); err != nil {
+					return fmt.Errorf("set latest state rev: %w", err)
 				}
 
 				// TODO: build labels index
@@ -133,6 +131,16 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 			return err
 		}
 
+		for i := range cmdCtxs {
+			if cmdCtxs[i].stateCtx == nil {
+				continue
+			}
+
+			stateCtx := cmdCtxs[i].stateCtx
+			cmdCtxs[i].commitedState.CopyTo(&stateCtx.Current)
+			cmdCtxs[i].commitedState.CopyTo(&stateCtx.Committed)
+		}
+
 		return nil
 	}
 }
@@ -147,7 +155,8 @@ func (d *Commiter) Shutdown(_ context.Context) error {
 }
 
 type cmdCtx struct {
-	cmd                 flowstate.Command
-	done                bool
-	committableStateCtx *flowstate.StateCtx
+	cmd           flowstate.Command
+	done          bool
+	stateCtx      *flowstate.StateCtx
+	commitedState flowstate.State
 }

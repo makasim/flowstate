@@ -11,12 +11,12 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-func setState(txn *badger.Txn, stateCtx *flowstate.StateCtx) error {
-	return setGOB(txn, stateKey(stateCtx.Current), stateCtx.Current)
+func setState(txn *badger.Txn, state flowstate.State) error {
+	return setGOB(txn, stateKey(state), state)
 }
 
-func getState(txn *badger.Txn, sid flowstate.StateID, srev int64) (flowstate.State, error) {
-	state := flowstate.State{ID: sid, Rev: srev}
+func getState(txn *badger.Txn, stateID flowstate.StateID, stateRev int64) (flowstate.State, error) {
+	state := flowstate.State{ID: stateID, Rev: stateRev}
 	if err := getGOB(txn, stateKey(state), &state); err != nil {
 		return flowstate.State{}, err
 	}
@@ -60,12 +60,12 @@ func getItemGOB(item *badger.Item, m any) error {
 	return nil
 }
 
-func setLatestStateRev(txn *badger.Txn, stateCtx *flowstate.StateCtx) error {
-	return setInt64(txn, latestStateRevKey(stateCtx.Current), stateCtx.Current.Rev)
+func setLatestStateRev(txn *badger.Txn, state flowstate.State) error {
+	return setInt64(txn, latestStateRevKey(state), state.Rev)
 }
 
-func getLatestStateRev(txn *badger.Txn, stateCtx *flowstate.StateCtx) (int64, error) {
-	rev, err := getInt64(txn, latestStateRevKey(stateCtx.Current))
+func getLatestStateRev(txn *badger.Txn, state flowstate.State) (int64, error) {
+	rev, err := getInt64(txn, latestStateRevKey(state))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 		return 0, nil
 	} else if err != nil {
@@ -140,5 +140,5 @@ func stateKey(state flowstate.State) []byte {
 }
 
 func latestStateRevKey(state flowstate.State) []byte {
-	return []byte(fmt.Sprintf(`flowstate.latest_states.%d.%s`, state.Rev, state.ID))
+	return []byte(fmt.Sprintf(`flowstate.latest_states.%s`, state.ID))
 }
