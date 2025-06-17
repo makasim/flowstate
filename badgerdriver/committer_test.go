@@ -15,13 +15,12 @@ func TestCommitter_CommitOK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open badger db: %v", err)
 	}
+	seq, err := getStateRevSequence(db)
+	if err != nil {
+		t.Fatalf("failed to get state rev sequence: %v", err)
+	}
 
 	f := func(stateCtx *flowstate.StateCtx) {
-		seq, err := getStateRevSequence(db)
-		if err != nil {
-			t.Fatalf("failed to get state rev sequence: %v", err)
-		}
-
 		c := NewCommiter(db, seq)
 		if err := c.Init(&stubEngine{}); err != nil {
 			t.Fatalf("failed to init engine: %v", err)
@@ -85,7 +84,7 @@ func TestCommitter_CommitOK(t *testing.T) {
 	})
 
 	//  state updated
-	storedState := storeTestState(t, db, flowstate.State{
+	storedState := storeTestState(t, db, seq, flowstate.State{
 		ID:                   `aStateID1`,
 		CommittedAtUnixMilli: 123456789,
 	})
@@ -106,13 +105,12 @@ func TestCommitter_CommitRevMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open badger db: %v", err)
 	}
+	seq, err := getStateRevSequence(db)
+	if err != nil {
+		t.Fatalf("failed to get state rev sequence: %v", err)
+	}
 
 	f := func(stateCtx *flowstate.StateCtx) {
-		seq, err := getStateRevSequence(db)
-		if err != nil {
-			t.Fatalf("failed to get state rev sequence: %v", err)
-		}
-
 		c := NewCommiter(db, seq)
 		if err := c.Init(&stubEngine{}); err != nil {
 			t.Fatalf("failed to init engine: %v", err)
@@ -159,7 +157,7 @@ func TestCommitter_CommitRevMismatch(t *testing.T) {
 	})
 
 	// stored state has rev different than commited 123
-	storedState1 := storeTestState(t, db, flowstate.State{
+	storedState1 := storeTestState(t, db, seq, flowstate.State{
 		ID:                   `aStateID1`,
 		CommittedAtUnixMilli: 123456789,
 	})
@@ -178,7 +176,7 @@ func TestCommitter_CommitRevMismatch(t *testing.T) {
 	})
 
 	// create new but there is already stored state
-	storedState2 := storeTestState(t, db, flowstate.State{
+	storedState2 := storeTestState(t, db, seq, flowstate.State{
 		ID:                   `aStateID2`,
 		CommittedAtUnixMilli: 123456789,
 	})
@@ -214,7 +212,7 @@ func TestCommitter_CommitSeveralStatesOK(t *testing.T) {
 		}
 	}()
 
-	state1 := storeTestState(t, db, flowstate.State{
+	state1 := storeTestState(t, db, seq, flowstate.State{
 		ID:                   `aStateID1`,
 		CommittedAtUnixMilli: 123456789,
 	})
@@ -223,7 +221,7 @@ func TestCommitter_CommitSeveralStatesOK(t *testing.T) {
 		Current:   state1,
 	}
 
-	state2 := storeTestState(t, db, flowstate.State{
+	state2 := storeTestState(t, db, seq, flowstate.State{
 		ID:                   `aStateID2`,
 		CommittedAtUnixMilli: 123456789,
 	})
@@ -269,7 +267,6 @@ func TestCommitter_CommitConcurrently(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open badger db: %v", err)
 	}
-
 	seq, err := getStateRevSequence(db)
 	if err != nil {
 		t.Fatalf("failed to get sequence: %v", err)
@@ -285,7 +282,7 @@ func TestCommitter_CommitConcurrently(t *testing.T) {
 		}
 	}()
 
-	storeTestState(t, db, flowstate.State{
+	storeTestState(t, db, seq, flowstate.State{
 		ID: `aStateID0`,
 	})
 
@@ -320,12 +317,7 @@ func TestCommitter_CommitConcurrently(t *testing.T) {
 	}
 }
 
-func storeTestState(t *testing.T, db *badger.DB, state flowstate.State) flowstate.State {
-	seq, err := getStateRevSequence(db)
-	if err != nil {
-		t.Fatalf("failed to get state rev sequence: %v", err)
-	}
-
+func storeTestState(t *testing.T, db *badger.DB, seq *badger.Sequence, state flowstate.State) flowstate.State {
 	rev, err := seq.Next()
 	if err != nil {
 		t.Fatalf("failed to get next sequence value: %v", err)

@@ -9,19 +9,26 @@ import (
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/memdriver"
 )
 
 type Driver struct {
-	db  *badger.DB
-	seq *badger.Sequence
+	*memdriver.FlowRegistry
+
+	db          *badger.DB
+	stateRevSeq *badger.Sequence
 
 	doers []flowstate.Doer
 
 	l *slog.Logger
 }
 
-func New() *Driver {
+func New(db *badger.DB) *Driver {
+
 	d := &Driver{
+		db:           db,
+		FlowRegistry: &memdriver.FlowRegistry{},
+
 		l: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
 	}
 
@@ -36,11 +43,8 @@ func New() *Driver {
 		flowstate.DefaultDereferenceDataDoer,
 		flowstate.DefaultReferenceDataDoer,
 
-		//NewDataLog(),
-		//NewFlowGetter(d.FlowRegistry),
-		//NewCommiter(log),
-		//NewGetter(log),
-		//NewDelayer(d.l),
+		NewCommiter(d.db, d.stateRevSeq),
+		NewGetter(d.db),
 	}
 	d.doers = doers
 
@@ -62,27 +66,18 @@ func (d *Driver) Do(cmd0 flowstate.Command) error {
 }
 
 func (d *Driver) Init(e flowstate.Engine) error {
-	badgerOpts := badger.DefaultOptions("")
-	//badgerOpts = badgerOpts.WithLogger(badgerzlog.New(rt.l.WithPkg("badger")))
-	badgerOpts = badgerOpts.WithInMemory(true)
-
-	db, err := badger.Open(badgerOpts)
+	stateRevSeq, err := getStateRevSequence(d.db)
 	if err != nil {
-		return fmt.Errorf("open: %w", err)
+		return fmt.Errorf("get state rev seq: %w", err)
 	}
-	d.db = db
-
-	seq, err := db.GetSequence([]byte("rev"), 10000)
-	if err != nil {
-		return fmt.Errorf("get sequence: %w", err)
-	}
-	d.seq = seq
+	d.stateRevSeq = stateRevSeq
 
 	// make sure we never get rev=0
-	if _, err = seq.Next(); err != nil {
-		return fmt.Errorf("seq: next: %w", err)
+	if _, err = stateRevSeq.Next(); err != nil {
+		return fmt.Errorf("state rev seq: next: %w", err)
 	}
 
+	d.doers = append(d.doers, NewCommiter(d.db, d.stateRevSeq))
 	for _, doer := range d.doers {
 		if err := doer.Init(e); err != nil {
 			return fmt.Errorf("%T: init: %w", doer, err)
@@ -100,7 +95,7 @@ func (d *Driver) Shutdown(ctx context.Context) error {
 		}
 	}
 
-	if err := d.seq.Release(); err != nil {
+	if err := d.stateRevSeq.Release(); err != nil {
 		res = errors.Join(res, fmt.Errorf("seq: release: %w", err))
 	}
 	if err := d.db.Close(); err != nil {
@@ -108,4 +103,17 @@ func (d *Driver) Shutdown(ctx context.Context) error {
 	}
 
 	return res
+}
+
+func getStateRevSequence(db *badger.DB) (*badger.Sequence, error) {
+	seq, err := db.GetSequence([]byte("rev.state"), 10000)
+	if err != nil {
+		return nil, err
+	}
+	// make sure we never get rev=0
+	if _, err := seq.Next(); err != nil {
+		return nil, err
+	}
+
+	return seq, nil
 }
