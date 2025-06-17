@@ -49,46 +49,35 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 		}
 	}
 
-	cmdCtxs := make([]cmdCtx, len(cmd.Commands))
-	for i := range cmd.Commands {
-		cmdCtxs[i] = cmdCtx{
-			cmd: cmd.Commands[i],
+	statesCtx := make([]*flowstate.StateCtx, len(cmd.Commands))
+	commitedStates := make([]flowstate.State, len(cmd.Commands))
+	for i, cmd0 := range cmd.Commands {
+		if err := d.e.Do(cmd0); err != nil {
+			return fmt.Errorf("%T: do: %w", cmd0, err)
 		}
+
+		cmd1, ok := cmd0.(flowstate.CommittableCommand)
+		if !ok {
+			continue
+		}
+
+		stateCtx := cmd1.CommittableStateCtx()
+		if stateCtx.Current.ID == `` {
+			return fmt.Errorf("state id empty")
+		}
+
+		statesCtx[i] = stateCtx
 	}
 
 	var attempt int
 	var maxAttempts = len(cmd.Commands)
 	for {
 		if err := d.db.Update(func(txn *badger.Txn) error {
-			for i, cmd0 := range cmd.Commands {
-				if cmdCtxs[i].done {
+			for i := range statesCtx {
+				stateCtx := statesCtx[i]
+				if statesCtx == nil {
 					continue
 				}
-
-				if err := d.e.Do(cmd0); err != nil {
-					return fmt.Errorf("%T: do: %w", cmd0, err)
-				}
-
-				cmdCtxs[i].done = true
-
-				cmd1, ok := cmd0.(flowstate.CommittableCommand)
-				if !ok {
-					continue
-				}
-
-				stateCtx := cmd1.CommittableStateCtx()
-				if stateCtx.Current.ID == `` {
-					return fmt.Errorf("state id empty")
-				}
-
-				cmdCtxs[i].stateCtx = stateCtx
-			}
-
-			for i := range cmdCtxs {
-				if cmdCtxs[i].stateCtx == nil {
-					continue
-				}
-				stateCtx := cmdCtxs[i].stateCtx
 
 				commitedRev, err := getLatestStateRev(txn, stateCtx.Current)
 				if err != nil {
@@ -96,7 +85,7 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 				}
 				if stateCtx.Committed.Rev != commitedRev {
 					conflictErr := &flowstate.ErrRevMismatch{}
-					conflictErr.Add(fmt.Sprintf("%T", cmdCtxs[i].cmd), stateCtx.Current.ID, nil)
+					conflictErr.Add(fmt.Sprintf("%T", cmd.Commands[i]), stateCtx.Current.ID, nil)
 					return conflictErr
 				}
 
@@ -104,10 +93,10 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 				if err != nil {
 					return fmt.Errorf("get next sequence: %w", err)
 				}
-				commitedState := stateCtx.Current.CopyTo(&flowstate.State{})
+				commitedState := stateCtx.Current.CopyTo(&commitedStates[i])
 				commitedState.Rev = int64(nextRev)
 				commitedState.CommittedAtUnixMilli = time.Now().UnixMilli()
-				cmdCtxs[i].commitedState = commitedState
+				commitedStates[i] = commitedState
 
 				if err := setState(txn, commitedState); err != nil {
 					return fmt.Errorf("set state: %w", err)
@@ -131,14 +120,14 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 			return err
 		}
 
-		for i := range cmdCtxs {
-			if cmdCtxs[i].stateCtx == nil {
+		for i := range commitedStates {
+			if statesCtx[i] == nil {
 				continue
 			}
 
-			stateCtx := cmdCtxs[i].stateCtx
-			cmdCtxs[i].commitedState.CopyTo(&stateCtx.Current)
-			cmdCtxs[i].commitedState.CopyTo(&stateCtx.Committed)
+			stateCtx := statesCtx[i]
+			commitedStates[i].CopyTo(&stateCtx.Current)
+			commitedStates[i].CopyTo(&stateCtx.Committed)
 		}
 
 		return nil
