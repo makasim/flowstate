@@ -79,7 +79,7 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 					continue
 				}
 
-				commitedRev, err := getLatestStateRev(txn, stateCtx.Current)
+				commitedRev, err := getLatestStateRev(txn, stateCtx.Current.ID)
 				if err != nil {
 					return err
 				}

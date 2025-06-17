@@ -61,11 +61,11 @@ func getItemGOB(item *badger.Item, m any) error {
 }
 
 func setLatestStateRev(txn *badger.Txn, state flowstate.State) error {
-	return setInt64(txn, latestStateRevKey(state), state.Rev)
+	return setInt64(txn, latestStateRevKey(state.ID), state.Rev)
 }
 
-func getLatestStateRev(txn *badger.Txn, state flowstate.State) (int64, error) {
-	rev, err := getInt64(txn, latestStateRevKey(state))
+func getLatestStateRev(txn *badger.Txn, stateID flowstate.StateID) (int64, error) {
+	rev, err := getInt64(txn, latestStateRevKey(stateID))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 		return 0, nil
 	} else if err != nil {
@@ -139,6 +139,6 @@ func stateKey(state flowstate.State) []byte {
 	return []byte(fmt.Sprintf(`flowstate.states.%d.%s`, state.Rev, state.ID))
 }
 
-func latestStateRevKey(state flowstate.State) []byte {
-	return []byte(fmt.Sprintf(`flowstate.latest_states.%s`, state.ID))
+func latestStateRevKey(stateID flowstate.StateID) []byte {
+	return []byte(fmt.Sprintf(`flowstate.latest_states.%s`, stateID))
 }
