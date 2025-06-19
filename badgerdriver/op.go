@@ -75,32 +75,14 @@ func getLatestStateRev(txn *badger.Txn, stateID flowstate.StateID) (int64, error
 	return rev, nil
 }
 
-func setStateLabel(txn *badger.Txn, stateID flowstate.StateID, stateRev int64, labelKey, labelVal string) error {
-	return txn.Set(
-		[]byte(fmt.Sprintf("flowstate.labels_index.%d.%s:%s", stateRev, labelKey, labelVal)),
-		[]byte(fmt.Sprintf("%s:%d", stateID, stateRev)),
-	)
+func setStateLabels(txn *badger.Txn, state flowstate.State) error {
+	for labelKey, labelVal := range state.Labels {
+		if err := txn.Set(stateLabelKey(labelKey, labelVal, state.Rev), []byte(state.ID)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
-
-//func getStateLabel(txn *badger.Txn, labelKey, labelVal string) (flowstate.StateID, int64, error) {
-//	item, err := txn.Get([]byte(fmt.Sprintf("flowstate.labels_index.%d.%s:%s", stateRev, labelKey, labelVal)))
-//	if err != nil {
-//		return "", 0, err
-//	}
-//
-//	val0, err := item.ValueCopy(nil)
-//	if err != nil {
-//		return "", 0, err
-//	}
-//	parts := bytes.Split(val0, []byte(":"))
-//	stateID := flowstate.StateID(parts[0])
-//	stateRev, err := strconv.ParseInt(string(parts[1]), 10, 64)
-//	if err != nil {
-//		return "", 0, err
-//	}
-//
-//	return stateID, stateRev, nil
-//}
 
 func setInt64(txn *badger.Txn, key []byte, v int64) error {
 	b := make([]byte, 8)
@@ -136,9 +118,17 @@ func getInt64(txn *badger.Txn, key []byte) (int64, error) {
 }
 
 func stateKey(state flowstate.State) []byte {
-	return []byte(fmt.Sprintf(`flowstate.states.%d.%s`, state.Rev, state.ID))
+	return []byte(fmt.Sprintf(`flowstate.states.%020d.%s`, state.Rev, state.ID))
 }
 
 func latestStateRevKey(stateID flowstate.StateID) []byte {
 	return []byte(fmt.Sprintf(`flowstate.latest_states.%s`, stateID))
+}
+
+func stateLabelKey(labelKey, labelVal string, stateRev int64) []byte {
+	return []byte(fmt.Sprintf("flowstate.index.state_labels.%s:%s.%020d", labelKey, labelVal, stateRev))
+}
+
+func stateLabelPrefix(labelKey, labelVal string) []byte {
+	return []byte(fmt.Sprintf("flowstate.index.state_labels.%s:%s.", labelKey, labelVal))
 }

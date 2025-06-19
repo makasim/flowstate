@@ -104,8 +104,9 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 				if err := setLatestStateRev(txn, commitedState); err != nil {
 					return fmt.Errorf("set latest state rev: %w", err)
 				}
-
-				// TODO: build labels index
+				if err := setStateLabels(txn, commitedState); err != nil {
+					return fmt.Errorf("set state labels: %w", err)
+				}
 			}
 
 			return nil

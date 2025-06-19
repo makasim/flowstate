@@ -331,6 +331,9 @@ func storeTestState(t *testing.T, db *badger.DB, seq *badger.Sequence, state flo
 		if err := setState(txn, state); err != nil {
 			t.Fatalf("failed to set state: %v", err)
 		}
+		if err := setStateLabels(txn, state); err != nil {
+			t.Fatalf("failed to set state labels: %v", err)
+		}
 		return nil
 	}); err != nil {
 		t.Fatalf("failed to update db: %v", err)

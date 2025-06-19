@@ -34,12 +34,18 @@ func (d *Getter) Do(cmd0 flowstate.Command) error {
 
 func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 	if len(cmd.Labels) > 0 {
-		//stateCtx, _ := d.l.GetLatestByLabels([]map[string]string{cmd.Labels})
-		//if stateCtx == nil {
-		//	return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
-		//}
-		//stateCtx.CopyTo(cmd.StateCtx)
-		return fmt.Errorf("not yet implemented")
+		return d.db.View(func(txn *badger.Txn) error {
+			it := newAndLabelIterator(txn, cmd.Labels, cmd.Rev)
+			defer it.Close()
+
+			if !it.Valid() {
+				return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
+			}
+
+			state := it.Current()
+			state.CopyToCtx(cmd.StateCtx)
+			return nil
+		})
 	} else if cmd.ID != "" && cmd.Rev >= 0 {
 		return d.db.View(func(txn *badger.Txn) error {
 			rev := cmd.Rev
