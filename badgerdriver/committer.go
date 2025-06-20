@@ -75,11 +75,11 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 		if err := d.db.Update(func(txn *badger.Txn) error {
 			for i := range statesCtx {
 				stateCtx := statesCtx[i]
-				if statesCtx == nil {
+				if stateCtx == nil {
 					continue
 				}
 
-				commitedRev, err := getLatestStateRev(txn, stateCtx.Current.ID)
+				commitedRev, err := getLatestRevIndex(txn, stateCtx.Current.ID)
 				if err != nil {
 					return err
 				}
@@ -101,11 +101,17 @@ func (d *Commiter) Do(cmd0 flowstate.Command) error {
 				if err := setState(txn, commitedState); err != nil {
 					return fmt.Errorf("set state: %w", err)
 				}
-				if err := setLatestStateRev(txn, commitedState); err != nil {
-					return fmt.Errorf("set latest state rev: %w", err)
+				if err := setLatestRevIndex(txn, commitedState); err != nil {
+					return fmt.Errorf("set latest rev index: %w", err)
 				}
-				if err := setStateLabels(txn, commitedState); err != nil {
-					return fmt.Errorf("set state labels: %w", err)
+				if err := setLabelsIndex(txn, commitedState); err != nil {
+					return fmt.Errorf("set labels index: %w", err)
+				}
+				if err := setRevIndex(txn, commitedState); err != nil {
+					return fmt.Errorf("set rev index: %w", err)
+				}
+				if err := setCommittedAtIndex(txn, commitedState); err != nil {
+					return fmt.Errorf("set committed at index: %w", err)
 				}
 			}
 

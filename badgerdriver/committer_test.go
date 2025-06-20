@@ -58,7 +58,7 @@ func TestCommitter_CommitOK(t *testing.T) {
 				t.Fatal("commited state does not match expected state")
 			}
 
-			storedRev, err := getLatestStateRev(txn, storedState.ID)
+			storedRev, err := getLatestRevIndex(txn, storedState.ID)
 			if err != nil {
 				t.Fatal("failed to get latest state revision:", err)
 			}
@@ -124,7 +124,7 @@ func TestCommitter_CommitRevMismatch(t *testing.T) {
 		expStateCtx := stateCtx.CopyTo(&flowstate.StateCtx{})
 
 		if err := db.Update(func(txn *badger.Txn) error {
-			if err := setLatestStateRev(txn, flowstate.State{ID: `aStateID`, Rev: 123}); err != nil {
+			if err := setLatestRevIndex(txn, flowstate.State{ID: `aStateID`, Rev: 123}); err != nil {
 				t.Fatalf("failed to set state: %v", err)
 			}
 			return nil
@@ -295,7 +295,7 @@ func TestCommitter_CommitConcurrently(t *testing.T) {
 			stateCtx := &flowstate.StateCtx{}
 			for j := 0; j < 50; j++ {
 				db.View(func(txn *badger.Txn) error {
-					rev, err := getLatestStateRev(txn, `aStateID0`)
+					rev, err := getLatestRevIndex(txn, `aStateID0`)
 					if err != nil {
 						t.Fatalf("failed to get latest state revision: %v", err)
 					}
@@ -325,14 +325,17 @@ func storeTestState(t *testing.T, db *badger.DB, seq *badger.Sequence, state flo
 	state.Rev = int64(rev)
 
 	if err := db.Update(func(txn *badger.Txn) error {
-		if err := setLatestStateRev(txn, state); err != nil {
-			t.Fatalf("failed to set state: %v", err)
-		}
 		if err := setState(txn, state); err != nil {
 			t.Fatalf("failed to set state: %v", err)
 		}
-		if err := setStateLabels(txn, state); err != nil {
-			t.Fatalf("failed to set state labels: %v", err)
+		if err := setLatestRevIndex(txn, state); err != nil {
+			t.Fatalf("failed to set latest rev index: %v", err)
+		}
+		if err := setLabelsIndex(txn, state); err != nil {
+			t.Fatalf("failed to set labels index: %v", err)
+		}
+		if err := setRevIndex(txn, state); err != nil {
+			t.Fatalf("failed to set rev index: %v", err)
 		}
 		return nil
 	}); err != nil {

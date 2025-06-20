@@ -35,7 +35,12 @@ func (d *Getter) Do(cmd0 flowstate.Command) error {
 func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 	if len(cmd.Labels) > 0 {
 		return d.db.View(func(txn *badger.Txn) error {
-			it := newAndLabelIterator(txn, cmd.Labels, cmd.Rev)
+			reverse := false
+			if cmd.Rev == 0 {
+				reverse = true
+			}
+
+			it := newLabelsIterator(txn, cmd.Labels, cmd.Rev, reverse)
 			defer it.Close()
 
 			if !it.Valid() {
@@ -51,7 +56,7 @@ func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 			rev := cmd.Rev
 			if rev == 0 {
 				var err error
-				rev, err = getLatestStateRev(txn, cmd.ID)
+				rev, err = getLatestRevIndex(txn, cmd.ID)
 				if err != nil {
 					return err
 				}
@@ -75,7 +80,55 @@ func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
 func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 	cmd.Prepare()
 
-	return fmt.Errorf("get many command not implemented yet")
+	return d.db.View(func(txn *badger.Txn) error {
+		sinceRev := cmd.SinceRev
+		if !cmd.SinceTime.IsZero() {
+			caIt := newCommittedAtIterator(txn, cmd.SinceTime, false)
+			defer caIt.Close()
+
+			if !caIt.Valid() {
+				cmd.SetResult(&flowstate.GetManyResult{})
+				return nil
+			}
+
+			sinceRev = caIt.Current().Rev - 1
+		}
+
+		if sinceRev == -1 {
+			latestIt := newOrLabelsIterator(txn, cmd.Labels, 0, true)
+			defer latestIt.Close()
+
+			if !latestIt.Valid() {
+				cmd.SetResult(&flowstate.GetManyResult{})
+				return nil
+			}
+
+			sinceRev = latestIt.Current().Rev - 1
+		}
+
+		it := newOrLabelsIterator(txn, cmd.Labels, sinceRev, false)
+		defer it.Close()
+
+		res := &flowstate.GetManyResult{}
+		for ; it.Valid(); it.Next() {
+			if len(res.States) > cmd.Limit {
+				res.More = true
+				break
+			}
+
+			state := it.Current()
+			if cmd.LatestOnly {
+				latestRev, _ := getLatestRevIndex(txn, state.ID)
+				if state.Rev < latestRev {
+					continue
+				}
+			}
+
+			res.States = append(res.States, state)
+		}
+		cmd.SetResult(res)
+		return nil
+	})
 }
 
 func (d *Getter) Init(_ flowstate.Engine) error {

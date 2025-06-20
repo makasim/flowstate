@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/makasim/flowstate"
@@ -22,6 +23,10 @@ func getState(txn *badger.Txn, stateID flowstate.StateID, stateRev int64) (flows
 	}
 
 	return state, nil
+}
+
+func stateKey(state flowstate.State) []byte {
+	return []byte(fmt.Sprintf(`flowstate.states.%020d.%s`, state.Rev, state.ID))
 }
 
 func setGOB(txn *badger.Txn, k []byte, m any) error {
@@ -60,12 +65,12 @@ func getItemGOB(item *badger.Item, m any) error {
 	return nil
 }
 
-func setLatestStateRev(txn *badger.Txn, state flowstate.State) error {
-	return setInt64(txn, latestStateRevKey(state.ID), state.Rev)
+func setLatestRevIndex(txn *badger.Txn, state flowstate.State) error {
+	return setInt64(txn, latestRevKey(state.ID), state.Rev)
 }
 
-func getLatestStateRev(txn *badger.Txn, stateID flowstate.StateID) (int64, error) {
-	rev, err := getInt64(txn, latestStateRevKey(stateID))
+func getLatestRevIndex(txn *badger.Txn, stateID flowstate.StateID) (int64, error) {
+	rev, err := getInt64(txn, latestRevKey(stateID))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 		return 0, nil
 	} else if err != nil {
@@ -75,13 +80,8 @@ func getLatestStateRev(txn *badger.Txn, stateID flowstate.StateID) (int64, error
 	return rev, nil
 }
 
-func setStateLabels(txn *badger.Txn, state flowstate.State) error {
-	for labelKey, labelVal := range state.Labels {
-		if err := txn.Set(stateLabelKey(labelKey, labelVal, state.Rev), []byte(state.ID)); err != nil {
-			return err
-		}
-	}
-	return nil
+func latestRevKey(stateID flowstate.StateID) []byte {
+	return []byte(fmt.Sprintf(`flowstate.index.latest_rev.%s`, stateID))
 }
 
 func setInt64(txn *badger.Txn, key []byte, v int64) error {
@@ -117,18 +117,43 @@ func getInt64(txn *badger.Txn, key []byte) (int64, error) {
 	return int64(val), err
 }
 
-func stateKey(state flowstate.State) []byte {
-	return []byte(fmt.Sprintf(`flowstate.states.%020d.%s`, state.Rev, state.ID))
+func setLabelsIndex(txn *badger.Txn, state flowstate.State) error {
+	for labelKey, labelVal := range state.Labels {
+		if err := txn.Set(labelIndexKey(labelKey, labelVal, state.Rev), []byte(state.ID)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func latestStateRevKey(stateID flowstate.StateID) []byte {
-	return []byte(fmt.Sprintf(`flowstate.latest_states.%s`, stateID))
+func labelIndexKey(labelKey, labelVal string, stateRev int64) []byte {
+	return []byte(fmt.Sprintf("%s%020d", labelIndexPrefix(labelKey, labelVal), stateRev))
 }
 
-func stateLabelKey(labelKey, labelVal string, stateRev int64) []byte {
-	return []byte(fmt.Sprintf("flowstate.index.state_labels.%s:%s.%020d", labelKey, labelVal, stateRev))
+func labelIndexPrefix(labelKey, labelVal string) []byte {
+	return []byte(fmt.Sprintf("flowstate.index.labels.%s:%s.", labelKey, labelVal))
 }
 
-func stateLabelPrefix(labelKey, labelVal string) []byte {
-	return []byte(fmt.Sprintf("flowstate.index.state_labels.%s:%s.", labelKey, labelVal))
+func setRevIndex(txn *badger.Txn, state flowstate.State) error {
+	return txn.Set(revIndexKey(state.Rev), []byte(state.ID))
+}
+
+func revIndexKey(stateRev int64) []byte {
+	return []byte(fmt.Sprintf("%s%020d", revIndexPrefix(), stateRev))
+}
+
+func revIndexPrefix() []byte {
+	return []byte("flowstate.index.rev.")
+}
+
+func setCommittedAtIndex(txn *badger.Txn, state flowstate.State) error {
+	return txn.Set(committedAtIndexKey(state.CommittedAt(), state.Rev), []byte(state.ID))
+}
+
+func committedAtIndexKey(committedAt time.Time, stateRev int64) []byte {
+	return []byte(fmt.Sprintf("%s%020d.%020d", committedAtIndexPrefix(), committedAt.UnixMilli(), stateRev))
+}
+
+func committedAtIndexPrefix() []byte {
+	return []byte("flowstate.index.committed_at.")
 }

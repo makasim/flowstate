@@ -43,8 +43,7 @@ func New(db *badger.DB) *Driver {
 		flowstate.DefaultDereferenceDataDoer,
 		flowstate.DefaultReferenceDataDoer,
 
-		NewCommiter(d.db, d.stateRevSeq),
-		NewGetter(d.db),
+		memdriver.NewFlowGetter(d.FlowRegistry),
 	}
 	d.doers = doers
 
@@ -71,18 +70,15 @@ func (d *Driver) Init(e flowstate.Engine) error {
 		return fmt.Errorf("get state rev seq: %w", err)
 	}
 	d.stateRevSeq = stateRevSeq
-
-	// make sure we never get rev=0
-	if _, err = stateRevSeq.Next(); err != nil {
-		return fmt.Errorf("state rev seq: next: %w", err)
-	}
-
+	
 	d.doers = append(d.doers, NewCommiter(d.db, d.stateRevSeq))
 	for _, doer := range d.doers {
 		if err := doer.Init(e); err != nil {
 			return fmt.Errorf("%T: init: %w", doer, err)
 		}
 	}
+
+	d.doers = append(d.doers, NewGetter(d.db))
 
 	return nil
 }

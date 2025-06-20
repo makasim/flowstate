@@ -1,6 +1,7 @@
 package badgerdriver
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
@@ -8,8 +9,8 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-func TestAndLabelIterator(t *testing.T) {
-	f := func(storedStates []flowstate.State, queryLabels map[string]string, sinceRev int64, expRes []flowstate.State) {
+func TestLabelsIterator(t *testing.T) {
+	f := func(storedStates []flowstate.State, labels map[string]string, sinceRev int64, reverse bool, expRes []flowstate.State) {
 		t.Helper()
 		db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLoggingLevel(2))
 		if err != nil {
@@ -26,7 +27,7 @@ func TestAndLabelIterator(t *testing.T) {
 
 		var actRes []flowstate.State
 		if err := db.View(func(txn *badger.Txn) error {
-			it := newAndLabelIterator(txn, queryLabels, sinceRev)
+			it := newLabelsIterator(txn, labels, sinceRev, reverse)
 			defer it.Close()
 
 			for ; it.Valid(); it.Next() {
@@ -49,7 +50,7 @@ func TestAndLabelIterator(t *testing.T) {
 	}
 
 	// no states in db
-	f(nil, map[string]string{"foo": "fooVal"}, 0, nil)
+	f(nil, map[string]string{"foo": "fooVal"}, 0, false, nil)
 
 	// no match
 	f(
@@ -69,6 +70,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal"},
 		0,
+		false,
 		nil,
 	)
 
@@ -90,6 +92,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal"},
 		0,
+		false,
 		[]flowstate.State{
 			{
 				ID:     "1",
@@ -104,6 +107,44 @@ func TestAndLabelIterator(t *testing.T) {
 			{
 				ID:     "3",
 				Rev:    3,
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+		},
+	)
+
+	// order desc (reverse)
+	f(
+		[]flowstate.State{
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "2",
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "3",
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+		},
+		map[string]string{"foo": "fooVal"},
+		math.MaxInt64,
+		true,
+		[]flowstate.State{
+			{
+				ID:     "3",
+				Rev:    3,
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "2",
+				Rev:    2,
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "1",
+				Rev:    1,
 				Labels: map[string]string{"foo": "fooVal"},
 			},
 		},
@@ -127,6 +168,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal"},
 		2,
+		false,
 		[]flowstate.State{
 			{
 				ID:     "2",
@@ -136,6 +178,39 @@ func TestAndLabelIterator(t *testing.T) {
 			{
 				ID:     "3",
 				Rev:    3,
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+		},
+	)
+
+	// since rev 2 (reverse)
+	f(
+		[]flowstate.State{
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "2",
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "3",
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+		},
+		map[string]string{"foo": "fooVal"},
+		2,
+		true,
+		[]flowstate.State{
+			{
+				ID:     "2",
+				Rev:    2,
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "1",
+				Rev:    1,
 				Labels: map[string]string{"foo": "fooVal"},
 			},
 		},
@@ -159,6 +234,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal"},
 		0,
+		false,
 		[]flowstate.State{
 			{
 				ID:     "1",
@@ -196,6 +272,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal"},
 		0,
+		false,
 		[]flowstate.State{
 			{
 				ID:     "1",
@@ -228,6 +305,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal", "bar": "barVal"},
 		0,
+		false,
 		[]flowstate.State{
 			{
 				ID:     "1",
@@ -265,6 +343,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal", "bar": "barVal"},
 		0,
+		false,
 		[]flowstate.State{
 			{
 				ID:     "1",
@@ -325,6 +404,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
 		0,
+		false,
 		[]flowstate.State{
 			{
 				ID:     "1",
@@ -344,6 +424,110 @@ func TestAndLabelIterator(t *testing.T) {
 			{
 				ID:     "1",
 				Rev:    10,
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+			},
+		},
+	)
+
+	// select some by several labels
+	f(
+		[]flowstate.State{
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+			{
+				ID:     "2",
+				Labels: map[string]string{"foo": "anotherVal", "bar": "barVal"},
+			},
+			{
+				ID:     "3",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+		},
+		map[string]string{"foo": "fooVal", "bar": "barVal"},
+		0,
+		false,
+		[]flowstate.State{
+			{
+				ID:     "1",
+				Rev:    1,
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+			{
+				ID:     "3",
+				Rev:    3,
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+		},
+	)
+
+	// select some by several labels (reverse)
+	f(
+		[]flowstate.State{
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+			},
+		},
+		map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+		0,
+		true,
+		[]flowstate.State{
+			{
+				ID:     "1",
+				Rev:    10,
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Rev:    7,
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Rev:    4,
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Rev:    1,
 				Labels: map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
 			},
 		},
@@ -387,6 +571,7 @@ func TestAndLabelIterator(t *testing.T) {
 		},
 		map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
 		0,
+		false,
 		[]flowstate.State{},
 	)
 }
