@@ -348,4 +348,45 @@ func TestAndLabelIterator(t *testing.T) {
 			},
 		},
 	)
+
+	// only partially match, no results
+	f(
+		[]flowstate.State{
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "bar": "barVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"bar": "barVal", "ololo": "ololoVal"},
+			},
+			{
+				ID:     "1",
+				Labels: map[string]string{"foo": "fooVal", "ololo": "ololoVal"},
+			},
+		},
+		map[string]string{"foo": "fooVal", "bar": "barVal", "ololo": "ololoVal"},
+		0,
+		[]flowstate.State{},
+	)
 }
