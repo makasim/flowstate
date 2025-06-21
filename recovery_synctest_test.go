@@ -24,7 +24,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			lh := slogassert.New(t, slog.LevelDebug, nil)
 			l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
-			d := memdriver.New()
+			d := memdriver.New(l)
 			d.SetFlow(`aFlow`, flowFn)
 
 			e, err := flowstate.NewEngine(d, l)
@@ -504,7 +504,7 @@ func TestRecovererActiveStandby(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
-		d := memdriver.New()
+		d := memdriver.New(l)
 		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
@@ -591,7 +591,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
-		d := memdriver.New()
+		d := memdriver.New(l)
 		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
@@ -687,7 +687,7 @@ func TestRecovererOnlyOneActive(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
-		d := memdriver.New()
+		d := memdriver.New(l)
 		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))

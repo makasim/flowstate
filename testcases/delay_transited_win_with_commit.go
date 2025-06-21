@@ -23,7 +23,7 @@ func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry
 			), nil
 		}
 
-		if err := e.Do(flowstate.Delay(stateCtx, time.Millisecond*200)); err != nil {
+		if err := e.Do(flowstate.Delay(stateCtx, time.Second*2)); err != nil {
 			return nil, err
 		}
 
@@ -54,6 +54,15 @@ func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
+	dlr, err := flowstate.NewDelayer(e, l)
+	require.NoError(t, err)
+	defer func() {
+		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer sCtxCancel()
+
+		require.NoError(t, dlr.Shutdown(sCtx))
+	}()
+
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -64,5 +73,5 @@ func Delay_TransitedWin_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry
 	require.NoError(t, e.Execute(stateCtx))
 
 	// no second in list
-	trkr.WaitVisitedEqual(t, []string{`first`, `third`, `first`}, time.Second)
+	trkr.WaitVisitedEqual(t, []string{`first`, `third`, `first`}, time.Second*5)
 }

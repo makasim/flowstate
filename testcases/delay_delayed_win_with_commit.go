@@ -24,12 +24,12 @@ func Delay_DelayedWin_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) 
 		}
 
 		if err := e.Do(
-			flowstate.Delay(stateCtx, time.Millisecond*200),
+			flowstate.Delay(stateCtx, time.Second*2),
 		); err != nil {
 			return nil, err
 		}
 
-		time.Sleep(time.Millisecond * 400)
+		time.Sleep(time.Second * 3)
 
 		return flowstate.Commit(
 			flowstate.Transit(stateCtx, `third`),
@@ -58,6 +58,15 @@ func Delay_DelayedWin_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) 
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
+	dlr, err := flowstate.NewDelayer(e, l)
+	require.NoError(t, err)
+	defer func() {
+		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer sCtxCancel()
+
+		require.NoError(t, dlr.Shutdown(sCtx))
+	}()
+
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -69,5 +78,5 @@ func Delay_DelayedWin_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) 
 	require.NoError(t, e.Execute(stateCtx))
 
 	// no third in list
-	trkr.WaitVisitedEqual(t, []string{`first`, `first`, `second`}, time.Millisecond*500)
+	trkr.WaitVisitedEqual(t, []string{`first`, `first`, `second`}, time.Second*5)
 }
