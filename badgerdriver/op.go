@@ -157,3 +157,47 @@ func committedAtIndexKey(committedAt time.Time, stateRev int64) []byte {
 func committedAtIndexPrefix() []byte {
 	return []byte("flowstate.index.committed_at.")
 }
+
+func dataBKey(data *flowstate.Data) []byte {
+	return []byte(fmt.Sprintf(`flowstate.data.blob.%020d.%s`, data.Rev, data.ID))
+}
+
+func dataBinaryKey(data *flowstate.Data) []byte {
+	return []byte(fmt.Sprintf(`flowstate.data.binary.%020d.%s`, data.Rev, data.ID))
+}
+
+func setData(txn *badger.Txn, data *flowstate.Data) error {
+	if err := txn.Set(dataBKey(data), data.B); err != nil {
+		return fmt.Errorf("set data.B: %w", err)
+	}
+
+	var dataBinary []byte
+	if data.Binary {
+		dataBinary = append(dataBinary, 1)
+	}
+
+	if err := txn.Set(dataBinaryKey(data), dataBinary); err != nil {
+		return fmt.Errorf("set data.Binary: %w", err)
+	}
+
+	return nil
+}
+
+func getData(txn *badger.Txn, data *flowstate.Data) error {
+	item, err := txn.Get(dataBKey(data))
+	if err != nil {
+		return fmt.Errorf("get data.Bd: %w", err)
+	}
+	data.B, err = item.ValueCopy(data.B)
+	if err != nil {
+		return fmt.Errorf("copy data.B: %w", err)
+	}
+
+	dataBinary, err := txn.Get(dataBinaryKey(data))
+	if err != nil {
+		return fmt.Errorf("get data.Binary: %w", err)
+	}
+	data.Binary = dataBinary.ValueSize() > 0
+
+	return nil
+}

@@ -17,6 +17,7 @@ type Driver struct {
 
 	db          *badger.DB
 	stateRevSeq *badger.Sequence
+	dataRevSeq  *badger.Sequence
 
 	doers []flowstate.Doer
 
@@ -70,15 +71,21 @@ func (d *Driver) Init(e flowstate.Engine) error {
 		return fmt.Errorf("get state rev seq: %w", err)
 	}
 	d.stateRevSeq = stateRevSeq
-	
+
+	dataRevSeq, err := getDataRevSequence(d.db)
+	if err != nil {
+		return fmt.Errorf("get data rev seq: %w", err)
+	}
+	d.dataRevSeq = dataRevSeq
+
 	d.doers = append(d.doers, NewCommiter(d.db, d.stateRevSeq))
 	for _, doer := range d.doers {
 		if err := doer.Init(e); err != nil {
 			return fmt.Errorf("%T: init: %w", doer, err)
 		}
 	}
-
 	d.doers = append(d.doers, NewGetter(d.db))
+	d.doers = append(d.doers, NewDataer(d.db, d.dataRevSeq))
 
 	return nil
 }
@@ -102,7 +109,20 @@ func (d *Driver) Shutdown(ctx context.Context) error {
 }
 
 func getStateRevSequence(db *badger.DB) (*badger.Sequence, error) {
-	seq, err := db.GetSequence([]byte("rev.state"), 10000)
+	seq, err := db.GetSequence([]byte("flowstate.rev.state"), 10000)
+	if err != nil {
+		return nil, err
+	}
+	// make sure we never get rev=0
+	if _, err := seq.Next(); err != nil {
+		return nil, err
+	}
+
+	return seq, nil
+}
+
+func getDataRevSequence(db *badger.DB) (*badger.Sequence, error) {
+	seq, err := db.GetSequence([]byte("flowstate.rev.data"), 10000)
 	if err != nil {
 		return nil, err
 	}
