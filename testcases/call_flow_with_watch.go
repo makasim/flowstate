@@ -48,7 +48,7 @@ func CallFlowWithWatch(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 			}
 		}
 
-		w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
+		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
 			`theWatchLabel`: string(stateCtx.Current.ID),
 		}).WithSinceRev(stateCtx.Committed.Rev))
 		defer w.Close()

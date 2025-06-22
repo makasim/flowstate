@@ -134,7 +134,7 @@ func NewRecoverer(e Engine, l *slog.Logger) *Recoverer {
 func (r *Recoverer) Init() error {
 	recoverStateCtx := &StateCtx{}
 	active := true
-	if err := r.e.Do(GetByID(recoverStateCtx, recoveryStateID, 0)); errors.Is(err, ErrNotFound) {
+	if err := r.e.Do(GetStateByID(recoverStateCtx, recoveryStateID, 0)); errors.Is(err, ErrNotFound) {
 		recoverStateCtx = &StateCtx{
 			Current: State{
 				ID:  recoveryStateID,
@@ -274,7 +274,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 		//	return nil
 		//}
 
-		getManyCmd := GetManyByLabels(nil).WithSinceRev(r.sinceRev)
+		getManyCmd := GetStatesByLabels(nil).WithSinceRev(r.sinceRev)
 		if err := r.e.Do(getManyCmd); err != nil {
 			return fmt.Errorf("get many states: %w; since_rev=%d", err, r.sinceRev)
 		}

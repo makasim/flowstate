@@ -46,6 +46,6 @@ func GetOneByIDAndRev(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 
 	foundStateCtx := &flowstate.StateCtx{}
 
-	require.NoError(t, e.Do(flowstate.GetByID(foundStateCtx, `aTID`, expectedStateCtx.Committed.Rev)))
+	require.NoError(t, e.Do(flowstate.GetStateByID(foundStateCtx, `aTID`, expectedStateCtx.Committed.Rev)))
 	require.Equal(t, expectedStateCtx, foundStateCtx)
 }

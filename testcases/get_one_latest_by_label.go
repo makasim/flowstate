@@ -46,7 +46,7 @@ func GetOneLatestByLabel(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 
 	foundStateCtx := &flowstate.StateCtx{}
 
-	require.NoError(t, e.Do(flowstate.GetByLabels(foundStateCtx, map[string]string{
+	require.NoError(t, e.Do(flowstate.GetStateByLabels(foundStateCtx, map[string]string{
 		"foo": "fooVal",
 	})))
 	require.Equal(t, stateCtx, foundStateCtx)
