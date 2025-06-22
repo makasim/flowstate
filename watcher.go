@@ -8,13 +8,13 @@ import (
 type Watcher struct {
 	e Engine
 
-	cmd     *GetManyCommand
+	cmd     *GetStatesCommand
 	watchCh chan State
 	closeCh chan struct{}
 }
 
-func NewWatcher(e Engine, cmd *GetManyCommand) *Watcher {
-	copyCmd := &GetManyCommand{
+func NewWatcher(e Engine, cmd *GetStatesCommand) *Watcher {
+	copyCmd := &GetStatesCommand{
 		SinceRev:   cmd.SinceRev,
 		SinceTime:  cmd.SinceTime,
 		Labels:     copyORLabels(cmd.Labels),

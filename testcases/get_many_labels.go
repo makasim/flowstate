@@ -51,7 +51,7 @@ func GetManyLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		}),
 	)))
 
-	cmd := flowstate.GetManyByLabels(map[string]string{
+	cmd := flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	})
 	require.NoError(t, e.Do(cmd))

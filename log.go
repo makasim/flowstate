@@ -125,7 +125,7 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 		args = append(args, "cmd", "serialize")
 	case *GetFlowCommand:
 		args = append(args, "cmd", "get_flow", "flow_id", cmd.StateCtx.Current.Transition.ToID)
-	case *GetManyCommand:
+	case *GetStatesCommand:
 		args = append(args, "cmd", "watch")
 		if cmd.SinceRev > 0 {
 			args = append(args, "since_rev", cmd.SinceRev)

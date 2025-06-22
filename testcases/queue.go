@@ -33,7 +33,7 @@ func Queue(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 	fr.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
+		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
 			"queue": "theName",
 		}))
 		defer w.Close()

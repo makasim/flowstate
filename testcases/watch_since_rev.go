@@ -42,7 +42,7 @@ func WatchSinceRev(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		flowstate.Pause(stateCtx),
 	)))
 
-	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceRev(sinceRev))
 	defer w.Close()

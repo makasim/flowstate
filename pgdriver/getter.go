@@ -32,48 +32,50 @@ func NewGetter(conn conn, q getterQueries) *Getter {
 
 func (d *Getter) Do(cmd0 flowstate.Command) error {
 	switch cmd := cmd0.(type) {
-	case *flowstate.GetCommand:
-		return d.doGet(cmd)
-	case *flowstate.GetManyCommand:
+	case *flowstate.GetStateByIDCommand:
+		return d.doGetStateByID(cmd)
+	case *flowstate.GetStateByLabelsCommand:
+		return d.doGetStateByLabels(cmd)
+	case *flowstate.GetStatesCommand:
 		return d.doGetMany(cmd)
 	default:
 		return flowstate.ErrCommandNotSupported
 	}
 }
 
-func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
-	if false == (len(cmd.Labels) == 0 || cmd.ID == "") {
-		return fmt.Errorf("labels or id mus be set")
+func (d *Getter) doGetStateByID(cmd *flowstate.GetStateByIDCommand) error {
+	if err := cmd.Prepare(); err != nil {
+		return fmt.Errorf("get state by id: preapare: %w", err)
 	}
 
 	s := flowstate.State{}
-	if len(cmd.Labels) > 0 {
-		rev := cmd.Rev
-		if rev == 0 {
-			rev = -1
-		}
-
-		ss := []flowstate.State{s}
-		ss, err := d.q.GetStatesByLabels(context.Background(), d.conn, []map[string]string{cmd.Labels}, rev, time.Time{}, ss)
-		if err != nil {
-			return fmt.Errorf("get states by labels query: %w", err)
-		} else if len(ss) == 0 {
-			return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
-		}
-		s = ss[0]
-	} else {
-		if err := d.q.GetStateByID(context.Background(), d.conn, cmd.ID, cmd.Rev, &s); errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("%w; id=%v rev=%d", flowstate.ErrNotFound, cmd.ID, cmd.Rev)
-		} else if err != nil {
-			return fmt.Errorf("get state by id query: %w", err)
-		}
+	if err := d.q.GetStateByID(context.Background(), d.conn, cmd.ID, cmd.Rev, &s); errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("%w; id=%v rev=%d", flowstate.ErrNotFound, cmd.ID, cmd.Rev)
+	} else if err != nil {
+		return fmt.Errorf("get state by id: query: %w", err)
 	}
 
 	s.CopyToCtx(cmd.StateCtx)
 	return nil
 }
 
-func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
+func (d *Getter) doGetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error {
+	s := flowstate.State{}
+
+	ss := []flowstate.State{s}
+	ss, err := d.q.GetStatesByLabels(context.Background(), d.conn, []map[string]string{cmd.Labels}, -1, time.Time{}, ss)
+	if err != nil {
+		return fmt.Errorf("get states by labels query: %w", err)
+	} else if len(ss) == 0 {
+		return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
+	}
+	s = ss[0]
+
+	s.CopyToCtx(cmd.StateCtx)
+	return nil
+}
+
+func (d *Getter) doGetMany(cmd *flowstate.GetStatesCommand) error {
 	cmd.Prepare()
 
 	ss := make([]flowstate.State, cmd.Limit+1)
@@ -97,7 +99,7 @@ func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 		more = true
 	}
 
-	cmd.SetResult(&flowstate.GetManyResult{
+	cmd.SetResult(&flowstate.GetStatesResult{
 		States: ss,
 		More:   more,
 	})

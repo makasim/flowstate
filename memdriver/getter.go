@@ -21,42 +21,51 @@ func NewGetter(l *Log) *Getter {
 
 func (d *Getter) Do(cmd0 flowstate.Command) error {
 	switch cmd := cmd0.(type) {
-	case *flowstate.GetCommand:
-		return d.doGet(cmd)
-	case *flowstate.GetManyCommand:
+	case *flowstate.GetStateByIDCommand:
+		return d.doGetStateByID(cmd)
+	case *flowstate.GetStateByLabelsCommand:
+		return d.doGetStateByLabels(cmd)
+	case *flowstate.GetStatesCommand:
 		return d.doGetMany(cmd)
 	default:
 		return flowstate.ErrCommandNotSupported
 	}
 }
 
-func (d *Getter) doGet(cmd *flowstate.GetCommand) error {
-	if len(cmd.Labels) > 0 {
-		stateCtx, _ := d.l.GetLatestByLabels([]map[string]string{cmd.Labels})
-		if stateCtx == nil {
-			return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
-		}
-		stateCtx.CopyTo(cmd.StateCtx)
-	} else if cmd.ID != "" && cmd.Rev == 0 {
+func (d *Getter) doGetStateByID(cmd *flowstate.GetStateByIDCommand) error {
+	if err := cmd.Prepare(); err != nil {
+		return fmt.Errorf("get state by id: %w", err)
+	}
+
+	if cmd.Rev == 0 {
 		stateCtx, _ := d.l.GetLatestByID(cmd.ID)
 		if stateCtx == nil {
 			return fmt.Errorf("%w; id=%s", flowstate.ErrNotFound, cmd.ID)
 		}
 		stateCtx.CopyTo(cmd.StateCtx)
-	} else if cmd.ID != "" && cmd.Rev > 0 {
-		stateCtx := d.l.GetByIDAndRev(cmd.ID, cmd.Rev)
-		if stateCtx == nil {
-			return fmt.Errorf("%w; id=%s rev=%d", flowstate.ErrNotFound, cmd.ID, cmd.Rev)
-		}
-		stateCtx.CopyTo(cmd.StateCtx)
-	} else {
-		return fmt.Errorf("invalid get command")
+		return nil
 	}
+
+	stateCtx := d.l.GetByIDAndRev(cmd.ID, cmd.Rev)
+	if stateCtx == nil {
+		return fmt.Errorf("%w; id=%s rev=%d", flowstate.ErrNotFound, cmd.ID, cmd.Rev)
+	}
+	stateCtx.CopyTo(cmd.StateCtx)
 
 	return nil
 }
 
-func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
+func (d *Getter) doGetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error {
+	stateCtx, _ := d.l.GetLatestByLabels([]map[string]string{cmd.Labels})
+	if stateCtx == nil {
+		return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
+	}
+	stateCtx.CopyTo(cmd.StateCtx)
+
+	return nil
+}
+
+func (d *Getter) doGetMany(cmd *flowstate.GetStatesCommand) error {
 	cmd.Prepare()
 
 	states := make([]flowstate.State, 0, cmd.Limit)
@@ -85,7 +94,7 @@ func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 		d.l.Unlock()
 
 		if len(logStates) == 0 {
-			cmd.SetResult(&flowstate.GetManyResult{
+			cmd.SetResult(&flowstate.GetStatesResult{
 				States: states,
 			})
 			return nil
@@ -106,14 +115,14 @@ func (d *Getter) doGetMany(cmd *flowstate.GetManyCommand) error {
 		}
 
 		if len(states) >= cmd.Limit {
-			cmd.SetResult(&flowstate.GetManyResult{
+			cmd.SetResult(&flowstate.GetStatesResult{
 				States: states[:cmd.Limit],
 				More:   len(states) > cmd.Limit,
 			})
 
 			return nil
 		} else if sinceRev >= untilRev {
-			cmd.SetResult(&flowstate.GetManyResult{
+			cmd.SetResult(&flowstate.GetStatesResult{
 				States: states,
 				More:   false,
 			})

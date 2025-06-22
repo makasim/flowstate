@@ -45,7 +45,7 @@ func GetManyORLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		}),
 	)))
 
-	cmd := flowstate.GetManyByLabels(map[string]string{
+	cmd := flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithORLabels(map[string]string{
 		`bar`: `barVal`,
