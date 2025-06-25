@@ -3,16 +3,19 @@ package pgdriver
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/makasim/flowstate"
 )
 
-func (*queries) GetDelayedStates(ctx context.Context, tx conntx, dm delayerMeta) ([]delayedState, error) {
-	if dm.Since == 0 {
+func (*queries) GetDelayedStates(ctx context.Context, tx conntx, since, until, offset int64, limit int) ([]flowstate.DelayedState, error) {
+	if since == 0 {
 		return nil, fmt.Errorf("since is empty")
 	}
-	if dm.Until == 0 {
+	if until == 0 {
 		return nil, fmt.Errorf("until is empty")
 	}
-	if dm.Limit == 0 {
+	if limit == 0 {
 		return nil, fmt.Errorf("limit is empty")
 	}
 
@@ -34,22 +37,25 @@ FROM
         split_part(pg_current_snapshot()::text, ':', 2)::bigint AS xmax
 	) AS snapshot
 WHERE subquery.xmin < snapshot.xmin OR subquery.xmin > snapshot.xmax`,
-		dm.Since,
-		dm.Until,
-		dm.Pos,
-		dm.Limit,
+		since,
+		until,
+		offset,
+		limit,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	res := make([]delayedState, 0, dm.Limit)
+	res := make([]flowstate.DelayedState, 0, limit)
 	for rows.Next() {
-		var ds delayedState
-		if err := rows.Scan(&ds.ExecuteAt, &ds.State, &ds.Pos); err != nil {
+		var ds flowstate.DelayedState
+		var executeAt int64
+		if err := rows.Scan(&executeAt, &ds.State, &ds.Offset); err != nil {
 			return nil, err
 		}
+		ds.ExecuteAt = time.Unix(executeAt, 0)
+
 		res = append(res, ds)
 	}
 	if rows.Err() != nil {

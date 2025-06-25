@@ -59,12 +59,7 @@ func Get(setUp func(t TestingT) (flowstate.Doer, FlowRegistry)) *Suite {
 			"DataStoreGet":           DataStoreGet,
 			"DataStoreGetWithCommit": DataStoreGetWithCommit,
 
-			"DelayDelayedWinWithCommit":   Delay_DelayedWin_WithCommit,
-			"DelayEngineDo":               Delay_EngineDo,
-			"DelayPaused":                 Delay_Paused,
-			"DelayPausedWithCommit":       Delay_PausedWithCommit,
-			"DelayReturn":                 Delay_Return,
-			"DelayTransitedWinWithCommit": Delay_TransitedWin_WithCommit,
+			"Delay": Delay,
 
 			"Fork":              Fork,
 			"ForkJoinFirstWins": ForkJoin_FirstWins,
