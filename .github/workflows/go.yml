@@ -40,11 +40,11 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: pgdriver tests
+    - name: Test
       run: |
         until pg_isready -h 127.0.0.1 -p 5432 -U user; do
           echo "Waiting for Postgres...";
           sleep 3;
         done 
 
-        GOEXPERIMENT=synctest GODEBUG=asynctimerchan=0 gotest -v ./...
+        GOEXPERIMENT=synctest GODEBUG=asynctimerchan=0 go test -v ./...
