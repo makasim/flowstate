@@ -9,12 +9,11 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/memdriver"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type Driver struct {
-	*memdriver.FlowRegistry
+	*flowstate.FlowRegistry
 	conn  conn
 	q     *queries
 	doers []flowstate.Doer
@@ -28,7 +27,7 @@ func New(conn conn, opts ...Option) *Driver {
 		conn: conn,
 
 		q:            &queries{},
-		FlowRegistry: &memdriver.FlowRegistry{},
+		FlowRegistry: &flowstate.FlowRegistry{},
 		l:            slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
 	}
 
@@ -43,13 +42,20 @@ func New(conn conn, opts ...Option) *Driver {
 		flowstate.DefaultEndDoer,
 		flowstate.DefaultNoopDoer,
 		flowstate.DefaultSerializerDoer,
-		flowstate.DefaultDeserializeDoer,
+		flowstate.DefaultDeserializerDoer,
 		flowstate.DefaultDereferenceDataDoer,
 		flowstate.DefaultReferenceDataDoer,
 		flowstate.DefaultReferenceDataDoer,
 		flowstate.DefaultDereferenceDataDoer,
 
-		memdriver.NewFlowGetter(d.FlowRegistry),
+		flowstate.DoerFunc(func(cmd0 flowstate.Command) error {
+			cmd, ok := cmd0.(*flowstate.GetFlowCommand)
+			if !ok {
+				return flowstate.ErrCommandNotSupported
+			}
+
+			return d.FlowRegistry.Do(cmd)
+		}),
 		NewDataer(d.conn, d.q),
 		NewCommiter(d.conn, d.q),
 		NewGetter(d.conn, d.q),

@@ -22,7 +22,7 @@ type DeserializeCommand struct {
 	Annotation           string
 }
 
-var DefaultDeserializeDoer DoerFunc = func(cmd0 Command) error {
+var DefaultDeserializerDoer DoerFunc = func(cmd0 Command) error {
 	cmd, ok := cmd0.(*DeserializeCommand)
 	if !ok {
 		return ErrCommandNotSupported

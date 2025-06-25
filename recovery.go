@@ -113,7 +113,7 @@ type Recoverer struct {
 	commited  int64
 
 	e         Engine
-	doneCh    chan struct{}
+	stopCh    chan struct{}
 	stoppedCh chan struct{}
 	l         *slog.Logger
 }
@@ -126,7 +126,7 @@ func NewRecoverer(e Engine, l *slog.Logger) *Recoverer {
 		statesMaxSize:        100000,
 		statesMaxTailHeadDur: MaxRetryAfter * 2,
 
-		doneCh:    make(chan struct{}),
+		stopCh:    make(chan struct{}),
 		stoppedCh: make(chan struct{}),
 	}
 }
@@ -182,7 +182,7 @@ func (r *Recoverer) Init() error {
 }
 
 func (r *Recoverer) Shutdown(ctx context.Context) error {
-	close(r.doneCh)
+	close(r.stopCh)
 
 	select {
 	case <-r.stoppedCh:
@@ -249,7 +249,7 @@ func (r *Recoverer) updateHead() {
 		}
 
 		select {
-		case <-r.doneCh:
+		case <-r.stopCh:
 			return
 		case at := <-t.C:
 			dur = at.Sub(prevAt)
@@ -354,7 +354,7 @@ func (r *Recoverer) updateTail() {
 
 	for {
 		select {
-		case <-r.doneCh:
+		case <-r.stopCh:
 			return
 		case <-t.C:
 			if err := r.doUpdateTail(); err != nil {
