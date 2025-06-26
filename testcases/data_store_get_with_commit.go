@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func DataStoreGetWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
+func DataStoreGetWithCommit(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	stateCtx := &flowstate.StateCtx{

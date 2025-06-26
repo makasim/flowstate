@@ -11,7 +11,7 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-var _ flowstate.Doer = &Driver{}
+var _ flowstate.Driver = &Driver{}
 
 type Driver struct {
 	*flowstate.FlowRegistry
@@ -46,56 +46,22 @@ func (d *Driver) Shutdown(_ context.Context) error {
 	return nil
 }
 
-func (d *Driver) Do(cmd0 flowstate.Command) error {
-	switch cmd := cmd0.(type) {
-	case *flowstate.TransitCommand:
-		return flowstate.DefaultTransitDoer.Do(cmd)
-	case *flowstate.PauseCommand:
-		return flowstate.DefaultPauseDoer.Do(cmd)
-	case *flowstate.ResumeCommand:
-		return flowstate.DefaultResumeDoer.Do(cmd)
-	case *flowstate.EndCommand:
-		return flowstate.DefaultEndDoer.Do(cmd)
-	case *flowstate.NoopCommand:
-		return flowstate.DefaultNoopDoer.Do(cmd)
-	case *flowstate.SerializeCommand:
-		return flowstate.DefaultSerializerDoer.Do(cmd)
-	case *flowstate.DeserializeCommand:
-		return flowstate.DefaultDeserializerDoer.Do(cmd)
-	case *flowstate.DereferenceDataCommand:
-		return flowstate.DefaultDereferenceDataDoer.Do(cmd)
-	case *flowstate.ReferenceDataCommand:
-		return flowstate.DefaultReferenceDataDoer.Do(cmd)
-	case *flowstate.GetDataCommand:
-		return d.doGetData(cmd)
-	case *flowstate.StoreDataCommand:
-		return d.doStoreData(cmd)
-	case *flowstate.GetStateByIDCommand:
-		return d.doGetStateByID(cmd)
-	case *flowstate.GetStateByLabelsCommand:
-		return d.doGetStateByLabels(cmd)
-	case *flowstate.GetStatesCommand:
-		return d.doGetStates(cmd)
-	case *flowstate.DelayCommand:
-		return d.doDelay(cmd)
-	case *flowstate.GetDelayedStatesCommand:
-		return d.doGetDelayedStates(cmd)
-	case *flowstate.CommitStateCtxCommand:
-		return nil
-	case *flowstate.CommitCommand:
-		return d.doCommit(cmd)
-	case *flowstate.GetFlowCommand:
-		return d.FlowRegistry.Do(cmd)
-	default:
-		return fmt.Errorf("command %T not supported", cmd0)
+func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
+	data, err := d.dataLog.get(cmd.Data.ID, cmd.Data.Rev)
+	if err != nil {
+		return err
 	}
+
+	data.CopyTo(cmd.Data)
+	return nil
 }
 
-func (d *Driver) doGetStateByID(cmd *flowstate.GetStateByIDCommand) error {
-	if err := cmd.Prepare(); err != nil {
-		return fmt.Errorf("get state by id: %w", err)
-	}
+func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
+	d.dataLog.append(cmd.Data)
+	return nil
+}
 
+func (d *Driver) GetStateByID(cmd *flowstate.GetStateByIDCommand) error {
 	if cmd.Rev == 0 {
 		stateCtx, _ := d.stateLog.GetLatestByID(cmd.ID)
 		if stateCtx == nil {
@@ -114,7 +80,7 @@ func (d *Driver) doGetStateByID(cmd *flowstate.GetStateByIDCommand) error {
 	return nil
 }
 
-func (d *Driver) doGetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error {
+func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error {
 	stateCtx, _ := d.stateLog.GetLatestByLabels([]map[string]string{cmd.Labels})
 	if stateCtx == nil {
 		return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
@@ -124,9 +90,7 @@ func (d *Driver) doGetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) erro
 	return nil
 }
 
-func (d *Driver) doGetStates(cmd *flowstate.GetStatesCommand) error {
-	cmd.Prepare()
-
+func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
 	states := make([]flowstate.State, 0, cmd.Limit)
 	limit := cmd.Limit + 1
 
@@ -153,10 +117,9 @@ func (d *Driver) doGetStates(cmd *flowstate.GetStatesCommand) error {
 		d.stateLog.Unlock()
 
 		if len(logStates) == 0 {
-			cmd.SetResult(&flowstate.GetStatesResult{
+			return &flowstate.GetStatesResult{
 				States: states,
-			})
-			return nil
+			}, nil
 		}
 
 		for _, s := range logStates {
@@ -174,46 +137,44 @@ func (d *Driver) doGetStates(cmd *flowstate.GetStatesCommand) error {
 		}
 
 		if len(states) >= cmd.Limit {
-			cmd.SetResult(&flowstate.GetStatesResult{
+			return &flowstate.GetStatesResult{
 				States: states[:cmd.Limit],
 				More:   len(states) > cmd.Limit,
-			})
-
-			return nil
+			}, nil
 		} else if sinceRev >= untilRev {
-			cmd.SetResult(&flowstate.GetStatesResult{
+			return &flowstate.GetStatesResult{
 				States: states,
 				More:   false,
-			})
-			return nil
+			}, nil
 		}
 	}
 }
 
-func (d *Driver) doGetData(cmd *flowstate.GetDataCommand) error {
-	if err := cmd.Prepare(); err != nil {
-		return err
-	}
+func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
+	d.delayedStateLog.Append(flowstate.DelayedState{
+		State:     cmd.DelayStateCtx.Current,
+		ExecuteAt: flowstate.DelayedUntil(cmd.DelayStateCtx.Current),
+	})
 
-	data, err := d.dataLog.get(cmd.Data.ID, cmd.Data.Rev)
-	if err != nil {
-		return err
-	}
-
-	data.CopyTo(cmd.Data)
 	return nil
 }
 
-func (d *Driver) doStoreData(cmd *flowstate.StoreDataCommand) error {
-	if err := cmd.Prepare(); err != nil {
-		return err
+func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
+	delayedStates := d.delayedStateLog.Get(cmd.Since, cmd.Until, cmd.Offset, cmd.Limit+1)
+
+	more := false
+	if len(delayedStates) > cmd.Limit {
+		more = true
+		delayedStates = delayedStates[:cmd.Limit]
 	}
 
-	d.dataLog.append(cmd.Data)
-	return nil
+	return &flowstate.GetDelayedStatesResult{
+		States: delayedStates,
+		More:   more,
+	}, nil
 }
 
-func (d *Driver) doCommit(cmd *flowstate.CommitCommand) error {
+func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 	if len(cmd.Commands) == 0 {
 		return fmt.Errorf("no commands to commit")
 	}
@@ -232,8 +193,10 @@ func (d *Driver) doCommit(cmd *flowstate.CommitCommand) error {
 	defer d.stateLog.Rollback()
 
 	for _, cmd0 := range cmd.Commands {
-		if err := d.e.Do(cmd0); err != nil {
-			return fmt.Errorf("%T: do: %w", cmd0, err)
+		if _, ok := cmd0.(*flowstate.CommitStateCtxCommand); !ok {
+			if err := d.e.Do(cmd0); err != nil {
+				return fmt.Errorf("%T: do: %w", cmd0, err)
+			}
 		}
 
 		cmd1, ok := cmd0.(flowstate.CommittableCommand)
@@ -260,36 +223,8 @@ func (d *Driver) doCommit(cmd *flowstate.CommitCommand) error {
 	return nil
 }
 
-func (d *Driver) doGetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) error {
-	cmd.Prepare()
-
-	delayedStates := d.delayedStateLog.Get(cmd.Since, cmd.Until, cmd.Offset, cmd.Limit+1)
-
-	more := false
-	if len(delayedStates) > cmd.Limit {
-		more = true
-		delayedStates = delayedStates[:cmd.Limit]
-	}
-
-	cmd.SetResult(&flowstate.GetDelayedStatesResult{
-		States: delayedStates,
-		More:   more,
-	})
-
-	return nil
-}
-
-func (d *Driver) doDelay(cmd *flowstate.DelayCommand) error {
-	if err := cmd.Prepare(); err != nil {
-		return fmt.Errorf("delay command prepare: %w", err)
-	}
-
-	d.delayedStateLog.Append(flowstate.DelayedState{
-		State:     cmd.DelayStateCtx.Current,
-		ExecuteAt: flowstate.DelayedUntil(cmd.DelayStateCtx.Current),
-	})
-
-	return nil
+func (d *Driver) GetFlow(cmd *flowstate.GetFlowCommand) error {
+	return d.FlowRegistry.Do(cmd)
 }
 
 func filterStatesWithID(states []flowstate.State, id flowstate.StateID) []flowstate.State {

@@ -16,9 +16,9 @@ type TestingT interface {
 }
 
 type Suite struct {
-	SetUp func(t TestingT) (flowstate.Doer, FlowRegistry)
+	SetUp func(t TestingT) (flowstate.Driver, FlowRegistry)
 
-	cases map[string]func(t TestingT, d flowstate.Doer, fr FlowRegistry)
+	cases map[string]func(t TestingT, d flowstate.Driver, fr FlowRegistry)
 }
 
 func (s *Suite) Test(main *testing.T) {
@@ -42,11 +42,11 @@ func (s *Suite) Skip(t *testing.T, name string) {
 	s.cases[name] = nil
 }
 
-func Get(setUp func(t TestingT) (flowstate.Doer, FlowRegistry)) *Suite {
+func Get(setUp func(t TestingT) (flowstate.Driver, FlowRegistry)) *Suite {
 	return &Suite{
 		SetUp: setUp,
 
-		cases: map[string]func(t TestingT, d flowstate.Doer, fr FlowRegistry){
+		cases: map[string]func(t TestingT, d flowstate.Driver, fr FlowRegistry){
 			"Actor": Actor,
 
 			"CallFlow":           CallFlow,

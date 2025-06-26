@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Fork_WithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
+func Fork_WithCommit(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var forkedStateCtx *flowstate.StateCtx

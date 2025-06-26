@@ -18,12 +18,7 @@ type ReferenceDataCommand struct {
 	Annotation string
 }
 
-var DefaultReferenceDataDoer DoerFunc = func(cmd0 Command) error {
-	cmd, ok := cmd0.(*ReferenceDataCommand)
-	if !ok {
-		return ErrCommandNotSupported
-	}
-
+func (cmd *ReferenceDataCommand) do() error {
 	if cmd.Data.ID == "" {
 		return fmt.Errorf("data ID is empty")
 	}

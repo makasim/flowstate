@@ -22,12 +22,7 @@ type DereferenceDataCommand struct {
 	Annotation string
 }
 
-var DefaultDereferenceDataDoer = DoerFunc(func(cmd0 Command) error {
-	cmd, ok := cmd0.(*DereferenceDataCommand)
-	if !ok {
-		return ErrCommandNotSupported
-	}
-
+func (cmd *DereferenceDataCommand) do() error {
 	serializedData := cmd.StateCtx.Current.Annotations[cmd.Annotation]
 	if serializedData == "" {
 		return fmt.Errorf("data is not serialized")
@@ -56,4 +51,4 @@ var DefaultDereferenceDataDoer = DoerFunc(func(cmd0 Command) error {
 	cmd.Data.Rev = dRev
 
 	return nil
-})
+}

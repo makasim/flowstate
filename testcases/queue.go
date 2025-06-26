@@ -10,7 +10,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Queue(t TestingT, d flowstate.Doer, fr FlowRegistry) {
+func Queue(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{

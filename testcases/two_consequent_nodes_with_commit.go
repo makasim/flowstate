@@ -13,7 +13,7 @@ type FlowRegistry interface {
 	SetFlow(id flowstate.FlowID, f flowstate.Flow)
 }
 
-func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
+func TwoConsequentNodesWithCommit(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}

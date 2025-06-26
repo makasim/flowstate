@@ -19,14 +19,14 @@ type Engine interface {
 }
 
 type engine struct {
-	d Doer
+	d Driver
 	l *slog.Logger
 
 	wg     *sync.WaitGroup
 	doneCh chan struct{}
 }
 
-func NewEngine(d Doer, l *slog.Logger) (Engine, error) {
+func NewEngine(d Driver, l *slog.Logger) (Engine, error) {
 	e := &engine{
 		d: d,
 		l: l,
@@ -180,6 +180,24 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 	logDo(execSessID, cmd0, e.l)
 
 	switch cmd := cmd0.(type) {
+	case *TransitCommand:
+		return cmd.do()
+	case *PauseCommand:
+		return cmd.do()
+	case *ResumeCommand:
+		return cmd.do()
+	case *EndCommand:
+		return cmd.do()
+	case *NoopCommand:
+		return nil
+	case *SerializeCommand:
+		return cmd.do()
+	case *DeserializeCommand:
+		return cmd.do()
+	case *DereferenceDataCommand:
+		return cmd.do()
+	case *ReferenceDataCommand:
+		return cmd.do()
 	case *ExecuteCommand:
 		if cmd.sync {
 			return nil
@@ -196,17 +214,64 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 				)
 			}
 		}()
+
 		return nil
+	case *GetDataCommand:
+		if err := cmd.prepare(); err != nil {
+			return err
+		}
+		return e.d.GetData(cmd)
+	case *StoreDataCommand:
+		if err := cmd.prepare(); err != nil {
+			return err
+		}
+		return e.d.StoreData(cmd)
+	case *GetStateByIDCommand:
+		if err := cmd.prepare(); err != nil {
+			return err
+		}
+		return e.d.GetStateByID(cmd)
+	case *GetStateByLabelsCommand:
+		return e.d.GetStateByLabels(cmd)
+	case *GetStatesCommand:
+		cmd.prepare()
+
+		res, err := e.d.GetStates(cmd)
+		if err != nil {
+			return err
+		}
+		cmd.result = res
+
+		return nil
+	case *DelayCommand:
+		if err := cmd.prepare(); err != nil {
+			return err
+		}
+		return e.d.Delay(cmd)
+	case *GetDelayedStatesCommand:
+		cmd.prepare()
+
+		res, err := e.d.GetDelayedStates(cmd)
+		if err != nil {
+			return err
+		}
+		cmd.result = res
+
+		return nil
+	case *CommitStateCtxCommand:
+		return fmt.Errorf("commit state ctx should be passed inside CommitCommand, not as a separate command")
 	case *CommitCommand:
-		return e.d.Do(cmd0)
+		return e.d.Commit(cmd)
+	case *GetFlowCommand:
+		return e.d.GetFlow(cmd)
 	default:
-		return e.d.Do(cmd0)
+		return fmt.Errorf("command %T not supported", cmd0)
 	}
 }
 
 func (e *engine) getFlow(stateCtx *StateCtx) (Flow, error) {
 	cmd := GetFlow(stateCtx)
-	if err := e.d.Do(cmd); err != nil {
+	if err := e.d.GetFlow(cmd); err != nil {
 		return nil, err
 	}
 
