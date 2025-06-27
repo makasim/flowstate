@@ -175,36 +175,23 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 }
 
 func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
-	if len(cmd.Commands) == 0 {
-		return fmt.Errorf("no commands to commit")
-	}
-
-	for _, c := range cmd.Commands {
-		if _, ok := c.(*flowstate.CommitCommand); ok {
-			return fmt.Errorf("commit command not allowed inside another commit")
-		}
-		if _, ok := c.(*flowstate.ExecuteCommand); ok {
-			return fmt.Errorf("execute command not allowed inside commit")
-		}
-	}
-
 	d.stateLog.Lock()
 	defer d.stateLog.Unlock()
 	defer d.stateLog.Rollback()
 
-	for _, cmd0 := range cmd.Commands {
-		if _, ok := cmd0.(*flowstate.CommitStateCtxCommand); !ok {
-			if err := d.e.Do(cmd0); err != nil {
-				return fmt.Errorf("%T: do: %w", cmd0, err)
+	for _, subCmd0 := range cmd.Commands {
+		if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
+			if err := d.e.Do(subCmd0); err != nil {
+				return fmt.Errorf("%T: do: %w", subCmd0, err)
 			}
 		}
 
-		cmd1, ok := cmd0.(flowstate.CommittableCommand)
+		subCmd, ok := subCmd0.(flowstate.CommittableCommand)
 		if !ok {
 			continue
 		}
 
-		stateCtx := cmd1.CommittableStateCtx()
+		stateCtx := subCmd.CommittableStateCtx()
 		if stateCtx.Current.ID == `` {
 			return fmt.Errorf("state id empty")
 		}

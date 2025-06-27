@@ -261,6 +261,19 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 	case *CommitStateCtxCommand:
 		return fmt.Errorf("commit state ctx should be passed inside CommitCommand, not as a separate command")
 	case *CommitCommand:
+		if len(cmd.Commands) == 0 {
+			return fmt.Errorf("no commands to commit")
+		}
+
+		for _, c := range cmd.Commands {
+			if _, ok := c.(*CommitCommand); ok {
+				return fmt.Errorf("commit command not allowed inside another commit")
+			}
+			if _, ok := c.(*ExecuteCommand); ok {
+				return fmt.Errorf("execute command not allowed inside commit")
+			}
+		}
+
 		return e.d.Commit(cmd)
 	case *GetFlowCommand:
 		return e.d.GetFlow(cmd)
