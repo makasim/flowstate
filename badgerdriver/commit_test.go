@@ -21,9 +21,9 @@ func TestCommitOK(t *testing.T) {
 		}
 	}()
 
-	d := New(db)
-	if err := d.Init(&stubEngine{}); err != nil {
-		t.Fatalf("failed to init engine: %v", err)
+	d, err := New(db)
+	if err != nil {
+		t.Fatalf("failed to create driver: %v", err)
 	}
 	defer func() {
 		if err := d.Shutdown(context.Background()); err != nil {
@@ -36,7 +36,7 @@ func TestCommitOK(t *testing.T) {
 		prevRev := stateCtx.Committed.Rev
 		prevCommitedAtUnixMilli := stateCtx.Committed.CommittedAtUnixMilli
 
-		if err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); err != nil {
+		if err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx)), &stubEngine{}); err != nil {
 			t.Fatalf("failed to commit: %v", err)
 		}
 
@@ -112,9 +112,9 @@ func TestCommitRevMismatch(t *testing.T) {
 		}
 	}()
 
-	d := New(db)
-	if err := d.Init(&stubEngine{}); err != nil {
-		t.Fatalf("failed to init engine: %v", err)
+	d, err := New(db)
+	if err != nil {
+		t.Fatalf("failed to create driver: %v", err)
 	}
 	defer func() {
 		if err := d.Shutdown(context.Background()); err != nil {
@@ -134,7 +134,7 @@ func TestCommitRevMismatch(t *testing.T) {
 			t.Fatalf("failed to update db: %v", err)
 		}
 
-		if err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); !flowstate.IsErrRevMismatch(err) {
+		if err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx)), &stubEngine{}); !flowstate.IsErrRevMismatch(err) {
 			t.Fatalf("expected rev mismatch error, got: %v", err)
 		}
 
@@ -204,9 +204,9 @@ func TestCommitSeveralStatesOK(t *testing.T) {
 		}
 	}()
 
-	d := New(db)
-	if err := d.Init(&stubEngine{}); err != nil {
-		t.Fatalf("failed to init engine: %v", err)
+	d, err := New(db)
+	if err != nil {
+		t.Fatalf("failed to create driver: %v", err)
 	}
 	defer func() {
 		if err := d.Shutdown(context.Background()); err != nil {
@@ -246,7 +246,7 @@ func TestCommitSeveralStatesOK(t *testing.T) {
 		flowstate.CommitStateCtx(stateCtx1),
 		flowstate.CommitStateCtx(stateCtx2),
 		flowstate.CommitStateCtx(stateCtx3),
-	)); err != nil {
+	), &stubEngine{}); err != nil {
 		t.Fatalf("failed to commit: %v", err)
 	}
 
@@ -268,9 +268,9 @@ func TestCommitConcurrently(t *testing.T) {
 	}
 	defer db.Close()
 
-	d := New(db)
-	if err := d.Init(&stubEngine{}); err != nil {
-		t.Fatalf("failed to init engine: %v", err)
+	d, err := New(db)
+	if err != nil {
+		t.Fatalf("failed to create driver: %v", err)
 	}
 	defer func() {
 		if err := d.Shutdown(context.Background()); err != nil {
@@ -306,7 +306,7 @@ func TestCommitConcurrently(t *testing.T) {
 					t.Fatalf("failed to view db: %v", err)
 				}
 
-				err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx)))
+				err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx)), &stubEngine{})
 				if !flowstate.IsErrRevMismatch(err) && err != nil {
 					t.Fatalf("failed to commit state: %v", err)
 				}
@@ -337,6 +337,9 @@ func storeTestState(t *testing.T, d *Driver, state flowstate.State) flowstate.St
 		}
 		if err := setRevIndex(txn, state); err != nil {
 			t.Fatalf("failed to set rev index: %v", err)
+		}
+		if err := setCommittedAtIndex(txn, state); err != nil {
+			t.Fatalf("failed to set committed at index: %v", err)
 		}
 		return nil
 	}); err != nil {

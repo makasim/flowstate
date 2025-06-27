@@ -37,10 +37,6 @@ func NewEngine(d Driver, l *slog.Logger) (Engine, error) {
 
 	e.wg.Add(1)
 
-	if err := d.Init(e); err != nil {
-		return nil, fmt.Errorf("driver: init: %w", err)
-	}
-
 	return e, nil
 }
 
@@ -173,7 +169,7 @@ func (e *engine) Shutdown(ctx context.Context) error {
 	case <-waitCh:
 	}
 
-	return e.d.Shutdown(ctx)
+	return nil
 }
 
 func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
@@ -274,7 +270,7 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 			}
 		}
 
-		return e.d.Commit(cmd)
+		return e.d.Commit(cmd, e)
 	case *GetFlowCommand:
 		return e.d.GetFlow(cmd)
 	default:

@@ -20,9 +20,9 @@ func TestGetStateByIDOK(t *testing.T) {
 		}
 	}()
 
-	d := New(db)
-	if err := d.Init(&stubEngine{}); err != nil {
-		t.Fatalf("failed to init engine: %v", err)
+	d, err := New(db)
+	if err != nil {
+		t.Fatalf("failed to create driver: %v", err)
 	}
 	defer func() {
 		if err := d.Shutdown(context.Background()); err != nil {
@@ -109,9 +109,9 @@ func TestGetByIDError(t *testing.T) {
 		}
 	}()
 
-	d := New(db)
-	if err := d.Init(&stubEngine{}); err != nil {
-		t.Fatalf("failed to init engine: %v", err)
+	d, err := New(db)
+	if err != nil {
+		t.Fatalf("failed to create driver: %v", err)
 	}
 	defer func() {
 		if err := d.Shutdown(context.Background()); err != nil {

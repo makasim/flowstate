@@ -15,7 +15,6 @@ import (
 type Driver struct {
 	*flowstate.FlowRegistry
 
-	e           flowstate.Engine
 	db          *badger.DB
 	stateRevSeq *badger.Sequence
 	dataRevSeq  *badger.Sequence
@@ -23,38 +22,34 @@ type Driver struct {
 	l *slog.Logger
 }
 
-func New(db *badger.DB) *Driver {
+func New(db *badger.DB) (*Driver, error) {
+	stateRevSeq, err := getStateRevSequence(db)
+	if err != nil {
+		return nil, fmt.Errorf("db: get state rev seq: %w", err)
+	}
+	dataRevSeq, err := getDataRevSequence(db)
+	if err != nil {
+		return nil, fmt.Errorf("db: get data rev seq: %w", err)
+	}
+
 	return &Driver{
 		db:           db,
+		stateRevSeq:  stateRevSeq,
+		dataRevSeq:   dataRevSeq,
 		FlowRegistry: &flowstate.FlowRegistry{},
 
 		l: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
-	}
-}
-
-func (d *Driver) Init(e flowstate.Engine) error {
-	d.e = e
-
-	stateRevSeq, err := getStateRevSequence(d.db)
-	if err != nil {
-		return fmt.Errorf("get state rev seq: %w", err)
-	}
-	d.stateRevSeq = stateRevSeq
-
-	dataRevSeq, err := getDataRevSequence(d.db)
-	if err != nil {
-		return fmt.Errorf("get data rev seq: %w", err)
-	}
-	d.dataRevSeq = dataRevSeq
-
-	return nil
+	}, nil
 }
 
 func (d *Driver) Shutdown(_ context.Context) error {
 	var res error
 
-	if err := d.db.Close(); err != nil {
-		res = errors.Join(res, fmt.Errorf("db: close: %w", err))
+	if err := d.stateRevSeq.Release(); err != nil {
+		res = errors.Join(res, fmt.Errorf("release state rev seq: %w", err))
+	}
+	if err := d.dataRevSeq.Release(); err != nil {
+		res = errors.Join(res, fmt.Errorf("release data rev seq: %w", err))
 	}
 
 	return res
@@ -109,7 +104,7 @@ func (d *Driver) GetStateByID(cmd *flowstate.GetStateByIDCommand) error {
 
 func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error {
 	return d.db.View(func(txn *badger.Txn) error {
-		it := newLabelsIterator(txn, cmd.Labels, 0, false)
+		it := newLabelsIterator(txn, cmd.Labels, 0, true)
 		defer it.Close()
 
 		if !it.Valid() {
@@ -134,10 +129,8 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 				return nil
 			}
 
-			sinceRev = caIt.Current().Rev - 1
-		}
-
-		if sinceRev == -1 {
+			sinceRev = caIt.Current().Rev
+		} else if sinceRev == -1 {
 			latestIt := newOrLabelsIterator(txn, cmd.Labels, 0, true)
 			defer latestIt.Close()
 
@@ -145,7 +138,9 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 				return nil
 			}
 
-			sinceRev = latestIt.Current().Rev - 1
+			sinceRev = latestIt.Current().Rev
+		} else if sinceRev > 0 {
+			sinceRev = sinceRev + 1
 		}
 
 		it := newOrLabelsIterator(txn, cmd.Labels, sinceRev, false)
@@ -183,37 +178,26 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
-	statesCtx := make([]*flowstate.StateCtx, len(cmd.Commands))
-	commitedStates := make([]flowstate.State, len(cmd.Commands))
-	for i, subCmd0 := range cmd.Commands {
-		if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
-			if err := d.e.Do(subCmd0); err != nil {
-				return fmt.Errorf("%T: do: %w", subCmd0, err)
-			}
-		}
-
-		cmd1, ok := subCmd0.(flowstate.CommittableCommand)
-		if !ok {
-			continue
-		}
-
-		stateCtx := cmd1.CommittableStateCtx()
-		if stateCtx.Current.ID == `` {
-			return fmt.Errorf("state id empty")
-		}
-
-		statesCtx[i] = stateCtx
-	}
-
+func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {
 	var attempt int
 	var maxAttempts = len(cmd.Commands)
 	for {
 		if err := d.db.Update(func(txn *badger.Txn) error {
-			for i := range statesCtx {
-				stateCtx := statesCtx[i]
-				if stateCtx == nil {
+			for i, subCmd0 := range cmd.Commands {
+				if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
+					if err := e.Do(subCmd0); err != nil {
+						return fmt.Errorf("%T: do: %w", subCmd0, err)
+					}
+				}
+
+				subCmd, ok := subCmd0.(flowstate.CommittableCommand)
+				if !ok {
 					continue
+				}
+
+				stateCtx := subCmd.CommittableStateCtx()
+				if stateCtx.Current.ID == `` {
+					return fmt.Errorf("state id empty")
 				}
 
 				commitedRev, err := getLatestRevIndex(txn, stateCtx.Current.ID)
@@ -230,10 +214,9 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 				if err != nil {
 					return fmt.Errorf("get next sequence: %w", err)
 				}
-				commitedState := stateCtx.Current.CopyTo(&commitedStates[i])
+				commitedState := stateCtx.Current.CopyTo(&flowstate.State{})
 				commitedState.Rev = int64(nextRev)
 				commitedState.CommittedAtUnixMilli = time.Now().UnixMilli()
-				commitedStates[i] = commitedState
 
 				if err := setState(txn, commitedState); err != nil {
 					return fmt.Errorf("set state: %w", err)
@@ -250,6 +233,9 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 				if err := setCommittedAtIndex(txn, commitedState); err != nil {
 					return fmt.Errorf("set committed at index: %w", err)
 				}
+
+				commitedState.CopyToCtx(stateCtx)
+				stateCtx.Transitions = stateCtx.Transitions[:0]
 			}
 
 			return nil
@@ -262,16 +248,6 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 			return err
 		} else if err != nil {
 			return err
-		}
-
-		for i := range commitedStates {
-			if statesCtx[i] == nil {
-				continue
-			}
-
-			stateCtx := statesCtx[i]
-			commitedStates[i].CopyTo(&stateCtx.Current)
-			commitedStates[i].CopyTo(&stateCtx.Committed)
 		}
 
 		return nil

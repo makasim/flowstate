@@ -42,8 +42,6 @@ func newLabelsIterator(txn *badger.Txn, labels map[string]string, sinceRev int64
 
 	if reverse && sinceRev == 0 {
 		sinceRev = math.MaxInt64
-	} else {
-		sinceRev = sinceRev + 1
 	}
 
 	for labelKey, labelVal := range labels {

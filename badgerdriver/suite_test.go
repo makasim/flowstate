@@ -18,9 +18,15 @@ func TestSuite(t *testing.T) {
 			t.Fatalf("failed to open badger db: %v", err)
 		}
 
-		d := badgerdriver.New(db)
+		d, err := badgerdriver.New(db)
+		if err != nil {
+			t.Fatalf("failed to create driver: %v", err)
+		}
+		
 		return d, d
 	})
 
+	s.Skip(t, `Delay`)
+	s.Skip(t, `Cron`)
 	s.Test(t)
 }

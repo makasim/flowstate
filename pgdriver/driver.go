@@ -17,7 +17,6 @@ type Driver struct {
 	conn  conn
 	q     *queries
 	doers []flowstate.Driver
-	e     flowstate.Engine
 
 	recoverer flowstate.Driver
 	l         *slog.Logger
@@ -31,15 +30,6 @@ func New(conn conn, l *slog.Logger) *Driver {
 		FlowRegistry: &flowstate.FlowRegistry{},
 		l:            l,
 	}
-}
-
-func (d *Driver) Init(e flowstate.Engine) error {
-	d.e = e
-	return nil
-}
-
-func (d *Driver) Shutdown(_ context.Context) error {
-	return nil
 }
 
 func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
@@ -141,7 +131,7 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 	}, nil
 }
 
-func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
+func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {
 	tx, err := d.conn.BeginTx(context.Background(), pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("conn: begin: %w", err)
@@ -152,7 +142,7 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 
 	for _, subCmd0 := range cmd.Commands {
 		if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
-			if err := d.e.Do(subCmd0); err != nil {
+			if err := e.Do(subCmd0); err != nil {
 				return fmt.Errorf("%T: do: %w", subCmd0, err)
 			}
 		}
