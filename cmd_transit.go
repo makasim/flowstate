@@ -23,12 +23,7 @@ func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-var DefaultTransitDoer DoerFunc = func(cmd0 Command) error {
-	cmd, ok := cmd0.(*TransitCommand)
-	if !ok {
-		return ErrCommandNotSupported
-	}
-
+func (cmd *TransitCommand) do() error {
 	if cmd.FlowID == "" {
 		return fmt.Errorf("flow id empty")
 	}

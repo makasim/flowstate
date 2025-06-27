@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetManySinceRev(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetManySinceRev(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)

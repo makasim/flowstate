@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func CallFlowWithCommit(t TestingT, d flowstate.Doer, fr FlowRegistry) {
+func CallFlowWithCommit(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	endedCh := make(chan struct{})

@@ -36,10 +36,6 @@ func (cmd *GetStatesCommand) Result() (*GetStatesResult, error) {
 	return cmd.result, nil
 }
 
-func (cmd *GetStatesCommand) SetResult(result *GetStatesResult) {
-	cmd.result = result
-}
-
 func (cmd *GetStatesCommand) WithSinceRev(rev int64) *GetStatesCommand {
 	cmd.SinceRev = rev
 	return cmd
@@ -69,7 +65,7 @@ func (cmd *GetStatesCommand) WithORLabels(labels map[string]string) *GetStatesCo
 	return cmd
 }
 
-func (cmd *GetStatesCommand) Prepare() {
+func (cmd *GetStatesCommand) prepare() {
 	if cmd.Limit == 0 {
 		cmd.Limit = GetManyDefaultLimit
 	}

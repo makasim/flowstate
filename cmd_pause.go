@@ -27,12 +27,7 @@ func (cmd *PauseCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-var DefaultPauseDoer DoerFunc = func(cmd0 Command) error {
-	cmd, ok := cmd0.(*PauseCommand)
-	if !ok {
-		return ErrCommandNotSupported
-	}
-
+func (cmd *PauseCommand) do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{

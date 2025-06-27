@@ -44,7 +44,7 @@ func (cmd *DelayCommand) WithCommit(commit bool) *DelayCommand {
 	return cmd
 }
 
-func (cmd *DelayCommand) Prepare() error {
+func (cmd *DelayCommand) prepare() error {
 	delayedStateCtx := cmd.StateCtx.CopyTo(&StateCtx{})
 
 	delayedStateCtx.Transitions = append(delayedStateCtx.Transitions, delayedStateCtx.Current.Transition)
@@ -114,11 +114,7 @@ func (cmd *GetDelayedStatesCommand) Result() (*GetDelayedStatesResult, error) {
 	return cmd.result, nil
 }
 
-func (cmd *GetDelayedStatesCommand) SetResult(result *GetDelayedStatesResult) {
-	cmd.result = result
-}
-
-func (cmd *GetDelayedStatesCommand) Prepare() {
+func (cmd *GetDelayedStatesCommand) prepare() {
 	if cmd.Limit == 0 {
 		cmd.Limit = GetDelayedStatesDefaultLimit
 	}

@@ -10,11 +10,3 @@ type NoopCommand struct {
 	command
 	StateCtx *StateCtx
 }
-
-var DefaultNoopDoer DoerFunc = func(cmd0 Command) error {
-	if _, ok := cmd0.(*NoopCommand); !ok {
-		return ErrCommandNotSupported
-	}
-
-	return nil
-}
