@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetManySinceTime(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetManySinceTime(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -34,7 +34,7 @@ func GetManySinceTime(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	)))
 	require.Greater(t, stateCtx.Committed.CommittedAtUnixMilli, int64(0))
 
-	cmd := flowstate.GetManyByLabels(map[string]string{
+	cmd := flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAtUnixMilli + 5000))
 	require.NoError(t, e.Do(cmd))
@@ -45,7 +45,7 @@ func GetManySinceTime(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 	require.Len(t, res.States, 0)
 	require.False(t, res.More)
 
-	cmd1 := flowstate.GetManyByLabels(map[string]string{
+	cmd1 := flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAtUnixMilli - 1000))
 	require.NoError(t, e.Do(cmd1))

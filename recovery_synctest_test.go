@@ -1,4 +1,6 @@
-package recovery_test
+//go:build goexperiment.synctest
+
+package flowstate_test
 
 import (
 	"context"
@@ -11,19 +13,18 @@ import (
 
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/memdriver"
-	"github.com/makasim/flowstate/recovery"
 	"github.com/thejerf/slogassert"
 )
 
 func TestRecovererRetryLogic(t *testing.T) {
-	f := func(genFn func(e flowstate.Engine), flowFn flowstate.FlowFunc, expStats recovery.Stats) {
+	f := func(genFn func(e flowstate.Engine), flowFn flowstate.FlowFunc, expStats flowstate.RecovererStats) {
 		t.Helper()
 
 		synctest.Run(func() {
 			lh := slogassert.New(t, slog.LevelDebug, nil)
 			l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
-			d := memdriver.New()
+			d := memdriver.New(l)
 			d.SetFlow(`aFlow`, flowFn)
 
 			e, err := flowstate.NewEngine(d, l)
@@ -31,7 +32,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				t.Fatalf("failed to create engine: %v", err)
 			}
 
-			r := recovery.New(e, l)
+			r := flowstate.NewRecoverer(e, l)
 			if err := r.Init(); err != nil {
 				t.Fatalf("failed to init recoverer: %v", err)
 			}
@@ -77,7 +78,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			t.Fatalf("unexpected call to flow function")
 			return nil, nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Commited: 1,
 		},
 	)
@@ -92,7 +93,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 							ID: flowstate.StateID("aTID" + strconv.Itoa(i)),
 						},
 					}
-					recovery.Disable(stateCtx)
+					flowstate.DisableRecovery(stateCtx)
 
 					if err := e.Do(flowstate.Commit(flowstate.Transit(stateCtx, `aFlow`))); err != nil {
 						t.Fatalf("failed to commit state %s: %v", stateCtx.Current.ID, err)
@@ -106,7 +107,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Commited: 1,
 		},
 	)
@@ -132,7 +133,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			t.Fatalf("unexpected call to flow function")
 			return nil, nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Completed: 100,
 			Commited:  2,
 		},
@@ -159,7 +160,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			t.Fatalf("unexpected call to flow function")
 			return nil, nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Completed: 100,
 			Commited:  2,
 		},
@@ -183,7 +184,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     2,
 			Completed: 1,
 			Retried:   1,
@@ -219,7 +220,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     120,
 			Completed: 100,
 			Retried:   20,
@@ -246,7 +247,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			// do nothing to see how many times the state will be retried
 			return flowstate.Noop(stateCtx), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     4,
 			Completed: 1,
 			Retried:   3,
@@ -263,7 +264,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 					ID: flowstate.StateID("aTID"),
 				},
 			}
-			recovery.SetMaxAttempts(stateCtx, 4)
+			flowstate.SetMaxRecoveryAttempts(stateCtx, 4)
 
 			if err := e.Do(flowstate.Commit(flowstate.Transit(stateCtx, `aFlow`))); err != nil {
 				t.Fatalf("failed to commit state %s: %v", stateCtx.Current.ID, err)
@@ -275,7 +276,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			// do nothing to see how many times the state will be retried
 			return flowstate.Noop(stateCtx), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     5,
 			Completed: 1,
 			Retried:   4,
@@ -308,7 +309,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     60,
 			Completed: 30,
 			Retried:   30,
@@ -350,7 +351,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     1500,
 			Completed: 1500,
 			Commited:  2,
@@ -383,7 +384,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     10,
 			Completed: 10,
 			Commited:  2,
@@ -416,7 +417,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     20,
 			Completed: 10,
 			Retried:   10,
@@ -434,7 +435,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 							ID: flowstate.StateID("aTID" + strconv.Itoa(i)),
 						},
 					}
-					recovery.SetRetryAfter(stateCtx, time.Minute)
+					flowstate.SetRetryAfter(stateCtx, time.Minute)
 
 					if err := e.Do(flowstate.Commit(flowstate.Transit(stateCtx, `aFlow`))); err != nil {
 						t.Fatalf("failed to commit state %s: %v", stateCtx.Current.ID, err)
@@ -451,7 +452,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     10,
 			Completed: 10,
 			Commited:  2,
@@ -468,7 +469,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 							ID: flowstate.StateID("aTID" + strconv.Itoa(i)),
 						},
 					}
-					recovery.SetRetryAfter(stateCtx, time.Minute)
+					flowstate.SetRetryAfter(stateCtx, time.Minute)
 
 					if err := e.Do(flowstate.Commit(flowstate.Transit(stateCtx, `aFlow`))); err != nil {
 						t.Fatalf("failed to commit state %s: %v", stateCtx.Current.ID, err)
@@ -485,7 +486,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		},
-		recovery.Stats{
+		flowstate.RecovererStats{
 			Added:     20,
 			Completed: 10,
 			Retried:   10,
@@ -503,7 +504,7 @@ func TestRecovererActiveStandby(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
-		d := memdriver.New()
+		d := memdriver.New(l)
 		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
@@ -513,12 +514,12 @@ func TestRecovererActiveStandby(t *testing.T) {
 			t.Fatalf("failed to create engine: %v", err)
 		}
 
-		r0 := recovery.New(e, l)
+		r0 := flowstate.NewRecoverer(e, l)
 		if err := r0.Init(); err != nil {
 			t.Fatalf("failed to init recoverer: %v", err)
 		}
 
-		r1 := recovery.New(e, l)
+		r1 := flowstate.NewRecoverer(e, l)
 		if err := r1.Init(); err != nil {
 			t.Fatalf("failed to init recoverer: %v", err)
 		}
@@ -590,7 +591,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
-		d := memdriver.New()
+		d := memdriver.New(l)
 		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
@@ -604,17 +605,17 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 		// by commit state that suggest there a running recoverer
 		recoverStateCtx := &flowstate.StateCtx{
 			Current: flowstate.State{
-				ID: `flowstate.recovery.state`,
+				ID: `flowstate.recovery.meta`,
 			},
 		}
-		recovery.Disable(recoverStateCtx)
+		flowstate.DisableRecovery(recoverStateCtx)
 		if err := e.Do(flowstate.Commit(
 			flowstate.Transit(recoverStateCtx, `na`),
 		)); err != nil {
 			t.Fatalf("failed to commit recovery state: %v", err)
 		}
 
-		r := recovery.New(e, l)
+		r := flowstate.NewRecoverer(e, l)
 		if err := r.Init(); err != nil {
 			t.Fatalf("failed to init recoverer: %v", err)
 		}
@@ -643,7 +644,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 			}
 		}()
 
-		time.Sleep(recovery.MaxRetryAfter + time.Second*80)
+		time.Sleep(flowstate.MaxRetryAfter + time.Second*80)
 		synctest.Wait()
 
 		if !r.Stats().Active {
@@ -671,7 +672,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 
 func TestRecovererOnlyOneActive(t *testing.T) {
 	synctest.Run(func() {
-		assertOneActive := func(rs []*recovery.Recoverer) {
+		assertOneActive := func(rs []*flowstate.Recoverer) {
 			var activeCnt int
 			for _, r := range rs {
 				if r.Stats().Active {
@@ -686,7 +687,7 @@ func TestRecovererOnlyOneActive(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
-		d := memdriver.New()
+		d := memdriver.New(l)
 		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
@@ -696,9 +697,9 @@ func TestRecovererOnlyOneActive(t *testing.T) {
 			t.Fatalf("failed to create engine: %v", err)
 		}
 
-		var rs []*recovery.Recoverer
+		var rs []*flowstate.Recoverer
 		for i := 0; i < 2; i++ {
-			r := recovery.New(e, l)
+			r := flowstate.NewRecoverer(e, l)
 			if err := r.Init(); err != nil {
 				t.Fatalf("failed to init recoverer: %v", err)
 			}

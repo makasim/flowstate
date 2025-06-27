@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetOneLatestByID(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetOneLatestByID(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -44,6 +44,6 @@ func GetOneLatestByID(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 
 	foundStateCtx := &flowstate.StateCtx{}
 
-	require.NoError(t, e.Do(flowstate.GetByID(foundStateCtx, `aTID`, 0)))
+	require.NoError(t, e.Do(flowstate.GetStateByID(foundStateCtx, `aTID`, 0)))
 	require.Equal(t, expStateCtx, foundStateCtx)
 }

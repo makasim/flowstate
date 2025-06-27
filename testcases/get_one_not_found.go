@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetOneNotFound(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetOneNotFound(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -22,6 +22,6 @@ func GetOneNotFound(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
-	err = e.Do(flowstate.GetByID(&flowstate.StateCtx{}, `notExist`, 0))
+	err = e.Do(flowstate.GetStateByID(&flowstate.StateCtx{}, `notExist`, 0))
 	require.ErrorIs(t, err, flowstate.ErrNotFound)
 }

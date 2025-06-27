@@ -1,4 +1,4 @@
-package recovery
+package flowstate
 
 import (
 	"context"
@@ -8,16 +8,92 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/makasim/flowstate"
 )
 
-var stateID = flowstate.StateID(`flowstate.recovery.state`)
+var RecoveryEnabledAnnotation = `flowstate.recovery.enabled`
+
+func DisableRecovery(stateCtx *StateCtx) {
+	stateCtx.Current.SetAnnotation(RecoveryEnabledAnnotation, "false")
+}
+
+func recoveryEnabled(state State) bool {
+	return state.Annotations[RecoveryEnabledAnnotation] != "false"
+}
+
+var RecoveryAttemptAnnotation = `flowstate.recovery.attempt`
+
+func RecoveryAttempt(state State) int {
+	attempt, _ := strconv.Atoi(state.Transition.Annotations[RecoveryAttemptAnnotation])
+	return attempt
+}
+
+func setRecoveryAttempt(stateCtx *StateCtx, attempt int) {
+	stateCtx.Current.Transition.SetAnnotation(RecoveryAttemptAnnotation, strconv.Itoa(attempt))
+}
+
+var DefaultMaxRecoveryAttempts = 3
+var MaxRecoveryAttemptsAnnotation = `flowstate.recovery.max_attempts`
+
+func MaxRecoveryAttempts(state State) int {
+	attempt, _ := strconv.Atoi(state.Annotations[MaxRecoveryAttemptsAnnotation])
+	if attempt <= 0 {
+		return DefaultMaxRecoveryAttempts
+	}
+
+	return attempt
+}
+
+func SetMaxRecoveryAttempts(stateCtx *StateCtx, attempts int) {
+	if attempts <= 0 {
+		attempts = DefaultMaxRecoveryAttempts
+	}
+
+	stateCtx.Current.SetAnnotation(MaxRecoveryAttemptsAnnotation, strconv.Itoa(attempts))
+}
+
+var DefaultRetryAfter = time.Minute * 2
+var MinRetryAfter = time.Minute
+var MaxRetryAfter = time.Minute * 5
+var RetryAfterAnnotation = `flowstate.recovery.retry_after`
+
+func SetRetryAfter(stateCtx *StateCtx, retryAfter time.Duration) {
+	if retryAfter < MinRetryAfter {
+		retryAfter = MinRetryAfter
+	}
+	if retryAfter > MaxRetryAfter {
+		retryAfter = MaxRetryAfter
+	}
+
+	stateCtx.Current.SetAnnotation(RetryAfterAnnotation, retryAfter.String())
+}
+
+func retryAt(state State) time.Time {
+	retryAfterStr := state.Annotations[RetryAfterAnnotation]
+	if retryAfterStr == "" {
+		retryAfterStr = DefaultRetryAfter.String()
+	}
+
+	retryAfter, err := time.ParseDuration(retryAfterStr)
+	if err != nil {
+		return state.CommittedAt().Add(MinRetryAfter)
+	}
+
+	if retryAfter < MinRetryAfter {
+		retryAfter = MinRetryAfter
+	}
+	if retryAfter > MaxRetryAfter {
+		retryAfter = MaxRetryAfter
+	}
+
+	return state.CommittedAt().Add(retryAfter)
+}
+
+var recoveryStateID = StateID(`flowstate.recovery.meta`)
 
 type Recoverer struct {
 	mux sync.Mutex
 
-	recoveryStateCtx *flowstate.StateCtx
+	recoveryStateCtx *StateCtx
 
 	active   bool
 	sinceRev int64
@@ -26,7 +102,7 @@ type Recoverer struct {
 	tailRev  int64
 	tailTime time.Time
 
-	states               map[flowstate.StateID]retryableState
+	states               map[StateID]retryableState
 	statesMaxSize        int
 	statesMaxTailHeadDur time.Duration
 
@@ -36,13 +112,13 @@ type Recoverer struct {
 	dropped   int64
 	commited  int64
 
-	e         flowstate.Engine
-	doneCh    chan struct{}
+	e         Engine
+	stopCh    chan struct{}
 	stoppedCh chan struct{}
 	l         *slog.Logger
 }
 
-func New(e flowstate.Engine, l *slog.Logger) *Recoverer {
+func NewRecoverer(e Engine, l *slog.Logger) *Recoverer {
 	return &Recoverer{
 		e: e,
 		l: l,
@@ -50,27 +126,27 @@ func New(e flowstate.Engine, l *slog.Logger) *Recoverer {
 		statesMaxSize:        100000,
 		statesMaxTailHeadDur: MaxRetryAfter * 2,
 
-		doneCh:    make(chan struct{}),
+		stopCh:    make(chan struct{}),
 		stoppedCh: make(chan struct{}),
 	}
 }
 
 func (r *Recoverer) Init() error {
-	recoverStateCtx := &flowstate.StateCtx{}
+	recoverStateCtx := &StateCtx{}
 	active := true
-	if err := r.e.Do(flowstate.GetByID(recoverStateCtx, stateID, 0)); errors.Is(err, flowstate.ErrNotFound) {
-		recoverStateCtx = &flowstate.StateCtx{
-			Current: flowstate.State{
-				ID:  stateID,
+	if err := r.e.Do(GetStateByID(recoverStateCtx, recoveryStateID, 0)); errors.Is(err, ErrNotFound) {
+		recoverStateCtx = &StateCtx{
+			Current: State{
+				ID:  recoveryStateID,
 				Rev: 0,
 			},
 		}
-		Disable(recoverStateCtx)
-		setSinceRev(recoverStateCtx, 0)
+		DisableRecovery(recoverStateCtx)
+		setRecoverySinceRev(recoverStateCtx, 0)
 
-		if err := r.e.Do(flowstate.Commit(
-			flowstate.Transit(recoverStateCtx, `na`),
-		)); flowstate.IsErrRevMismatch(err) {
+		if err := r.e.Do(Commit(
+			Transit(recoverStateCtx, `na`),
+		)); IsErrRevMismatch(err) {
 			// another process is already doing recovery, we can continue in standby mode
 			active = false
 		} else if err != nil {
@@ -80,7 +156,7 @@ func (r *Recoverer) Init() error {
 	} else if err != nil {
 		return fmt.Errorf("get recovery state: %w", err)
 	} else {
-		active = flowstate.Paused(recoverStateCtx.Current)
+		active = Paused(recoverStateCtx.Current)
 	}
 
 	r.reset(recoverStateCtx, active)
@@ -106,12 +182,12 @@ func (r *Recoverer) Init() error {
 }
 
 func (r *Recoverer) Shutdown(ctx context.Context) error {
-	close(r.doneCh)
+	close(r.stopCh)
 
 	select {
 	case <-r.stoppedCh:
-		setSinceRev(r.recoveryStateCtx, r.nextSinceRev())
-		if err := r.e.Do(flowstate.Commit(flowstate.Pause(r.recoveryStateCtx))); flowstate.IsErrRevMismatch(err) {
+		setRecoverySinceRev(r.recoveryStateCtx, r.nextSinceRev())
+		if err := r.e.Do(Commit(Pause(r.recoveryStateCtx))); IsErrRevMismatch(err) {
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("commit: pause recovery state: %w", err)
@@ -125,7 +201,7 @@ func (r *Recoverer) Shutdown(ctx context.Context) error {
 	}
 }
 
-type Stats struct {
+type RecovererStats struct {
 	HeadRev  int64
 	HeadTime time.Time
 	TailRev  int64
@@ -140,11 +216,11 @@ type Stats struct {
 	Active bool
 }
 
-func (r *Recoverer) Stats() Stats {
+func (r *Recoverer) Stats() RecovererStats {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	return Stats{
+	return RecovererStats{
 		HeadRev:  r.headRev,
 		HeadTime: r.headTime,
 		TailRev:  r.tailRev,
@@ -173,7 +249,7 @@ func (r *Recoverer) updateHead() {
 		}
 
 		select {
-		case <-r.doneCh:
+		case <-r.stopCh:
 			return
 		case at := <-t.C:
 			dur = at.Sub(prevAt)
@@ -198,7 +274,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 		//	return nil
 		//}
 
-		getManyCmd := flowstate.GetManyByLabels(nil).WithSinceRev(r.sinceRev)
+		getManyCmd := GetStatesByLabels(nil).WithSinceRev(r.sinceRev)
 		if err := r.e.Do(getManyCmd); err != nil {
 			return fmt.Errorf("get many states: %w; since_rev=%d", err, r.sinceRev)
 		}
@@ -211,16 +287,16 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 		for _, state := range res.States {
 			r.sinceRev = state.Rev
 
-			if state.ID == stateID {
+			if state.ID == recoveryStateID {
 				r.recoveryStateCtx = state.CopyToCtx(r.recoveryStateCtx)
 				if state.Rev > r.recoveryStateCtx.Committed.Rev {
-					active := flowstate.Paused(state)
+					active := Paused(state)
 					r.reset(r.recoveryStateCtx, active)
 				}
 				continue
 			}
 
-			if !enabled(state) {
+			if !recoveryEnabled(state) {
 				continue
 			}
 
@@ -234,7 +310,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 			if !r.active {
 				continue
 			}
-			if flowstate.Ended(state) || flowstate.Paused(state) {
+			if Ended(state) || Paused(state) {
 				delete(r.states, state.ID)
 				r.completed++
 
@@ -242,7 +318,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 			}
 
 			r.states[state.ID] = retryableState{
-				State:   state.CopyTo(&flowstate.State{}),
+				State:   state.CopyTo(&State{}),
 				retryAt: retryAt(state),
 			}
 			r.added++
@@ -278,7 +354,7 @@ func (r *Recoverer) updateTail() {
 
 	for {
 		select {
-		case <-r.doneCh:
+		case <-r.stopCh:
 			return
 		case <-t.C:
 			if err := r.doUpdateTail(); err != nil {
@@ -295,10 +371,10 @@ func (r *Recoverer) doUpdateTail() error {
 
 	if !r.active {
 		commitedAt := r.recoveryStateCtx.Committed.CommittedAt()
-		if (commitedAt.Add(MaxRetryAfter+time.Minute).Before(time.Now()) && r.nextSinceRev() > getSinceRev(r.recoveryStateCtx)) ||
-			flowstate.Paused(r.recoveryStateCtx.Current) {
-			nextRecoveryStateCtx := r.recoveryStateCtx.CopyTo(&flowstate.StateCtx{})
-			if err := r.e.Do(flowstate.Commit(flowstate.Resume(r.recoveryStateCtx))); flowstate.IsErrRevMismatch(err) {
+		if (commitedAt.Add(MaxRetryAfter+time.Minute).Before(time.Now()) && r.nextSinceRev() > getRecoverySinceRev(r.recoveryStateCtx)) ||
+			Paused(r.recoveryStateCtx.Current) {
+			nextRecoveryStateCtx := r.recoveryStateCtx.CopyTo(&StateCtx{})
+			if err := r.e.Do(Commit(Resume(r.recoveryStateCtx))); IsErrRevMismatch(err) {
 				r.reset(r.recoveryStateCtx, false)
 				return nil
 			} else if err != nil {
@@ -331,12 +407,12 @@ func (r *Recoverer) doUpdateTail() error {
 	r.tailTime = tailTime
 
 	commitedAt := r.recoveryStateCtx.Committed.CommittedAt()
-	if r.tailRev > getSinceRev(r.recoveryStateCtx)+1000 ||
-		(commitedAt.Add(MaxRetryAfter).Before(now) && r.nextSinceRev() > getSinceRev(r.recoveryStateCtx)) {
-		nextStateCtx := r.recoveryStateCtx.CopyTo(&flowstate.StateCtx{})
+	if r.tailRev > getRecoverySinceRev(r.recoveryStateCtx)+1000 ||
+		(commitedAt.Add(MaxRetryAfter).Before(now) && r.nextSinceRev() > getRecoverySinceRev(r.recoveryStateCtx)) {
+		nextStateCtx := r.recoveryStateCtx.CopyTo(&StateCtx{})
 
-		setSinceRev(nextStateCtx, r.nextSinceRev())
-		if err := r.e.Do(flowstate.Commit(flowstate.Resume(nextStateCtx))); flowstate.IsErrRevMismatch(err) {
+		setRecoverySinceRev(nextStateCtx, r.nextSinceRev())
+		if err := r.e.Do(Commit(Resume(nextStateCtx))); IsErrRevMismatch(err) {
 			r.reset(r.recoveryStateCtx, false)
 			return nil
 		} else if err != nil {
@@ -355,25 +431,25 @@ func (r *Recoverer) doRetry() error {
 		return nil
 	}
 
-	states := make([]flowstate.State, 0)
+	states := make([]State, 0)
 
 	for id, retState := range r.states {
 		if retState.retryAt.After(r.headTime) {
 			continue
 		}
 
-		states = append(states, retState.State.CopyTo(&flowstate.State{}))
+		states = append(states, retState.State.CopyTo(&State{}))
 		delete(r.states, id)
 	}
 
 	for _, state := range states {
-		maxAttempts := MaxAttempts(state)
-		attempt := Attempt(state) + 1
-		stateCtx := state.CopyToCtx(&flowstate.StateCtx{})
+		maxAttempts := MaxRecoveryAttempts(state)
+		attempt := RecoveryAttempt(state) + 1
+		stateCtx := state.CopyToCtx(&StateCtx{})
 
-		setAttempt(stateCtx, attempt)
+		setRecoveryAttempt(stateCtx, attempt)
 		if attempt > maxAttempts {
-			if err := r.e.Do(flowstate.Commit(flowstate.End(stateCtx))); flowstate.IsErrRevMismatch(err) {
+			if err := r.e.Do(Commit(End(stateCtx))); IsErrRevMismatch(err) {
 				continue
 			} else if err != nil {
 				return fmt.Errorf("commit state %s:%d reached max retry attempts %d and forcfully ended: %s", state.ID, state.Rev, maxAttempts, err)
@@ -384,9 +460,9 @@ func (r *Recoverer) doRetry() error {
 		}
 
 		if err := r.e.Do(
-			flowstate.Commit(flowstate.CommitStateCtx(stateCtx)),
-			flowstate.Execute(stateCtx),
-		); flowstate.IsErrRevMismatch(err) {
+			Commit(CommitStateCtx(stateCtx)),
+			Execute(stateCtx),
+		); IsErrRevMismatch(err) {
 			continue
 		} else if err != nil {
 			return fmt.Errorf("commit state %s:%d recovery attempt %d: %s", state.ID, state.Rev, attempt, err)
@@ -398,17 +474,17 @@ func (r *Recoverer) doRetry() error {
 	return nil
 }
 
-func (r *Recoverer) reset(recoveryStateCtx *flowstate.StateCtx, active bool) {
+func (r *Recoverer) reset(recoveryStateCtx *StateCtx, active bool) {
 	r.active = active
-	r.recoveryStateCtx = recoveryStateCtx.CopyTo(&flowstate.StateCtx{})
+	r.recoveryStateCtx = recoveryStateCtx.CopyTo(&StateCtx{})
 
-	r.sinceRev = getSinceRev(r.recoveryStateCtx)
+	r.sinceRev = getRecoverySinceRev(r.recoveryStateCtx)
 	r.headRev = r.sinceRev
 	r.headTime = time.Time{}
 	r.tailRev = r.headRev
 	r.tailTime = time.Time{}
 
-	r.states = make(map[flowstate.StateID]retryableState)
+	r.states = make(map[StateID]retryableState)
 }
 
 func (r *Recoverer) nextSinceRev() int64 {
@@ -419,7 +495,7 @@ func (r *Recoverer) nextSinceRev() int64 {
 	return r.tailRev - 1
 }
 
-func getSinceRev(stateCtx *flowstate.StateCtx) int64 {
+func getRecoverySinceRev(stateCtx *StateCtx) int64 {
 	sinceRevStr := stateCtx.Current.Annotations[`flowstate.recovery.since_rev`]
 	if sinceRevStr == "" {
 		return 0
@@ -429,11 +505,11 @@ func getSinceRev(stateCtx *flowstate.StateCtx) int64 {
 	return sinceRev
 }
 
-func setSinceRev(stateCtx *flowstate.StateCtx, sinceRev int64) {
+func setRecoverySinceRev(stateCtx *StateCtx, sinceRev int64) {
 	stateCtx.Current.SetAnnotation(`flowstate.recovery.since_rev`, strconv.FormatInt(sinceRev, 10))
 }
 
 type retryableState struct {
-	flowstate.State
+	State
 	retryAt time.Time
 }

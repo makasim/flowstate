@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetManyLatestOnly(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetManyLatestOnly(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -43,7 +43,7 @@ func GetManyLatestOnly(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		)))
 	}
 
-	cmd := flowstate.GetManyByLabels(nil).WithLatestOnly()
+	cmd := flowstate.GetStatesByLabels(nil).WithLatestOnly()
 	require.NoError(t, e.Do(cmd))
 
 	res, err := cmd.Result()

@@ -5,98 +5,209 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/memdriver"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type Driver struct {
-	*memdriver.FlowRegistry
+	*flowstate.FlowRegistry
 	conn  conn
 	q     *queries
-	doers []flowstate.Doer
+	doers []flowstate.Driver
+	e     flowstate.Engine
 
-	l *slog.Logger
+	recoverer flowstate.Driver
+	l         *slog.Logger
 }
 
-func New(conn conn, opts ...Option) *Driver {
-	d := &Driver{
+func New(conn conn, l *slog.Logger) *Driver {
+	return &Driver{
 		conn: conn,
 
 		q:            &queries{},
-		FlowRegistry: &memdriver.FlowRegistry{},
-		l:            slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
+		FlowRegistry: &flowstate.FlowRegistry{},
+		l:            l,
 	}
-
-	for _, opt := range opts {
-		opt(d)
-	}
-
-	d.doers = []flowstate.Doer{
-		flowstate.DefaultTransitDoer,
-		flowstate.DefaultPauseDoer,
-		flowstate.DefaultResumeDoer,
-		flowstate.DefaultEndDoer,
-		flowstate.DefaultNoopDoer,
-		flowstate.DefaultSerializerDoer,
-		flowstate.DefaultDeserializeDoer,
-		flowstate.DefaultDereferenceDataDoer,
-		flowstate.DefaultReferenceDataDoer,
-		flowstate.DefaultReferenceDataDoer,
-		flowstate.DefaultDereferenceDataDoer,
-
-		memdriver.NewFlowGetter(d.FlowRegistry),
-		NewDataer(d.conn, d.q),
-		NewCommiter(d.conn, d.q),
-		NewGetter(d.conn, d.q),
-		NewDelayer(d.conn, d.q, time.Now),
-	}
-
-	return d
-}
-
-func (d *Driver) Do(cmd0 flowstate.Command) error {
-	for _, doer := range d.doers {
-		if err := doer.Do(cmd0); errors.Is(err, flowstate.ErrCommandNotSupported) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("%T: do: %w", doer, err)
-		}
-
-		return nil
-	}
-
-	return fmt.Errorf("no doer for command %T", cmd0)
 }
 
 func (d *Driver) Init(e flowstate.Engine) error {
-	for _, doer := range d.doers {
-		if err := doer.Init(e); err != nil {
-			return fmt.Errorf("%T: init: %w", doer, err)
-		}
+	d.e = e
+	return nil
+}
+
+func (d *Driver) Shutdown(_ context.Context) error {
+	return nil
+}
+
+func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
+	if err := d.q.GetData(context.Background(), d.conn, cmd.Data.ID, cmd.Data.Rev, cmd.Data); err != nil {
+		return fmt.Errorf("get data query: %w", err)
 	}
 
 	return nil
 }
 
-func (d *Driver) Shutdown(ctx context.Context) error {
-	var res error
-	for _, doer := range d.doers {
-		if err := doer.Shutdown(ctx); err != nil {
-			res = errors.Join(res, fmt.Errorf("%T: shutdown: %w", doer, err))
+func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
+	if err := d.q.InsertData(context.Background(), d.conn, cmd.Data); err != nil {
+		return fmt.Errorf("insert data queue: %w", err)
+	}
+
+	return nil
+}
+
+func (d *Driver) GetStateByID(cmd *flowstate.GetStateByIDCommand) error {
+	s := flowstate.State{}
+	if err := d.q.GetStateByID(context.Background(), d.conn, cmd.ID, cmd.Rev, &s); errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("%w; id=%v rev=%d", flowstate.ErrNotFound, cmd.ID, cmd.Rev)
+	} else if err != nil {
+		return fmt.Errorf("get state by id: query: %w", err)
+	}
+
+	s.CopyToCtx(cmd.StateCtx)
+	return nil
+}
+
+func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error {
+	s := flowstate.State{}
+
+	ss := []flowstate.State{s}
+	ss, err := d.q.GetStatesByLabels(context.Background(), d.conn, []map[string]string{cmd.Labels}, -1, time.Time{}, ss)
+	if err != nil {
+		return fmt.Errorf("get states by labels query: %w", err)
+	} else if len(ss) == 0 {
+		return fmt.Errorf("%w; labels=%v", flowstate.ErrNotFound, cmd.Labels)
+	}
+	s = ss[0]
+
+	s.CopyToCtx(cmd.StateCtx)
+	return nil
+}
+
+func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
+	ss := make([]flowstate.State, cmd.Limit+1)
+	if cmd.LatestOnly {
+		var err error
+		ss, err = d.q.GetLatestStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, cmd.SinceTime, ss)
+		if err != nil {
+			return nil, fmt.Errorf("get latest states by labels query: %w", err)
+		}
+	} else {
+		var err error
+		ss, err = d.q.GetStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, cmd.SinceTime, ss)
+		if err != nil {
+			return nil, fmt.Errorf("get states by labels query: %w", err)
 		}
 	}
 
-	return res
+	var more bool
+	if len(ss) > cmd.Limit {
+		ss = ss[:cmd.Limit]
+		more = true
+	}
+
+	return &flowstate.GetStatesResult{
+		States: ss,
+		More:   more,
+	}, nil
 }
 
-type Option func(*Driver)
-
-func WithLogger(l *slog.Logger) Option {
-	return func(d *Driver) {
-		d.l = l
+func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
+	executeAt := flowstate.DelayedUntil(cmd.DelayStateCtx.Current)
+	if err := d.q.InsertDelayedState(context.Background(), d.conn, cmd.DelayStateCtx.Current, executeAt); err != nil {
+		return fmt.Errorf("insert delayed state query: %w", err)
 	}
+
+	return nil
+}
+
+func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
+	ds, err := d.q.GetDelayedStates(context.Background(), d.conn, cmd.Since.Unix(), cmd.Until.Unix(), cmd.Offset, cmd.Limit+1)
+	if err != nil {
+		return nil, fmt.Errorf("get delayed states query: %w", err)
+	}
+
+	var more bool
+	if len(ds) > cmd.Limit {
+		ds = ds[:cmd.Limit]
+		more = true
+	}
+
+	return &flowstate.GetDelayedStatesResult{
+		States: ds,
+		More:   more,
+	}, nil
+}
+
+func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
+	tx, err := d.conn.BeginTx(context.Background(), pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("conn: begin: %w", err)
+	}
+	defer tx.Rollback(context.Background())
+
+	revMismatchErr := &flowstate.ErrRevMismatch{}
+
+	for _, subCmd0 := range cmd.Commands {
+		if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
+			if err := d.e.Do(subCmd0); err != nil {
+				return fmt.Errorf("%T: do: %w", subCmd0, err)
+			}
+		}
+
+		committableCmd, ok := subCmd0.(flowstate.CommittableCommand)
+		if !ok {
+			continue
+		}
+		committableStateCtx := committableCmd.CommittableStateCtx()
+
+		nextState := committableStateCtx.Current.CopyTo(&flowstate.State{})
+		nextState.SetCommitedAt(time.Now())
+
+		if committableStateCtx.Committed.Rev > 0 {
+			if err := d.q.UpdateState(context.Background(), tx, &nextState); isRevMismatchErr(err) {
+				revMismatchErr.Add(fmt.Sprintf("%T", cmd), committableStateCtx.Current.ID, err)
+				return revMismatchErr
+			} else if err != nil {
+				return fmt.Errorf("update state: %w", err)
+			}
+		} else {
+			if err := d.q.InsertState(context.Background(), tx, &nextState); isRevMismatchErr(err) {
+				revMismatchErr.Add(fmt.Sprintf("%T", cmd), committableStateCtx.Current.ID, err)
+				return revMismatchErr
+			} else if err != nil {
+				return fmt.Errorf("insert state: %w", err)
+			}
+		}
+
+		nextState.CopyTo(&committableStateCtx.Committed)
+		nextState.CopyTo(&committableStateCtx.Current)
+		committableStateCtx.Transitions = committableStateCtx.Transitions[:0]
+	}
+
+	if len(revMismatchErr.TaskIDs()) > 0 {
+		return revMismatchErr
+	}
+
+	return tx.Commit(context.Background())
+}
+
+func (d *Driver) GetFlow(cmd *flowstate.GetFlowCommand) error {
+	return d.FlowRegistry.Do(cmd)
+}
+
+func isRevMismatchErr(err error) bool {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return true
+	}
+
+	pgErr := &pgconn.PgError{}
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+
+	uniqueViolationCode := `23505`
+	return pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == `flowstate_latest_states_pkey`
 }

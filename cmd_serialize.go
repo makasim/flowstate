@@ -22,12 +22,7 @@ type SerializeCommand struct {
 	Annotation           string
 }
 
-var DefaultSerializerDoer DoerFunc = func(cmd0 Command) error {
-	cmd, ok := cmd0.(*SerializeCommand)
-	if !ok {
-		return ErrCommandNotSupported
-	}
-
+func (cmd *SerializeCommand) do() error {
 	if cmd.Annotation == `` {
 		return fmt.Errorf("store annotation name empty")
 	}

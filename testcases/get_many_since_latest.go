@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetManySinceLatest(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetManySinceLatest(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -40,7 +40,7 @@ func GetManySinceLatest(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		flowstate.Pause(stateCtx),
 	)))
 
-	cmd := flowstate.GetManyByLabels(map[string]string{
+	cmd := flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceLatest()
 	require.NoError(t, e.Do(cmd))

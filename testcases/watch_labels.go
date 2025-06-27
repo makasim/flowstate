@@ -10,7 +10,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func WatchLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func WatchLabels(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -52,7 +52,7 @@ func WatchLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		}),
 	)))
 
-	w := flowstate.NewWatcher(e, flowstate.GetManyByLabels(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}))
 	defer w.Close()

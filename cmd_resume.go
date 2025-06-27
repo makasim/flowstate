@@ -19,12 +19,7 @@ func (cmd *ResumeCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-var DefaultResumeDoer DoerFunc = func(cmd0 Command) error {
-	cmd, ok := cmd0.(*ResumeCommand)
-	if !ok {
-		return ErrCommandNotSupported
-	}
-
+func (cmd *ResumeCommand) do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{

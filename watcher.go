@@ -8,20 +8,20 @@ import (
 type Watcher struct {
 	e Engine
 
-	cmd     *GetManyCommand
+	cmd     *GetStatesCommand
 	watchCh chan State
 	closeCh chan struct{}
 }
 
-func NewWatcher(e Engine, cmd *GetManyCommand) *Watcher {
-	copyCmd := &GetManyCommand{
+func NewWatcher(e Engine, cmd *GetStatesCommand) *Watcher {
+	copyCmd := &GetStatesCommand{
 		SinceRev:   cmd.SinceRev,
 		SinceTime:  cmd.SinceTime,
 		Labels:     copyORLabels(cmd.Labels),
 		LatestOnly: cmd.LatestOnly,
 		Limit:      cmd.Limit,
 	}
-	copyCmd.Prepare()
+	copyCmd.prepare()
 
 	w := &Watcher{
 		e:   e,
@@ -65,7 +65,7 @@ func (w *Watcher) listen() {
 func (w *Watcher) stream() bool {
 	getManyCmd := w.cmd
 
-	getManyCmd.SetResult(nil)
+	getManyCmd.result = nil
 	if err := w.e.Do(getManyCmd); err != nil {
 		log.Printf("ERROR: WatchListener: get many states: %s", err)
 		return false

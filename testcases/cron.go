@@ -11,7 +11,7 @@ import (
 	//"go.uber.org/goleak"
 )
 
-func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
+func Cron(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 	// does not work in flowstatesrv srvdriver
 	// delayer related goroutines are started inside test by stoped with the app outside
 	//	cron.go:130: found unexpected goroutines:
@@ -106,6 +106,15 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		require.NoError(t, e.Shutdown(sCtx))
 	}()
 
+	dlr, err := flowstate.NewDelayer(e, l)
+	require.NoError(t, err)
+	defer func() {
+		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer sCtxCancel()
+
+		require.NoError(t, dlr.Shutdown(sCtx))
+	}()
+
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -130,5 +139,5 @@ func Cron(t TestingT, d flowstate.Doer, fr FlowRegistry) {
 		`task`,
 		`cron`,
 		`task`,
-	}, time.Second*10)
+	}, time.Second*20)
 }

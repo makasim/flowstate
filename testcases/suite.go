@@ -16,9 +16,9 @@ type TestingT interface {
 }
 
 type Suite struct {
-	SetUp func(t TestingT) (flowstate.Doer, FlowRegistry)
+	SetUp func(t TestingT) (flowstate.Driver, FlowRegistry)
 
-	cases map[string]func(t TestingT, d flowstate.Doer, fr FlowRegistry)
+	cases map[string]func(t TestingT, d flowstate.Driver, fr FlowRegistry)
 }
 
 func (s *Suite) Test(main *testing.T) {
@@ -42,11 +42,11 @@ func (s *Suite) Skip(t *testing.T, name string) {
 	s.cases[name] = nil
 }
 
-func Get(setUp func(t TestingT) (flowstate.Doer, FlowRegistry)) *Suite {
+func Get(setUp func(t TestingT) (flowstate.Driver, FlowRegistry)) *Suite {
 	return &Suite{
 		SetUp: setUp,
 
-		cases: map[string]func(t TestingT, d flowstate.Doer, fr FlowRegistry){
+		cases: map[string]func(t TestingT, d flowstate.Driver, fr FlowRegistry){
 			"Actor": Actor,
 
 			"CallFlow":           CallFlow,
@@ -59,12 +59,7 @@ func Get(setUp func(t TestingT) (flowstate.Doer, FlowRegistry)) *Suite {
 			"DataStoreGet":           DataStoreGet,
 			"DataStoreGetWithCommit": DataStoreGetWithCommit,
 
-			"DelayDelayedWinWithCommit":   Delay_DelayedWin_WithCommit,
-			"DelayEngineDo":               Delay_EngineDo,
-			"DelayPaused":                 Delay_Paused,
-			"DelayPausedWithCommit":       Delay_PausedWithCommit,
-			"DelayReturn":                 Delay_Return,
-			"DelayTransitedWinWithCommit": Delay_TransitedWin_WithCommit,
+			"Delay": Delay,
 
 			"Fork":              Fork,
 			"ForkJoinFirstWins": ForkJoin_FirstWins,

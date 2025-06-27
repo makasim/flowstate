@@ -19,12 +19,7 @@ func (cmd *EndCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-var DefaultEndDoer DoerFunc = func(cmd0 Command) error {
-	cmd, ok := cmd0.(*EndCommand)
-	if !ok {
-		return ErrCommandNotSupported
-	}
-
+func (cmd *EndCommand) do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{

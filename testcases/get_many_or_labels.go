@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetManyORLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
+func GetManyORLabels(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -45,7 +45,7 @@ func GetManyORLabels(t TestingT, d flowstate.Doer, _ FlowRegistry) {
 		}),
 	)))
 
-	cmd := flowstate.GetManyByLabels(map[string]string{
+	cmd := flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithORLabels(map[string]string{
 		`bar`: `barVal`,
