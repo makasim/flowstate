@@ -1,6 +1,7 @@
 package badgerdriver
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -11,17 +12,29 @@ import (
 func TestOrLabelsIterator(t *testing.T) {
 	f := func(storedStates []flowstate.State, orLabels []map[string]string, sinceRev int64, reverse bool, expRes []flowstate.State) {
 		t.Helper()
+
 		db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLoggingLevel(2))
 		if err != nil {
 			t.Fatalf("failed to open badger db: %v", err)
 		}
-		seq, err := getStateRevSequence(db)
-		if err != nil {
-			t.Fatalf("failed to get state rev sequence: %v", err)
+		defer func() {
+			if err := db.Close(); err != nil {
+				t.Fatalf("failed to close db: %v", err)
+			}
+		}()
+
+		d := New(db)
+		if err := d.Init(&stubEngine{}); err != nil {
+			t.Fatalf("failed to init engine: %v", err)
 		}
+		defer func() {
+			if err := d.Shutdown(context.Background()); err != nil {
+				t.Fatalf("failed to shutdown commiter: %v", err)
+			}
+		}()
 
 		for _, state := range storedStates {
-			storeTestState(t, db, seq, state)
+			storeTestState(t, d, state)
 		}
 
 		var actRes []flowstate.State

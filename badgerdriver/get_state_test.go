@@ -9,47 +9,48 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-func TestGetter_GetByIDOK(t *testing.T) {
+func TestGetStateByIDOK(t *testing.T) {
 	db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLoggingLevel(2))
 	if err != nil {
 		t.Fatalf("failed to open badger db: %v", err)
 	}
-	seq, err := getStateRevSequence(db)
-	if err != nil {
-		t.Fatalf("failed to get state rev sequence: %v", err)
-	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("failed to close db: %v", err)
+		}
+	}()
 
-	storeTestState(t, db, seq, flowstate.State{
+	d := New(db)
+	if err := d.Init(&stubEngine{}); err != nil {
+		t.Fatalf("failed to init engine: %v", err)
+	}
+	defer func() {
+		if err := d.Shutdown(context.Background()); err != nil {
+			t.Fatalf("failed to shutdown commiter: %v", err)
+		}
+	}()
+
+	storeTestState(t, d, flowstate.State{
 		ID: `aStateID1`,
 		Annotations: map[string]string{
 			"annotation1": "value1",
 		},
 	})
-	storeTestState(t, db, seq, flowstate.State{
+	storeTestState(t, d, flowstate.State{
 		ID: `aStateID1`,
 		Annotations: map[string]string{
 			"annotation2": "value2",
 		},
 	})
-	storeTestState(t, db, seq, flowstate.State{
+	storeTestState(t, d, flowstate.State{
 		ID: `aStateID2`,
 		Annotations: map[string]string{
 			"annotation1": "value1",
 		},
 	})
 
-	f := func(cmd *flowstate.GetCommand, expState flowstate.State) {
-		g := NewGetter(db)
-		if err := g.Init(&stubEngine{}); err != nil {
-			t.Fatalf("failed to init engine: %v", err)
-		}
-		defer func() {
-			if err := g.Shutdown(context.Background()); err != nil {
-				t.Fatalf("failed to shutdown getter: %v", err)
-			}
-		}()
-
-		if err := g.Do(cmd); err != nil {
+	f := func(cmd *flowstate.GetStateByIDCommand, expState flowstate.State) {
+		if err := d.GetStateByID(cmd); err != nil {
 			t.Fatalf("failed to get state by ID: %v", err)
 		}
 
@@ -62,7 +63,7 @@ func TestGetter_GetByIDOK(t *testing.T) {
 	}
 
 	// find latest by id
-	f(flowstate.GetByID(&flowstate.StateCtx{}, "aStateID1", 0), flowstate.State{
+	f(flowstate.GetStateByID(&flowstate.StateCtx{}, "aStateID1", 0), flowstate.State{
 		ID:  `aStateID1`,
 		Rev: 2,
 		Annotations: map[string]string{
@@ -70,7 +71,7 @@ func TestGetter_GetByIDOK(t *testing.T) {
 		},
 	})
 	// another find latest by id
-	f(flowstate.GetByID(&flowstate.StateCtx{}, "aStateID2", 0), flowstate.State{
+	f(flowstate.GetStateByID(&flowstate.StateCtx{}, "aStateID2", 0), flowstate.State{
 		ID:  `aStateID2`,
 		Rev: 3,
 		Annotations: map[string]string{
@@ -79,7 +80,7 @@ func TestGetter_GetByIDOK(t *testing.T) {
 	})
 
 	// find by id and rev
-	f(flowstate.GetByID(&flowstate.StateCtx{}, "aStateID1", 1), flowstate.State{
+	f(flowstate.GetStateByID(&flowstate.StateCtx{}, "aStateID1", 1), flowstate.State{
 		ID:  `aStateID1`,
 		Rev: 1,
 		Annotations: map[string]string{
@@ -88,7 +89,7 @@ func TestGetter_GetByIDOK(t *testing.T) {
 	})
 
 	// another find by id and rev
-	f(flowstate.GetByID(&flowstate.StateCtx{}, "aStateID2", 3), flowstate.State{
+	f(flowstate.GetStateByID(&flowstate.StateCtx{}, "aStateID2", 3), flowstate.State{
 		ID:  `aStateID2`,
 		Rev: 3,
 		Annotations: map[string]string{
@@ -97,35 +98,38 @@ func TestGetter_GetByIDOK(t *testing.T) {
 	})
 }
 
-func TestGetter_GetByIDError(t *testing.T) {
+func TestGetByIDError(t *testing.T) {
 	db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLoggingLevel(2))
 	if err != nil {
 		t.Fatalf("failed to open badger db: %v", err)
 	}
-	seq, err := getStateRevSequence(db)
-	if err != nil {
-		t.Fatalf("failed to get state rev sequence: %v", err)
-	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("failed to close db: %v", err)
+		}
+	}()
 
-	storeTestState(t, db, seq, flowstate.State{
+	d := New(db)
+	if err := d.Init(&stubEngine{}); err != nil {
+		t.Fatalf("failed to init engine: %v", err)
+	}
+	defer func() {
+		if err := d.Shutdown(context.Background()); err != nil {
+			t.Fatalf("failed to shutdown commiter: %v", err)
+		}
+	}()
+
+	storeTestState(t, d, flowstate.State{
 		ID: `aStateID1`,
 		Annotations: map[string]string{
 			"annotation1": "value1",
 		},
 	})
 
-	f := func(cmd *flowstate.GetCommand, errStr string) {
-		g := NewGetter(db)
-		if err := g.Init(&stubEngine{}); err != nil {
-			t.Fatalf("failed to init engine: %v", err)
-		}
-		defer func() {
-			if err := g.Shutdown(context.Background()); err != nil {
-				t.Fatalf("failed to shutdown getter: %v", err)
-			}
-		}()
+	f := func(cmd *flowstate.GetStateByIDCommand, errStr string) {
+		t.Helper()
 
-		err := g.Do(cmd)
+		err := d.GetStateByID(cmd)
 		if err == nil {
 			t.Fatalf("expected error, got nil")
 		}
@@ -142,11 +146,11 @@ func TestGetter_GetByIDError(t *testing.T) {
 	}
 
 	// state not found
-	f(flowstate.GetByID(&flowstate.StateCtx{}, "aStateDoesNotExist", 0), "state not found; id=aStateDoesNotExist")
+	f(flowstate.GetStateByID(&flowstate.StateCtx{}, "aStateDoesNotExist", 0), "state not found; id=aStateDoesNotExist")
 
 	// negative rev
-	f(flowstate.GetByID(&flowstate.StateCtx{}, "aStateID1", -1), "invalid get command")
+	f(flowstate.GetStateByID(&flowstate.StateCtx{}, "aStateID1", -1), "invalid revision: -1; must be >= 0")
 
 	// no such rev
-	f(flowstate.GetByID(&flowstate.StateCtx{}, "aStateID1", 123), "state not found; id=aStateID1")
+	f(flowstate.GetStateByID(&flowstate.StateCtx{}, "aStateID1", 123), "state not found; id=aStateID1")
 }

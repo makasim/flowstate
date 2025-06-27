@@ -1,14 +1,11 @@
 module github.com/makasim/flowstate
 
-go 1.23.0
-
-toolchain go1.24.3
+go 1.24.0
 
 require (
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	github.com/jackc/pgx/v5 v5.6.0
-	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/stretchr/testify v1.10.0
 	github.com/thejerf/slogassert v0.3.4
 	github.com/xo/dburl v0.23.2
