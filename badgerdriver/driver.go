@@ -20,6 +20,8 @@ type Driver struct {
 	db         *badger.DB
 	dataRevSeq *badger.Sequence
 
+	delayedOffsetSeq *badger.Sequence
+
 	stateRevMux sync.Mutex
 	stateRevSeq *badger.Sequence
 	stateRevs   map[int64]struct{}
@@ -38,14 +40,19 @@ func New(db *badger.DB) (*Driver, error) {
 	if err != nil {
 		return nil, fmt.Errorf("db: get data rev seq: %w", err)
 	}
+	delayedOffsetSeq, err := getDelayedOffsetSequence(db)
+	if err != nil {
+		return nil, fmt.Errorf("db: get delayed offset seq: %w", err)
+	}
 
 	return &Driver{
-		db:           db,
-		stateRevSeq:  stateRevSeq,
-		stateRevs:    make(map[int64]struct{}),
-		stateRevMux:  sync.Mutex{},
-		dataRevSeq:   dataRevSeq,
-		FlowRegistry: &flowstate.FlowRegistry{},
+		db:               db,
+		stateRevSeq:      stateRevSeq,
+		stateRevs:        make(map[int64]struct{}),
+		stateRevMux:      sync.Mutex{},
+		dataRevSeq:       dataRevSeq,
+		delayedOffsetSeq: delayedOffsetSeq,
+		FlowRegistry:     &flowstate.FlowRegistry{},
 
 		l: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
 	}, nil
@@ -192,11 +199,81 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 }
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
-	return fmt.Errorf("not implemented")
+	nextOffset, err := d.delayedOffsetSeq.Next()
+	if err != nil {
+		return fmt.Errorf("get next sequence: %w", err)
+	}
+
+	return d.db.Update(func(txn *badger.Txn) error {
+		delayedState := flowstate.DelayedState{
+			State:     cmd.DelayStateCtx.Current,
+			ExecuteAt: flowstate.DelayedUntil(cmd.DelayStateCtx.Current),
+			Offset:    int64(nextOffset),
+		}
+
+		if err := setDelayedState(txn, delayedState); err != nil {
+			return fmt.Errorf("set delayed state: %w", err)
+		}
+		if err := setDelayedOffsetIndex(txn, delayedState); err != nil {
+			return fmt.Errorf("set delayed offset index: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
-	return nil, fmt.Errorf("not implemented")
+	res := &flowstate.GetDelayedStatesResult{}
+
+	if err := d.db.View(func(txn *badger.Txn) error {
+		prefix := delayedStatePrefix(cmd.Since)
+		seekPrefix := delayedStateKey(cmd.Since.Unix(), cmd.Offset)
+		if cmd.Offset > 0 || cmd.Since.IsZero() {
+			prefix = delayedOffsetPrefix()
+			seekPrefix = delayedOffsetKey(cmd.Offset)
+		}
+
+		it := &badgerIterator{
+			prefix: prefix,
+			Iterator: txn.NewIterator(badger.IteratorOptions{
+				PrefetchSize: 100,
+				Prefix:       prefix,
+				Reverse:      false,
+			}),
+		}
+		defer it.Close()
+
+		it.Seek(seekPrefix)
+
+		for ; it.Valid(); it.Next() {
+			delayedStateKey, err := it.Item().ValueCopy(nil)
+			if err != nil {
+				return fmt.Errorf("get delayed state execute at: %w", err)
+			}
+			delayedState := flowstate.DelayedState{}
+			if err := getGOB(txn, delayedStateKey, &delayedState); err != nil {
+				return fmt.Errorf("get delayed state: %w", err)
+			}
+			if delayedState.ExecuteAt.Unix() <= cmd.Since.Unix() {
+				continue
+			}
+			if delayedState.ExecuteAt.Unix() > cmd.Until.Unix() {
+				break
+			}
+			if len(res.States) >= cmd.Limit {
+				res.More = true
+				break
+			}
+
+			res.States = append(res.States, delayedState)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("get delayed states: %w", err)
+	}
+
+	return res, nil
 }
 
 func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {
@@ -349,6 +426,19 @@ func getDataRevSequence(db *badger.DB) (*badger.Sequence, error) {
 		return nil, err
 	}
 	// make sure we never get rev=0
+	if _, err := seq.Next(); err != nil {
+		return nil, err
+	}
+
+	return seq, nil
+}
+
+func getDelayedOffsetSequence(db *badger.DB) (*badger.Sequence, error) {
+	seq, err := db.GetSequence([]byte("flowstate.offset.delayed_state"), 10000)
+	if err != nil {
+		return nil, err
+	}
+	// make sure we never get offset=0
 	if _, err := seq.Next(); err != nil {
 		return nil, err
 	}

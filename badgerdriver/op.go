@@ -201,3 +201,40 @@ func getData(txn *badger.Txn, data *flowstate.Data) error {
 
 	return nil
 }
+
+func setDelayedState(txn *badger.Txn, delayedState flowstate.DelayedState) error {
+	return setGOB(txn, delayedStateKey(delayedState.ExecuteAt.Unix(), delayedState.Offset), delayedState)
+}
+
+func getDelayedState(txn *badger.Txn, executeAt, offset int64) (flowstate.DelayedState, error) {
+	delayedState := flowstate.DelayedState{}
+
+	if err := getGOB(txn, delayedStateKey(executeAt, offset), delayedState); err != nil {
+		return flowstate.DelayedState{}, fmt.Errorf("get delayed state: %w", err)
+	}
+
+	return delayedState, nil
+}
+
+func delayedStateKey(executeAt, offset int64) []byte {
+	return []byte(fmt.Sprintf(`flowstate.delayed.states.%020d.%020d`, executeAt, offset))
+}
+
+func delayedStatePrefix(since time.Time) []byte {
+	return []byte(fmt.Sprintf(`flowstate.delayed.states.%020d.`, since.Unix()))
+}
+
+func setDelayedOffsetIndex(txn *badger.Txn, delayedState flowstate.DelayedState) error {
+	return txn.Set(
+		delayedOffsetKey(delayedState.Offset),
+		delayedStateKey(delayedState.ExecuteAt.Unix(), delayedState.Offset),
+	)
+}
+
+func delayedOffsetKey(offset int64) []byte {
+	return []byte(fmt.Sprintf(`flowstate.index.delayed_status_offset.%020d`, offset))
+}
+
+func delayedOffsetPrefix() []byte {
+	return []byte(`flowstate.index.delayed_status_offset.`)
+}
