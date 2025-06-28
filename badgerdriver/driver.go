@@ -17,16 +17,10 @@ import (
 type Driver struct {
 	*flowstate.FlowRegistry
 
-	db         *badger.DB
-	dataRevSeq *badger.Sequence
-
-	delayedOffsetSeq *badger.Sequence
-
-	stateRevMux sync.Mutex
-	stateRevSeq *badger.Sequence
-	stateRevs   map[int64]struct{}
-	stateMaxRev int64
-	stateMinRev int64
+	db               *badger.DB
+	dataRevSeq       *badger.Sequence
+	delayedOffsetSeq *sequenceWithCommit
+	stateRevSeq      *sequenceWithCommit
 
 	l *slog.Logger
 }
@@ -46,13 +40,19 @@ func New(db *badger.DB) (*Driver, error) {
 	}
 
 	return &Driver{
-		db:               db,
-		stateRevSeq:      stateRevSeq,
-		stateRevs:        make(map[int64]struct{}),
-		stateRevMux:      sync.Mutex{},
-		dataRevSeq:       dataRevSeq,
-		delayedOffsetSeq: delayedOffsetSeq,
-		FlowRegistry:     &flowstate.FlowRegistry{},
+		db:         db,
+		dataRevSeq: dataRevSeq,
+		stateRevSeq: &sequenceWithCommit{
+
+			seq:     stateRevSeq,
+			ongoing: make(map[int64]struct{}),
+		},
+		delayedOffsetSeq: &sequenceWithCommit{
+
+			seq:     delayedOffsetSeq,
+			ongoing: make(map[int64]struct{}),
+		},
+		FlowRegistry: &flowstate.FlowRegistry{},
 
 		l: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
 	}, nil
@@ -61,11 +61,14 @@ func New(db *badger.DB) (*Driver, error) {
 func (d *Driver) Shutdown(_ context.Context) error {
 	var res error
 
-	if err := d.stateRevSeq.Release(); err != nil {
+	if err := d.stateRevSeq.seq.Release(); err != nil {
 		res = errors.Join(res, fmt.Errorf("release state rev seq: %w", err))
 	}
 	if err := d.dataRevSeq.Release(); err != nil {
 		res = errors.Join(res, fmt.Errorf("release data rev seq: %w", err))
+	}
+	if err := d.delayedOffsetSeq.seq.Release(); err != nil {
+		res = errors.Join(res, fmt.Errorf("release delayed offset seq: %w", err))
 	}
 
 	return res
@@ -120,9 +123,7 @@ func (d *Driver) GetStateByID(cmd *flowstate.GetStateByIDCommand) error {
 
 func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error {
 	return d.db.View(func(txn *badger.Txn) error {
-		d.stateRevMux.Lock()
-		untilRev := d.stateMinRev
-		d.stateRevMux.Unlock()
+		untilRev := d.stateRevSeq.maxViewable()
 
 		it := newLabelsIterator(txn, cmd.Labels, untilRev, true)
 		defer it.Close()
@@ -140,9 +141,7 @@ func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error 
 func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
 	res := &flowstate.GetStatesResult{}
 	if err := d.db.View(func(txn *badger.Txn) error {
-		d.stateRevMux.Lock()
-		untilRev := d.stateMinRev
-		d.stateRevMux.Unlock()
+		untilRev := d.stateRevSeq.maxViewable()
 
 		sinceRev := cmd.SinceRev
 		if !cmd.SinceTime.IsZero() {
@@ -199,16 +198,19 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 }
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
-	nextOffset, err := d.delayedOffsetSeq.Next()
-	if err != nil {
-		return fmt.Errorf("get next sequence: %w", err)
-	}
+	getOffset, commitOffset := d.delayedOffsetSeq.nextWithCommit()
+	defer commitOffset()
 
 	return d.db.Update(func(txn *badger.Txn) error {
+		nextOffset, err := getOffset()
+		if err != nil {
+			return fmt.Errorf("get next sequence: %w", err)
+		}
+
 		delayedState := flowstate.DelayedState{
 			State:     cmd.DelayStateCtx.Current,
 			ExecuteAt: flowstate.DelayedUntil(cmd.DelayStateCtx.Current),
-			Offset:    int64(nextOffset),
+			Offset:    nextOffset,
 		}
 
 		if err := setDelayedState(txn, delayedState); err != nil {
@@ -226,6 +228,8 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 	res := &flowstate.GetDelayedStatesResult{}
 
 	if err := d.db.View(func(txn *badger.Txn) error {
+		untilOffset := d.delayedOffsetSeq.maxViewable()
+
 		prefix := delayedStatePrefix(cmd.Since)
 		seekPrefix := delayedStateKey(cmd.Since.Unix(), cmd.Offset)
 		if cmd.Offset > 0 || cmd.Since.IsZero() {
@@ -260,6 +264,10 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 			if delayedState.ExecuteAt.Unix() > cmd.Until.Unix() {
 				break
 			}
+			if delayedState.Offset > untilOffset {
+				break
+			}
+
 			if len(res.States) >= cmd.Limit {
 				res.More = true
 				break
@@ -280,14 +288,14 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error 
 	var attempt int
 	var maxAttempts = len(cmd.Commands)
 
-	getNextRev, commitRevs := d.nextStateRevWithCommit()
+	getRev, commitRevs := d.stateRevSeq.nextWithCommit()
 	defer commitRevs()
 
 	for {
 
 		if err := d.db.Update(func(txn *badger.Txn) error {
 			for i, subCmd0 := range cmd.Commands {
-				nextRev, err := getNextRev()
+				nextRev, err := getRev()
 				if err != nil {
 					return fmt.Errorf("get next sequence: %w", err)
 				}
@@ -364,49 +372,6 @@ func (d *Driver) GetFlow(cmd *flowstate.GetFlowCommand) error {
 	return d.FlowRegistry.Do(cmd)
 }
 
-func (d *Driver) nextStateRevWithCommit() (func() (int64, error), func()) {
-	var revs []int64
-
-	return func() (int64, error) {
-			next0, err := d.stateRevSeq.Next()
-			if err != nil {
-				return 0, err
-			}
-			if next0 >= math.MaxInt64 {
-				panic("FATAL: sequence overflow, int64 max %d value has been reached")
-			}
-
-			next := int64(next0)
-			revs = append(revs, next)
-
-			d.stateRevMux.Lock()
-			d.stateMaxRev = next
-			d.stateRevs[next] = struct{}{}
-			d.stateRevMux.Unlock()
-
-			return next, nil
-		}, func() {
-			if len(revs) == 0 {
-				return
-			}
-
-			d.stateRevMux.Lock()
-
-			for _, rev := range revs {
-				delete(d.stateRevs, rev)
-			}
-
-			minRev := d.stateMaxRev
-			for rev := range d.stateRevs {
-				minRev = min(minRev, rev)
-			}
-			revs = revs[:0]
-			d.stateMinRev = minRev
-
-			d.stateRevMux.Unlock()
-		}
-}
-
 func getStateRevSequence(db *badger.DB) (*badger.Sequence, error) {
 	seq, err := db.GetSequence([]byte("flowstate.rev.state"), 10000)
 	if err != nil {
@@ -444,4 +409,62 @@ func getDelayedOffsetSequence(db *badger.DB) (*badger.Sequence, error) {
 	}
 
 	return seq, nil
+}
+
+type sequenceWithCommit struct {
+	seq          *badger.Sequence
+	mux          sync.Mutex
+	ongoing      map[int64]struct{}
+	maxOngoing   int64
+	maxCommitted int64
+}
+
+func (seq *sequenceWithCommit) nextWithCommit() (func() (int64, error), func()) {
+	var txnCommitting []int64
+
+	return func() (int64, error) {
+			next0, err := seq.seq.Next()
+			if err != nil {
+				return 0, err
+			}
+			if next0 >= math.MaxInt64 {
+				panic("FATAL: sequence overflow, int64 max %d value has been reached")
+			}
+
+			next := int64(next0)
+			txnCommitting = append(txnCommitting, next)
+
+			seq.mux.Lock()
+			seq.ongoing[next] = struct{}{}
+			seq.maxOngoing = next
+			seq.mux.Unlock()
+
+			return next, nil
+		}, func() {
+			if len(txnCommitting) == 0 {
+				return
+			}
+
+			seq.mux.Lock()
+			defer seq.mux.Unlock()
+
+			for _, rev := range txnCommitting {
+				delete(seq.ongoing, rev)
+			}
+
+			minRev := seq.maxOngoing
+			for rev := range seq.ongoing {
+				minRev = min(minRev, rev)
+			}
+			seq.maxCommitted = minRev
+
+			txnCommitting = txnCommitting[:0]
+		}
+}
+
+func (seq *sequenceWithCommit) maxViewable() int64 {
+	seq.mux.Lock()
+	defer seq.mux.Unlock()
+
+	return seq.maxCommitted
 }

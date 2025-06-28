@@ -318,7 +318,7 @@ func TestCommitConcurrently(t *testing.T) {
 }
 
 func storeTestState(t *testing.T, d *Driver, state flowstate.State) flowstate.State {
-	rev, err := d.stateRevSeq.Next()
+	rev, err := d.stateRevSeq.seq.Next()
 	if err != nil {
 		t.Fatalf("failed to get next sequence value: %v", err)
 	}
