@@ -3,7 +3,9 @@ package badgerdriver
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/makasim/flowstate"
@@ -153,4 +155,125 @@ func TestGetByIDError(t *testing.T) {
 
 	// no such rev
 	f(flowstate.GetStateByID(&flowstate.StateCtx{}, "aStateID1", 123), "state not found; id=aStateID1")
+}
+
+func TestGetStatesPreserveOrder(t *testing.T) {
+	db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLoggingLevel(2))
+	if err != nil {
+		t.Fatalf("failed to open badger db: %v", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("failed to close db: %v", err)
+		}
+	}()
+
+	d, err := New(db)
+	if err != nil {
+		t.Fatalf("failed to create driver: %v", err)
+	}
+	defer func() {
+		if err := d.Shutdown(context.Background()); err != nil {
+			t.Fatalf("failed to shutdown commiter: %v", err)
+		}
+	}()
+
+	// past
+	if err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(&flowstate.StateCtx{
+		Current: flowstate.State{ID: `1`},
+	})), &doDelayEngine{}); err != nil {
+		t.Fatalf("failed to commit state: %v", err)
+	}
+
+	var wg sync.WaitGroup
+
+	// start first commit later
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		if err := d.Commit(flowstate.Commit(flowstate.Pause(&flowstate.StateCtx{
+			Current: flowstate.State{ID: `2`},
+		})), &doDelayEngine{dur: time.Millisecond * 600}); err != nil {
+			t.Fatalf("failed to commit state: %v", err)
+		}
+	}()
+
+	time.Sleep(time.Millisecond * 200)
+
+	// started later but committed first
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		if err := d.Commit(flowstate.Commit(flowstate.Pause(&flowstate.StateCtx{
+			Current: flowstate.State{ID: `3`},
+		})), &doDelayEngine{}); err != nil {
+			t.Fatalf("failed to commit state: %v", err)
+		}
+	}()
+
+	// read returns only past commited state
+
+	time.Sleep(time.Millisecond * 200)
+	res, err := d.GetStates(flowstate.GetStatesByLabels(nil).WithLimit(10))
+	if err != nil {
+		t.Fatalf("failed to get states: %v", err)
+	}
+
+	expStates := []flowstate.State{
+		{ID: `1`, Rev: 1},
+	}
+	assertEqualStates(t, expStates, res.States)
+
+	wg.Wait()
+
+	res, err = d.GetStates(flowstate.GetStatesByLabels(nil).WithLimit(10))
+	if err != nil {
+		t.Fatalf("failed to get states: %v", err)
+	}
+
+	expStates = []flowstate.State{
+		{ID: `1`, Rev: 1},
+		{ID: `2`, Rev: 2},
+		{ID: `3`, Rev: 3},
+	}
+
+	assertEqualStates(t, expStates, res.States)
+}
+
+func assertEqualStates(t *testing.T, exp, act []flowstate.State) {
+	t.Helper()
+
+	for i := range act {
+		s := act[i]
+		s.CommittedAtUnixMilli = 0
+		act[i] = s
+	}
+
+	if len(exp) != len(act) {
+		t.Fatalf("expected states %v, got %v", exp, act)
+	}
+	if !reflect.DeepEqual(exp, act) {
+		t.Fatalf("expected states %v, got %v", exp, act)
+	}
+}
+
+type doDelayEngine struct {
+	dur time.Duration
+}
+
+func (e *doDelayEngine) Execute(_ *flowstate.StateCtx) error {
+	panic("engine: execute: should not be called")
+	return nil
+}
+
+func (e *doDelayEngine) Do(_ ...flowstate.Command) error {
+	time.Sleep(e.dur)
+	return nil
+}
+
+func (e *doDelayEngine) Shutdown(_ context.Context) error {
+	panic("engine: shutdown: should not be called")
+	return nil
 }

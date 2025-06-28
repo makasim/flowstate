@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
@@ -15,9 +17,14 @@ import (
 type Driver struct {
 	*flowstate.FlowRegistry
 
-	db          *badger.DB
+	db         *badger.DB
+	dataRevSeq *badger.Sequence
+
+	stateRevMux sync.Mutex
 	stateRevSeq *badger.Sequence
-	dataRevSeq  *badger.Sequence
+	stateRevs   map[int64]struct{}
+	stateMaxRev int64
+	stateMinRev int64
 
 	l *slog.Logger
 }
@@ -35,6 +42,8 @@ func New(db *badger.DB) (*Driver, error) {
 	return &Driver{
 		db:           db,
 		stateRevSeq:  stateRevSeq,
+		stateRevs:    make(map[int64]struct{}),
+		stateRevMux:  sync.Mutex{},
 		dataRevSeq:   dataRevSeq,
 		FlowRegistry: &flowstate.FlowRegistry{},
 
@@ -104,7 +113,11 @@ func (d *Driver) GetStateByID(cmd *flowstate.GetStateByIDCommand) error {
 
 func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error {
 	return d.db.View(func(txn *badger.Txn) error {
-		it := newLabelsIterator(txn, cmd.Labels, 0, true)
+		d.stateRevMux.Lock()
+		untilRev := d.stateMinRev
+		d.stateRevMux.Unlock()
+
+		it := newLabelsIterator(txn, cmd.Labels, untilRev, true)
 		defer it.Close()
 
 		if !it.Valid() {
@@ -120,6 +133,10 @@ func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error 
 func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
 	res := &flowstate.GetStatesResult{}
 	if err := d.db.View(func(txn *badger.Txn) error {
+		d.stateRevMux.Lock()
+		untilRev := d.stateMinRev
+		d.stateRevMux.Unlock()
+
 		sinceRev := cmd.SinceRev
 		if !cmd.SinceTime.IsZero() {
 			caIt := newCommittedAtIterator(txn, cmd.SinceTime, false)
@@ -131,7 +148,7 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 
 			sinceRev = caIt.Current().Rev
 		} else if sinceRev == -1 {
-			latestIt := newOrLabelsIterator(txn, cmd.Labels, 0, true)
+			latestIt := newOrLabelsIterator(txn, cmd.Labels, untilRev, true)
 			defer latestIt.Close()
 
 			if !latestIt.Valid() {
@@ -160,6 +177,10 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 				}
 			}
 
+			if state.Rev > untilRev {
+				break
+			}
+
 			res.States = append(res.States, state)
 		}
 		return nil
@@ -181,9 +202,19 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {
 	var attempt int
 	var maxAttempts = len(cmd.Commands)
+
+	getNextRev, commitRevs := d.nextStateRevWithCommit()
+	defer commitRevs()
+
 	for {
+
 		if err := d.db.Update(func(txn *badger.Txn) error {
 			for i, subCmd0 := range cmd.Commands {
+				nextRev, err := getNextRev()
+				if err != nil {
+					return fmt.Errorf("get next sequence: %w", err)
+				}
+
 				if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
 					if err := e.Do(subCmd0); err != nil {
 						return fmt.Errorf("%T: do: %w", subCmd0, err)
@@ -210,12 +241,8 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error 
 					return conflictErr
 				}
 
-				nextRev, err := d.stateRevSeq.Next()
-				if err != nil {
-					return fmt.Errorf("get next sequence: %w", err)
-				}
 				commitedState := stateCtx.Current.CopyTo(&flowstate.State{})
-				commitedState.Rev = int64(nextRev)
+				commitedState.Rev = nextRev
 				commitedState.CommittedAtUnixMilli = time.Now().UnixMilli()
 
 				if err := setState(txn, commitedState); err != nil {
@@ -240,6 +267,8 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error 
 
 			return nil
 		}); errors.Is(err, badger.ErrConflict) {
+			commitRevs()
+
 			if attempt < maxAttempts {
 				attempt++
 				continue
@@ -256,6 +285,49 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error 
 
 func (d *Driver) GetFlow(cmd *flowstate.GetFlowCommand) error {
 	return d.FlowRegistry.Do(cmd)
+}
+
+func (d *Driver) nextStateRevWithCommit() (func() (int64, error), func()) {
+	var revs []int64
+
+	return func() (int64, error) {
+			next0, err := d.stateRevSeq.Next()
+			if err != nil {
+				return 0, err
+			}
+			if next0 >= math.MaxInt64 {
+				panic("FATAL: sequence overflow, int64 max %d value has been reached")
+			}
+
+			next := int64(next0)
+			revs = append(revs, next)
+
+			d.stateRevMux.Lock()
+			d.stateMaxRev = next
+			d.stateRevs[next] = struct{}{}
+			d.stateRevMux.Unlock()
+
+			return next, nil
+		}, func() {
+			if len(revs) == 0 {
+				return
+			}
+
+			d.stateRevMux.Lock()
+
+			for _, rev := range revs {
+				delete(d.stateRevs, rev)
+			}
+
+			minRev := d.stateMaxRev
+			for rev := range d.stateRevs {
+				minRev = min(minRev, rev)
+			}
+			revs = revs[:0]
+			d.stateMinRev = minRev
+
+			d.stateRevMux.Unlock()
+		}
 }
 
 func getStateRevSequence(db *badger.DB) (*badger.Sequence, error) {
