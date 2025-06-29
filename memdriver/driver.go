@@ -1,7 +1,6 @@
 package memdriver
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -16,7 +15,6 @@ var _ flowstate.Driver = &Driver{}
 type Driver struct {
 	*flowstate.FlowRegistry
 
-	e               flowstate.Engine
 	stateLog        *stateLog
 	dataLog         *dataLog
 	delayedStateLog *delayedStateLog
@@ -35,15 +33,6 @@ func New(l *slog.Logger) *Driver {
 	}
 
 	return d
-}
-
-func (d *Driver) Init(e flowstate.Engine) error {
-	d.e = e
-	return nil
-}
-
-func (d *Driver) Shutdown(_ context.Context) error {
-	return nil
 }
 
 func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
@@ -174,14 +163,14 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 	}, nil
 }
 
-func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
+func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {
 	d.stateLog.Lock()
 	defer d.stateLog.Unlock()
 	defer d.stateLog.Rollback()
 
 	for _, subCmd0 := range cmd.Commands {
 		if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
-			if err := d.e.Do(subCmd0); err != nil {
+			if err := e.Do(subCmd0); err != nil {
 				return fmt.Errorf("%T: do: %w", subCmd0, err)
 			}
 		}

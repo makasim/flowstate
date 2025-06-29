@@ -65,6 +65,11 @@ func (cmd *GetStatesCommand) WithORLabels(labels map[string]string) *GetStatesCo
 	return cmd
 }
 
+func (cmd *GetStatesCommand) WithLimit(limit int) *GetStatesCommand {
+	cmd.Limit = limit
+	return cmd
+}
+
 func (cmd *GetStatesCommand) prepare() {
 	if cmd.Limit == 0 {
 		cmd.Limit = GetManyDefaultLimit

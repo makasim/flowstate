@@ -197,7 +197,10 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 				}
 				d.since = until
 			case now := <-updateHeadFreshT.C:
-				since := now.Add(-time.Hour * 24)
+				var since time.Time
+				if d.offset > 0 {
+					since = now.Add(-time.Hour * 24)
+				}
 				until := now.Add(time.Minute)
 				nextOffset, err := d.queryDelayedStates(since, until, d.offset)
 				if err != nil {
