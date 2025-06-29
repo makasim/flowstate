@@ -144,8 +144,8 @@ func (s *StateCtx) Value(key any) any {
 }
 
 type Transition struct {
-	FromID      FlowID            `json:"from"`
-	ToID        FlowID            `json:"to"`
+	From        FlowID            `json:"from"`
+	To          FlowID            `json:"to"`
 	Annotations map[string]string `json:"annotations"`
 }
 
@@ -157,8 +157,8 @@ func (ts *Transition) SetAnnotation(name, value string) {
 }
 
 func (ts *Transition) CopyTo(to *Transition) {
-	to.FromID = ts.FromID
-	to.ToID = ts.ToID
+	to.From = ts.From
+	to.To = ts.To
 
 	if len(ts.Annotations) > 0 {
 		if to.Annotations == nil {
@@ -172,5 +172,5 @@ func (ts *Transition) CopyTo(to *Transition) {
 }
 
 func (ts *Transition) String() string {
-	return string(ts.FromID) + `->` + string(ts.ToID)
+	return string(ts.From) + `->` + string(ts.To)
 }

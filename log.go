@@ -9,7 +9,7 @@ import (
 func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 	args := []any{
 		"sess", stateCtx.sessID,
-		"flow", stateCtx.Current.Transition.ToID,
+		"flow", stateCtx.Current.Transition.To,
 		"id", stateCtx.Current.ID,
 		"rev", stateCtx.Current.Rev,
 	}
@@ -124,7 +124,7 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 	case *SerializeCommand:
 		args = append(args, "cmd", "serialize")
 	case *GetFlowCommand:
-		args = append(args, "cmd", "get_flow", "flow_id", cmd.StateCtx.Current.Transition.ToID)
+		args = append(args, "cmd", "get_flow", "flow_id", cmd.StateCtx.Current.Transition.To)
 	case *GetStatesCommand:
 		args = append(args, "cmd", "watch")
 		if cmd.SinceRev > 0 {

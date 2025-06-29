@@ -47,7 +47,7 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 	fr.SetFlow("join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		if stateCtx.Committed.Transition.ToID != `join` {
+		if stateCtx.Committed.Transition.To != `join` {
 			if err := e.Do(flowstate.Commit(
 				flowstate.Transit(stateCtx, `join`),
 			)); err != nil {
@@ -69,7 +69,7 @@ func ForkJoin_LastWins(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 			case changedState := <-w.Next():
 				changedStateCtx := changedState.CopyToCtx(&flowstate.StateCtx{})
 
-				if changedStateCtx.Current.Transition.ToID != `join` {
+				if changedStateCtx.Current.Transition.To != `join` {
 					continue
 				}
 				cnt++

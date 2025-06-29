@@ -66,7 +66,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 		default:
 		}
 
-		if stateCtx.Current.Transition.ToID == `` {
+		if stateCtx.Current.Transition.To == `` {
 			return fmt.Errorf(`transition to id empty`)
 		}
 

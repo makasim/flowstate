@@ -171,7 +171,7 @@ func TestDelayer(t *testing.T) {
 					t.Fatalf("failed to commit state: %v", err)
 				}
 
-				stateCtx.Current.Transition.ToID = `delayed`
+				stateCtx.Current.Transition.To = `delayed`
 
 				if err := e.Do(flowstate.Delay(stateCtx, time.Minute*15).WithCommit(true)); err != nil {
 					t.Fatalf("failed to delay state: %v", err)
@@ -190,7 +190,7 @@ func TestDelayer(t *testing.T) {
 				stateCtx := &flowstate.StateCtx{
 					Current: flowstate.State{ID: `s1`},
 				}
-				stateCtx.Current.Transition.ToID = `delayed`
+				stateCtx.Current.Transition.To = `delayed`
 
 				if err := e.Do(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); err != nil {
 					t.Fatalf("failed to commit state: %v", err)
@@ -216,7 +216,7 @@ func TestDelayer(t *testing.T) {
 				stateCtx := &flowstate.StateCtx{
 					Current: flowstate.State{ID: `s1`},
 				}
-				stateCtx.Current.Transition.ToID = `delayed`
+				stateCtx.Current.Transition.To = `delayed`
 
 				if err := e.Do(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); err != nil {
 					t.Fatalf("failed to commit state: %v", err)
@@ -285,7 +285,7 @@ func TestDelayer_Concurrency(t *testing.T) {
 								`delay`: `future`,
 							},
 							Transition: flowstate.Transition{
-								ToID: `delayed`,
+								To: `delayed`,
 							},
 						},
 					}
@@ -315,7 +315,7 @@ func TestDelayer_Concurrency(t *testing.T) {
 								`delay`: `past`,
 							},
 							Transition: flowstate.Transition{
-								ToID: `delayed`,
+								To: `delayed`,
 							},
 						},
 					}
@@ -372,7 +372,7 @@ type delayingStateFunc func(t *testing.T, e flowstate.Engine)
 func sleepAndDelay(state flowstate.State, sleepDur, dur time.Duration) delayingStateFunc {
 	return func(t *testing.T, e flowstate.Engine) {
 		stateCtx := state.CopyToCtx(&flowstate.StateCtx{})
-		stateCtx.Current.Transition.ToID = `delayed`
+		stateCtx.Current.Transition.To = `delayed`
 
 		time.Sleep(sleepDur)
 

@@ -50,8 +50,8 @@ func (cmd *DelayCommand) prepare() error {
 	delayedStateCtx.Transitions = append(delayedStateCtx.Transitions, delayedStateCtx.Current.Transition)
 
 	nextTs := Transition{
-		FromID:      delayedStateCtx.Current.Transition.ToID,
-		ToID:        delayedStateCtx.Current.Transition.ToID,
+		From:        delayedStateCtx.Current.Transition.To,
+		To:          delayedStateCtx.Current.Transition.To,
 		Annotations: nil,
 	}
 

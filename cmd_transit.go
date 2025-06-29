@@ -31,8 +31,8 @@ func (cmd *TransitCommand) do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
-		FromID:      cmd.StateCtx.Current.Transition.ToID,
-		ToID:        cmd.FlowID,
+		From:        cmd.StateCtx.Current.Transition.To,
+		To:          cmd.FlowID,
 		Annotations: nil,
 	}
 

@@ -23,8 +23,8 @@ func (cmd *EndCommand) do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{
-		FromID:      cmd.StateCtx.Current.Transition.ToID,
-		ToID:        ``,
+		From:        cmd.StateCtx.Current.Transition.To,
+		To:          ``,
 		Annotations: nil,
 	}
 	nextTs.SetAnnotation(StateAnnotation, `ended`)

@@ -37,7 +37,7 @@ func Track(stateCtx *flowstate.StateCtx, trkr *Tracker) {
 		postfix += `:` + string(stateCtx.Current.ID)
 	}
 
-	trkr.visited = append(trkr.visited, string(stateCtx.Current.Transition.ToID)+postfix)
+	trkr.visited = append(trkr.visited, string(stateCtx.Current.Transition.To)+postfix)
 }
 
 func (trkr *Tracker) Visited() []string {

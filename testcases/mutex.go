@@ -29,7 +29,7 @@ func Mutex(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 		var mutexStateCtx *flowstate.StateCtx
 
 		for {
-			if mutexStateCtx != nil && mutexStateCtx.Current.Transition.ToID == "unlocked" {
+			if mutexStateCtx != nil && mutexStateCtx.Current.Transition.To == "unlocked" {
 				copyStateCtx := &flowstate.StateCtx{}
 				stateCtx.CopyTo(copyStateCtx)
 

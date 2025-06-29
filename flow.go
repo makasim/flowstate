@@ -40,11 +40,11 @@ func (fr *FlowRegistry) Flow(id FlowID) (Flow, error) {
 }
 
 func (fr *FlowRegistry) Do(cmd *GetFlowCommand) error {
-	if cmd.StateCtx.Current.Transition.ToID == "" {
+	if cmd.StateCtx.Current.Transition.To == "" {
 		return fmt.Errorf("transition flow to is empty")
 	}
 
-	f, err := fr.Flow(cmd.StateCtx.Current.Transition.ToID)
+	f, err := fr.Flow(cmd.StateCtx.Current.Transition.To)
 	if err != nil {
 		return err
 	}
