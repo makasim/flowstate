@@ -62,6 +62,8 @@ func (trkr *Tracker) VisitedSorted() []string {
 }
 
 func (trkr *Tracker) WaitSortedVisitedEqual(t TestingT, expVisited []string, wait time.Duration) []string {
+	t.Helper()
+
 	var visited []string
 	assert.Eventually(t, func() bool {
 		visited = trkr.VisitedSorted()
@@ -73,6 +75,8 @@ func (trkr *Tracker) WaitSortedVisitedEqual(t TestingT, expVisited []string, wai
 }
 
 func (trkr *Tracker) WaitVisitedEqual(t TestingT, expVisited []string, wait time.Duration) []string {
+	t.Helper()
+
 	var visited []string
 	assert.Eventually(t, func() bool {
 		visited = trkr.Visited()

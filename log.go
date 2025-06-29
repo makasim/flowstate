@@ -20,7 +20,7 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 		args = append(args, "state", currTs.Annotations[StateAnnotation])
 	}
 
-	if currTs.Annotations[DelayDurationAnnotation] != `` {
+	if currTs.Annotations[DelayUntilAnnotation] != `` {
 		args = append(args, "delayed", "true")
 	}
 
@@ -80,7 +80,7 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 			"cmd", "delay",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
-			"dur", cmd.Duration,
+			"execute_at", cmd.ExecuteAt,
 			"labels", cmd.StateCtx.Current.Labels,
 		)
 	case *ExecuteCommand:

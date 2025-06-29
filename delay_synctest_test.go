@@ -173,7 +173,7 @@ func TestDelayer(t *testing.T) {
 
 				stateCtx.Current.Transition.To = `delayed`
 
-				if err := e.Do(flowstate.Delay(stateCtx, time.Minute*15).WithCommit(true)); err != nil {
+				if err := e.Do(flowstate.Delay(stateCtx, time.Minute*15)); err != nil {
 					t.Fatalf("failed to delay state: %v", err)
 				}
 			},
@@ -201,7 +201,7 @@ func TestDelayer(t *testing.T) {
 					t.Fatalf("failed to commit state: %v", err)
 				}
 
-				if err := e.Do(flowstate.Delay(stateCtx, time.Minute*15).WithCommit(true)); err != nil {
+				if err := e.Do(flowstate.Delay(stateCtx, time.Minute*15)); err != nil {
 					t.Fatalf("failed to delay state: %v", err)
 				}
 			},

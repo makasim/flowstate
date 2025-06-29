@@ -10,7 +10,6 @@ import (
 )
 
 var DelayUntilAnnotation = `flowstate.delay.until`
-var DelayDurationAnnotation = `flowstate.delay.duration`
 var DelayCommitAnnotation = `flowstate.delay.commit`
 
 func Delayed(state State) bool {
@@ -24,18 +23,25 @@ func DelayedUntil(state State) time.Time {
 
 func Delay(stateCtx *StateCtx, dur time.Duration) *DelayCommand {
 	return &DelayCommand{
-		StateCtx: stateCtx,
-		Duration: dur,
-		Commit:   true,
+		StateCtx:  stateCtx,
+		ExecuteAt: time.Now().Add(dur),
+		Commit:    true,
 	}
+}
 
+func DelayUntil(stateCtx *StateCtx, executeAt time.Time) *DelayCommand {
+	return &DelayCommand{
+		StateCtx:  stateCtx,
+		ExecuteAt: executeAt,
+		Commit:    true,
+	}
 }
 
 type DelayCommand struct {
 	command
 	StateCtx      *StateCtx
-	DelayStateCtx *StateCtx
-	Duration      time.Duration
+	DelayingState State
+	ExecuteAt     time.Time
 	Commit        bool
 }
 
@@ -45,28 +51,27 @@ func (cmd *DelayCommand) WithCommit(commit bool) *DelayCommand {
 }
 
 func (cmd *DelayCommand) prepare() error {
-	delayedStateCtx := cmd.StateCtx.CopyTo(&StateCtx{})
 
-	delayedStateCtx.Transitions = append(delayedStateCtx.Transitions, delayedStateCtx.Current.Transition)
+	cmd.DelayingState = cmd.StateCtx.Current.CopyTo(&cmd.DelayingState)
+
+	// TODO: maybe move to Delayer ?
+	// cmd.DelayedStateTransitions = append(stateCtx.Transitions, stateCtx.Current.Transition)
 
 	nextTs := Transition{
-		From:        delayedStateCtx.Current.Transition.To,
-		To:          delayedStateCtx.Current.Transition.To,
+		From:        cmd.DelayingState.Transition.To,
+		To:          cmd.DelayingState.Transition.To,
 		Annotations: nil,
 	}
 
-	if Paused(delayedStateCtx.Current) {
+	if Paused(cmd.DelayingState) {
 		nextTs.SetAnnotation(StateAnnotation, `resumed`)
 	}
 
-	until := time.Now().Add(cmd.Duration).Format(time.RFC3339)
-	nextTs.SetAnnotation(DelayUntilAnnotation, until)
-	nextTs.SetAnnotation(DelayDurationAnnotation, cmd.Duration.String())
-	nextTs.SetAnnotation(DelayCommitAnnotation, fmt.Sprintf("%v", cmd.Commit))
-
-	delayedStateCtx.Current.Transition = nextTs
-
-	cmd.DelayStateCtx = delayedStateCtx
+	nextTs.SetAnnotation(DelayUntilAnnotation, cmd.ExecuteAt.Format(time.RFC3339))
+	if !cmd.Commit {
+		nextTs.SetAnnotation(DelayCommitAnnotation, `false`)
+	}
+	cmd.DelayingState.Transition = nextTs
 
 	return nil
 }

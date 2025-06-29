@@ -141,8 +141,8 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
 	d.delayedStateLog.Append(flowstate.DelayedState{
-		State:     cmd.DelayStateCtx.Current,
-		ExecuteAt: flowstate.DelayedUntil(cmd.DelayStateCtx.Current),
+		State:     cmd.DelayingState,
+		ExecuteAt: cmd.ExecuteAt,
 	})
 
 	return nil
