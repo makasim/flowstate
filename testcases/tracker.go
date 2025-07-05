@@ -1,6 +1,7 @@
 package testcases
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -85,4 +86,10 @@ func (trkr *Tracker) WaitVisitedEqual(t TestingT, expVisited []string, wait time
 	require.Equal(t, expVisited, visited)
 
 	return visited
+}
+
+func mustSetFlow(d flowstate.Driver, id flowstate.FlowID, f flowstate.Flow) {
+	if err := d.SetFlow(flowstate.SetFlow(id, f)); err != nil {
+		panic(fmt.Sprintf("set flow %s: %s", id, err))
+	}
 }

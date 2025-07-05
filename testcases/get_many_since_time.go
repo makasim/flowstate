@@ -9,11 +9,12 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetManySinceTime(t TestingT, d flowstate.Driver, _ FlowRegistry) {
+func GetManySinceTime(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
 	e, err := flowstate.NewEngine(d, l)
+	require.NoError(t, err)
 	defer func() {
 		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer sCtxCancel()
@@ -39,9 +40,7 @@ func GetManySinceTime(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAtUnixMilli + 5000))
 	require.NoError(t, e.Do(cmd))
 
-	res, err := cmd.Result()
-	require.NoError(t, err)
-
+	res := cmd.MustResult()
 	require.Len(t, res.States, 0)
 	require.False(t, res.More)
 
@@ -50,9 +49,7 @@ func GetManySinceTime(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAtUnixMilli - 1000))
 	require.NoError(t, e.Do(cmd1))
 
-	res1, err := cmd1.Result()
-	require.NoError(t, err)
-
+	res1 := cmd1.MustResult()
 	require.Len(t, res1.States, 1)
 	require.False(t, res.More)
 

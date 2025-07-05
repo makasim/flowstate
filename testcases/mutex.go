@@ -10,17 +10,17 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Mutex(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func Mutex(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var raceDetector int
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("mutex", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "mutex", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must not be called; mutex is always paused")
 	}))
-	fr.SetFlow("lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{"mutex": "theName"}).WithSinceLatest())
@@ -67,14 +67,14 @@ func Mutex(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 		}
 	}))
-	fr.SetFlow("protected", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "protected", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		raceDetector += 1
 
 		return flowstate.Transit(stateCtx, `unlock`), nil
 	}))
-	fr.SetFlow("unlock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "unlock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		mutexStateCtx := &flowstate.StateCtx{}

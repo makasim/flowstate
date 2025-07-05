@@ -10,7 +10,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func DataFlowConfig(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func DataFlowConfig(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	type fooConfig struct {
@@ -36,7 +36,7 @@ func DataFlowConfig(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("foo", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "foo", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		data := &flowstate.Data{}
@@ -77,7 +77,7 @@ func DataFlowConfig(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	fr.SetFlow("bar", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "bar", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		data := &flowstate.Data{}
@@ -120,7 +120,7 @@ func DataFlowConfig(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	fr.SetFlow("end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

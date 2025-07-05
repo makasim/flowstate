@@ -10,7 +10,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Queue(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func Queue(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{
@@ -18,7 +18,7 @@ func Queue(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 		IncludeState:  true,
 	}
 
-	fr.SetFlow("queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		if flowstate.Resumed(stateCtx.Current) {
 			return flowstate.Transit(stateCtx, `dequeued`), nil
@@ -30,7 +30,7 @@ func Queue(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 			flowstate.Pause(stateCtx),
 		), nil
 	}))
-	fr.SetFlow("enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
@@ -59,7 +59,7 @@ func Queue(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 			}
 		}
 	}))
-	fr.SetFlow("dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.End(stateCtx),

@@ -199,10 +199,6 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error 
 	return nil
 }
 
-func (d *Driver) GetFlow(cmd *flowstate.GetFlowCommand) error {
-	return d.FlowRegistry.Do(cmd)
-}
-
 func filterStatesWithID(states []flowstate.State, id flowstate.StateID) []flowstate.State {
 	n := 0
 	for _, state := range states {

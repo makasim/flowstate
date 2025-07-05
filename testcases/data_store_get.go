@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func DataStoreGet(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func DataStoreGet(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	stateCtx := &flowstate.StateCtx{
@@ -27,7 +27,7 @@ func DataStoreGet(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 	}
 	actData := &flowstate.Data{}
 
-	fr.SetFlow("store", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "store", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		d := &flowstate.Data{
@@ -45,7 +45,7 @@ func DataStoreGet(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	fr.SetFlow("get", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "get", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if err := e.Do(
@@ -58,7 +58,7 @@ func DataStoreGet(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	fr.SetFlow("end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

@@ -12,14 +12,14 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func RateLimit(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func RateLimit(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{
 		IncludeState: true,
 	}
 
-	fr.SetFlow("limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
@@ -56,7 +56,7 @@ func RateLimit(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 			}
 		}
 	}))
-	fr.SetFlow("limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx.Current) {

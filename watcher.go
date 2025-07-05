@@ -65,17 +65,13 @@ func (w *Watcher) listen() {
 func (w *Watcher) stream() bool {
 	getManyCmd := w.cmd
 
-	getManyCmd.result = nil
+	getManyCmd.Result = nil
 	if err := w.e.Do(getManyCmd); err != nil {
 		log.Printf("ERROR: WatchListener: get many states: %s", err)
 		return false
 	}
 
-	res, err := getManyCmd.Result()
-	if err != nil {
-		log.Printf("ERROR: WatchListener: get many states result: %s", err)
-		return false
-	}
+	res := getManyCmd.MustResult()
 	if len(res.States) == 0 {
 		return false
 	}

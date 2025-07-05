@@ -368,10 +368,6 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error 
 	}
 }
 
-func (d *Driver) GetFlow(cmd *flowstate.GetFlowCommand) error {
-	return d.FlowRegistry.Do(cmd)
-}
-
 func getStateRevSequence(db *badger.DB) (*badger.Sequence, error) {
 	seq, err := db.GetSequence([]byte("flowstate.rev.state"), 10000)
 	if err != nil {

@@ -236,7 +236,7 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		if err != nil {
 			return err
 		}
-		cmd.result = res
+		cmd.Result = res
 
 		return nil
 	case *DelayCommand:
@@ -251,7 +251,7 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		if err != nil {
 			return err
 		}
-		cmd.result = res
+		cmd.Result = res
 
 		return nil
 	case *CommitStateCtxCommand:

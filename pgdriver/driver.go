@@ -183,10 +183,6 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error 
 	return tx.Commit(context.Background())
 }
 
-func (d *Driver) GetFlow(cmd *flowstate.GetFlowCommand) error {
-	return d.FlowRegistry.Do(cmd)
-}
-
 func isRevMismatchErr(err error) bool {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return true
