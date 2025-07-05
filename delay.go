@@ -108,15 +108,15 @@ type GetDelayedStatesCommand struct {
 	Offset int64
 	Limit  int
 
-	result *GetDelayedStatesResult
+	Result *GetDelayedStatesResult
 }
 
-func (cmd *GetDelayedStatesCommand) Result() (*GetDelayedStatesResult, error) {
-	if cmd.result == nil {
-		return nil, fmt.Errorf("no result set")
+func (cmd *GetDelayedStatesCommand) MustResult() *GetDelayedStatesResult {
+	if cmd.Result == nil {
+		panic("FATAL: MustResult must be called after successful execution of the command; have you checked for errors?")
 	}
 
-	return cmd.result, nil
+	return cmd.Result
 }
 
 func (cmd *GetDelayedStatesCommand) prepare() {
@@ -251,11 +251,7 @@ func (d *Delayer) queryDelayedStates(since, until time.Time, offset int64) (int6
 			return 0, fmt.Errorf("get delayed states: %w", err)
 		}
 
-		res, err := cmd.Result()
-		if err != nil {
-			return 0, fmt.Errorf("get delayed states: result: %w", err)
-		}
-
+		res := cmd.MustResult()
 		if len(res.States) == 0 {
 			return nextOffset, nil
 		}

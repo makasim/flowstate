@@ -118,8 +118,8 @@ type Recoverer struct {
 	l         *slog.Logger
 }
 
-func NewRecoverer(e Engine, l *slog.Logger) *Recoverer {
-	return &Recoverer{
+func NewRecoverer(e Engine, l *slog.Logger) (*Recoverer, error) {
+	r := &Recoverer{
 		e: e,
 		l: l,
 
@@ -129,9 +129,7 @@ func NewRecoverer(e Engine, l *slog.Logger) *Recoverer {
 		stopCh:    make(chan struct{}),
 		stoppedCh: make(chan struct{}),
 	}
-}
 
-func (r *Recoverer) Init() error {
 	recoverStateCtx := &StateCtx{}
 	active := true
 	if err := r.e.Do(GetStateByID(recoverStateCtx, recoveryStateID, 0)); errors.Is(err, ErrNotFound) {
@@ -150,11 +148,11 @@ func (r *Recoverer) Init() error {
 			// another process is already doing recovery, we can continue in standby mode
 			active = false
 		} else if err != nil {
-			return fmt.Errorf("commit recovery state: %w", err)
+			return nil, fmt.Errorf("commit recovery state: %w", err)
 		}
 		r.commited++
 	} else if err != nil {
-		return fmt.Errorf("get recovery state: %w", err)
+		return nil, fmt.Errorf("get recovery state: %w", err)
 	} else {
 		active = Paused(recoverStateCtx.Current)
 	}
@@ -178,7 +176,7 @@ func (r *Recoverer) Init() error {
 		close(r.stoppedCh)
 	}()
 
-	return nil
+	return r, nil
 }
 
 func (r *Recoverer) Shutdown(ctx context.Context) error {
@@ -278,10 +276,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 		if err := r.e.Do(getManyCmd); err != nil {
 			return fmt.Errorf("get many states: %w; since_rev=%d", err, r.sinceRev)
 		}
-		res, err := getManyCmd.Result()
-		if err != nil {
-			return fmt.Errorf("get many states: result: %w", err)
-		}
+		res := getManyCmd.MustResult()
 
 		completed, added := r.completed, r.added
 		for _, state := range res.States {

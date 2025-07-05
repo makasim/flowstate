@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Fork(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func Fork(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var forkedStateCtx *flowstate.StateCtx
@@ -21,7 +21,7 @@ func Fork(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		forkedStateCtx = &flowstate.StateCtx{}
@@ -42,11 +42,11 @@ func Fork(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 		return flowstate.Noop(stateCtx), nil
 	}))
-	fr.SetFlow("origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
-	fr.SetFlow("forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

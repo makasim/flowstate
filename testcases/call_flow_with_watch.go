@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func CallFlowWithWatch(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func CallFlowWithWatch(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	var nextStateCtx *flowstate.StateCtx
@@ -23,7 +23,7 @@ func CallFlowWithWatch(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if stateCtx.Current.Annotations[`called`] == `` {
@@ -73,18 +73,18 @@ func CallFlowWithWatch(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 		}
 
 	}))
-	fr.SetFlow("called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	fr.SetFlow("calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		return flowstate.Commit(
 			flowstate.End(stateCtx),
 		), nil
 	}))
-	fr.SetFlow("callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		close(endedCh)

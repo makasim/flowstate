@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetOneLatestByLabel(t TestingT, d flowstate.Driver, _ FlowRegistry) {
+func GetOneLatestByLabel(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)

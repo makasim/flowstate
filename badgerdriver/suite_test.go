@@ -10,7 +10,7 @@ import (
 )
 
 func TestSuite(t *testing.T) {
-	s := testcases.Get(func(t testcases.TestingT) (flowstate.Driver, testcases.FlowRegistry) {
+	s := testcases.Get(func(t testcases.TestingT) flowstate.Driver {
 		db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLoggingLevel(2))
 		if err != nil {
 			t.Fatalf("failed to open badger db: %v", err)
@@ -21,7 +21,7 @@ func TestSuite(t *testing.T) {
 			t.Fatalf("failed to create driver: %v", err)
 		}
 
-		return d, d
+		return d
 	})
 
 	s.Test(t)

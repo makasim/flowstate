@@ -25,7 +25,7 @@ func TestSuite(t *testing.T) {
 		return conn
 	}
 
-	s := testcases.Get(func(t testcases.TestingT) (flowstate.Driver, testcases.FlowRegistry) {
+	s := testcases.Get(func(t testcases.TestingT) flowstate.Driver {
 		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable`, ``)
 
 		t.Cleanup(func() {
@@ -34,7 +34,7 @@ func TestSuite(t *testing.T) {
 
 		l, _ := testcases.NewTestLogger(t)
 		d := pgdriver.New(conn, l)
-		return d, d
+		return d
 	})
 
 	s.Test(t)

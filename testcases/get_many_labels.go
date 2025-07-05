@@ -9,7 +9,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func GetManyLabels(t TestingT, d flowstate.Driver, _ FlowRegistry) {
+func GetManyLabels(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	l, _ := NewTestLogger(t)
@@ -56,9 +56,7 @@ func GetManyLabels(t TestingT, d flowstate.Driver, _ FlowRegistry) {
 	})
 	require.NoError(t, e.Do(cmd))
 
-	res, err := cmd.Result()
-	require.NoError(t, err)
-
+	res := cmd.MustResult()
 	require.Len(t, res.States, 2)
 	require.False(t, res.More)
 

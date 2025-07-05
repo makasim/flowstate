@@ -11,7 +11,7 @@ import (
 	//"go.uber.org/goleak"
 )
 
-func Cron(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func Cron(t TestingT, d flowstate.Driver) {
 	// does not work in flowstatesrv srvdriver
 	// delayer related goroutines are started inside test by stoped with the app outside
 	//	cron.go:130: found unexpected goroutines:
@@ -25,7 +25,7 @@ func Cron(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("cron", flowstate.FlowFunc(func(cronStateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "cron", flowstate.FlowFunc(func(cronStateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(cronStateCtx, trkr)
 
 		now := time.Now()
@@ -89,7 +89,7 @@ func Cron(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 		return flowstate.Noop(cronStateCtx), nil
 	}))
-	fr.SetFlow("task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.End(stateCtx),

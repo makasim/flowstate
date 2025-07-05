@@ -1,7 +1,6 @@
 package flowstate
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -25,15 +24,15 @@ type GetStatesCommand struct {
 	LatestOnly bool
 	Limit      int
 
-	result *GetStatesResult
+	Result *GetStatesResult
 }
 
-func (cmd *GetStatesCommand) Result() (*GetStatesResult, error) {
-	if cmd.result == nil {
-		return nil, fmt.Errorf("no result set")
+func (cmd *GetStatesCommand) MustResult() *GetStatesResult {
+	if cmd.Result == nil {
+		panic("FATAL: MustResult must be called after successful execution of the command; have you checked for errors?")
 	}
 
-	return cmd.result, nil
+	return cmd.Result
 }
 
 func (cmd *GetStatesCommand) WithSinceRev(rev int64) *GetStatesCommand {

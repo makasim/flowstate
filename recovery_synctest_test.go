@@ -25,16 +25,16 @@ func TestRecovererRetryLogic(t *testing.T) {
 			l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 			d := memdriver.New(l)
-			d.SetFlow(`aFlow`, flowFn)
+			mustSetFlow(d, `aFlow`, flowFn)
 
 			e, err := flowstate.NewEngine(d, l)
 			if err != nil {
 				t.Fatalf("failed to create engine: %v", err)
 			}
 
-			r := flowstate.NewRecoverer(e, l)
-			if err := r.Init(); err != nil {
-				t.Fatalf("failed to init recoverer: %v", err)
+			r, err := flowstate.NewRecoverer(e, l)
+			if err != nil {
+				t.Fatalf("failed to create recoverer: %v", err)
 			}
 
 			go genFn(e)
@@ -505,7 +505,7 @@ func TestRecovererActiveStandby(t *testing.T) {
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 		d := memdriver.New(l)
-		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		mustSetFlow(d, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
 
@@ -514,14 +514,14 @@ func TestRecovererActiveStandby(t *testing.T) {
 			t.Fatalf("failed to create engine: %v", err)
 		}
 
-		r0 := flowstate.NewRecoverer(e, l)
-		if err := r0.Init(); err != nil {
-			t.Fatalf("failed to init recoverer: %v", err)
+		r0, err := flowstate.NewRecoverer(e, l)
+		if err != nil {
+			t.Fatalf("failed to create r0 recoverer: %v", err)
 		}
 
-		r1 := flowstate.NewRecoverer(e, l)
-		if err := r1.Init(); err != nil {
-			t.Fatalf("failed to init recoverer: %v", err)
+		r1, err := flowstate.NewRecoverer(e, l)
+		if err != nil {
+			t.Fatalf("failed to create r1 recoverer: %v", err)
 		}
 
 		if !r0.Stats().Active {
@@ -592,7 +592,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 		d := memdriver.New(l)
-		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		mustSetFlow(d, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
 
@@ -615,9 +615,9 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 			t.Fatalf("failed to commit recovery state: %v", err)
 		}
 
-		r := flowstate.NewRecoverer(e, l)
-		if err := r.Init(); err != nil {
-			t.Fatalf("failed to init recoverer: %v", err)
+		r, err := flowstate.NewRecoverer(e, l)
+		if err != nil {
+			t.Fatalf("failed to create recoverer: %v", err)
 		}
 
 		if r.Stats().Active {
@@ -688,7 +688,7 @@ func TestRecovererOnlyOneActive(t *testing.T) {
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 		d := memdriver.New(l)
-		d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		mustSetFlow(d, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
 
@@ -699,9 +699,9 @@ func TestRecovererOnlyOneActive(t *testing.T) {
 
 		var rs []*flowstate.Recoverer
 		for i := 0; i < 2; i++ {
-			r := flowstate.NewRecoverer(e, l)
-			if err := r.Init(); err != nil {
-				t.Fatalf("failed to init recoverer: %v", err)
+			r, err := flowstate.NewRecoverer(e, l)
+			if err != nil {
+				t.Fatalf("failed to create recoverer: %v", err)
 			}
 
 			rs = append(rs, r)

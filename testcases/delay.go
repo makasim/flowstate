@@ -9,12 +9,12 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Delay(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func Delay(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{}
 
-	fr.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		if flowstate.Delayed(stateCtx.Current) {
 			return flowstate.Transit(stateCtx, `second`), nil
@@ -22,7 +22,7 @@ func Delay(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 
 		return flowstate.Delay(stateCtx, time.Millisecond*200), nil
 	}))
-	fr.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

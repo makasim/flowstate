@@ -10,12 +10,12 @@ import (
 	"go.uber.org/goleak"
 )
 
-func Actor(t TestingT, d flowstate.Driver, fr FlowRegistry) {
+func Actor(t TestingT, d flowstate.Driver) {
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	trkr := &Tracker{IncludeTaskID: true}
 
-	fr.SetFlow("actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
 			"actor.foo": "inbox",
@@ -42,7 +42,7 @@ func Actor(t TestingT, d flowstate.Driver, fr FlowRegistry) {
 			}
 		}
 	}))
-	fr.SetFlow("inbox", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(d, "inbox", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must never be executed")
 	}))
 

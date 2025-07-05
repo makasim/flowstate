@@ -4,6 +4,7 @@ package flowstate_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"sort"
@@ -30,7 +31,7 @@ func TestDelayer(t *testing.T) {
 			actMux := &sync.Mutex{}
 			act := make([]delayedState, 0, len(delayingStates))
 			d := memdriver.New(l)
-			d.SetFlow(`delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+			mustSetFlow(d, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 				actMux.Lock()
 				defer actMux.Unlock()
 
@@ -246,7 +247,7 @@ func TestDelayer_Concurrency(t *testing.T) {
 		var delayedFutureCnt atomic.Int64
 		var delayedPastCnt atomic.Int64
 		d := memdriver.New(l)
-		d.SetFlow(`delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		mustSetFlow(d, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			if stateCtx.Current.Labels[`delay`] == `future` {
 				delayedFutureCnt.Add(1)
 			} else {
@@ -385,4 +386,10 @@ func sleepAndDelay(state flowstate.State, sleepDur, dur time.Duration) delayingS
 type delayedState struct {
 	StateID flowstate.StateID
 	At      time.Time
+}
+
+func mustSetFlow(d flowstate.Driver, id flowstate.FlowID, f flowstate.Flow) {
+	if err := d.SetFlow(flowstate.SetFlow(id, f)); err != nil {
+		panic(fmt.Sprintf("set flow %s: %s", id, err))
+	}
 }
