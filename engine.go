@@ -70,7 +70,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 			return fmt.Errorf(`transition to id empty`)
 		}
 
-		f, err := e.getFlow(stateCtx)
+		f, err := e.d.Flow(stateCtx.Current.Transition.To)
 		if err != nil {
 			return err
 		}
@@ -271,20 +271,9 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		}
 
 		return e.d.Commit(cmd, e)
-	case *GetFlowCommand:
-		return e.d.GetFlow(cmd)
 	default:
 		return fmt.Errorf("command %T not supported", cmd0)
 	}
-}
-
-func (e *engine) getFlow(stateCtx *StateCtx) (Flow, error) {
-	cmd := GetFlow(stateCtx)
-	if err := e.d.GetFlow(cmd); err != nil {
-		return nil, err
-	}
-
-	return cmd.Flow, nil
 }
 
 func (e *engine) continueExecution(cmd0 Command) (*StateCtx, error) {

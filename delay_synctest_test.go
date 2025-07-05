@@ -389,7 +389,7 @@ type delayedState struct {
 }
 
 func mustSetFlow(d flowstate.Driver, id flowstate.FlowID, f flowstate.Flow) {
-	if err := d.SetFlow(flowstate.SetFlow(id, f)); err != nil {
+	if err := d.SetFlow(id, f); err != nil {
 		panic(fmt.Sprintf("set flow %s: %s", id, err))
 	}
 }

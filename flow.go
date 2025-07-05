@@ -17,65 +17,39 @@ func (f FlowFunc) Execute(stateCtx *StateCtx, e Engine) (Command, error) {
 	return f(stateCtx, e)
 }
 
-func GetFlow(stateCtx *StateCtx) *GetFlowCommand {
-	return &GetFlowCommand{
-		StateCtx: stateCtx,
-	}
-}
-
-type GetFlowCommand struct {
-	command
-	StateCtx *StateCtx
-
-	// Result
-	Flow Flow
-}
-
-func SetFlow(id FlowID, flow Flow) *SetFlowCommand {
-	return &SetFlowCommand{
-		FlowID: id,
-		Flow:   flow,
-	}
-}
-
-type SetFlowCommand struct {
-	command
-	FlowID FlowID
-	Flow   Flow
-}
-
 type FlowRegistry struct {
 	mux   sync.Mutex
 	flows map[FlowID]Flow
 }
 
-func (fr *FlowRegistry) GetFlow(cmd *GetFlowCommand) error {
+func (fr *FlowRegistry) Flow(id FlowID) (Flow, error) {
 	fr.mux.Lock()
 	defer fr.mux.Unlock()
 
-	if cmd.StateCtx.Current.Transition.To == "" {
-		return fmt.Errorf("transition flow to is empty")
+	if id == "" {
+		return nil, fmt.Errorf("flow id empty")
 	}
 
 	if fr.flows == nil {
-		return ErrFlowNotFound
+		return nil, ErrFlowNotFound
 	}
 
-	f, ok := fr.flows[cmd.StateCtx.Current.Transition.To]
+	f, ok := fr.flows[id]
 	if !ok {
-		return ErrFlowNotFound
+		return nil, ErrFlowNotFound
 	}
 
-	cmd.Flow = f
-	return nil
+	return f, nil
 }
 
-func (fr *FlowRegistry) SetFlow(cmd *SetFlowCommand) error {
+func (fr *FlowRegistry) SetFlow(id FlowID, flow Flow) error {
+	fr.mux.Lock()
+	defer fr.mux.Unlock()
+
 	if fr.flows == nil {
 		fr.flows = make(map[FlowID]Flow)
 	}
 
-	fr.flows[cmd.FlowID] = cmd.Flow
-
+	fr.flows[id] = flow
 	return nil
 }

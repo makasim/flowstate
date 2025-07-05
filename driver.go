@@ -6,9 +6,10 @@ type Driver interface {
 	GetStates(cmd *GetStatesCommand) (*GetStatesResult, error)
 	GetDelayedStates(cmd *GetDelayedStatesCommand) (*GetDelayedStatesResult, error)
 	GetData(cmd *GetDataCommand) error
-	GetFlow(cmd *GetFlowCommand) error
-	SetFlow(cmd *SetFlowCommand) error
 	Delay(cmd *DelayCommand) error
 	StoreData(cmd *StoreDataCommand) error
 	Commit(cmd *CommitCommand, e Engine) error
+
+	Flow(id FlowID) (Flow, error)
+	SetFlow(id FlowID, flow Flow) error
 }
