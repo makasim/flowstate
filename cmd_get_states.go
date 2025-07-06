@@ -4,8 +4,6 @@ import (
 	"time"
 )
 
-const GetManyDefaultLimit = 50
-
 type GetStatesResult struct {
 	States []State
 	More   bool
@@ -69,8 +67,8 @@ func (cmd *GetStatesCommand) WithLimit(limit int) *GetStatesCommand {
 	return cmd
 }
 
-func (cmd *GetStatesCommand) prepare() {
-	if cmd.Limit == 0 {
-		cmd.Limit = GetManyDefaultLimit
-	}
-}
+//func (cmd *GetStatesCommand) prepare() {
+//	if cmd.Limit == 0 {
+//		cmd.Limit = GetManyDefaultLimit
+//	}
+//}

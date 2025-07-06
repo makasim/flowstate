@@ -76,32 +76,29 @@ func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error 
 	return nil
 }
 
-func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
-	ss := make([]flowstate.State, cmd.Limit+1)
-	if cmd.LatestOnly {
+func (d *Driver) GetStates(orLabels []map[string]string, sinceRev int64, sinceTime time.Time, latestOnly bool, limit int) ([]flowstate.State, bool, error) {
+	ss := make([]flowstate.State, limit+1)
+	more := false
+	if latestOnly {
 		var err error
-		ss, err = d.q.GetLatestStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, cmd.SinceTime, ss)
+		ss, err = d.q.GetLatestStatesByLabels(context.Background(), d.conn, orLabels, sinceRev, sinceTime, ss)
 		if err != nil {
-			return nil, fmt.Errorf("get latest states by labels query: %w", err)
+			return nil, false, fmt.Errorf("get latest states by labels query: %w", err)
 		}
 	} else {
 		var err error
-		ss, err = d.q.GetStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, cmd.SinceTime, ss)
+		ss, err = d.q.GetStatesByLabels(context.Background(), d.conn, orLabels, sinceRev, sinceTime, ss)
 		if err != nil {
-			return nil, fmt.Errorf("get states by labels query: %w", err)
+			return nil, false, fmt.Errorf("get states by labels query: %w", err)
 		}
 	}
 
-	var more bool
-	if len(ss) > cmd.Limit {
-		ss = ss[:cmd.Limit]
+	if len(ss) > limit {
+		ss = ss[:limit]
 		more = true
 	}
 
-	return &flowstate.GetStatesResult{
-		States: ss,
-		More:   more,
-	}, nil
+	return ss, more, nil
 }
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
@@ -112,22 +109,19 @@ func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
 	return nil
 }
 
-func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
-	ds, err := d.q.GetDelayedStates(context.Background(), d.conn, cmd.Since.Unix(), cmd.Until.Unix(), cmd.Offset, cmd.Limit+1)
+func (d *Driver) GetDelayedStates(since, until time.Time, offset int64, limit int) ([]flowstate.DelayedState, bool, error) {
+	delayedStates, err := d.q.GetDelayedStates(context.Background(), d.conn, since.Unix(), until.Unix(), offset, limit+1)
 	if err != nil {
-		return nil, fmt.Errorf("get delayed states query: %w", err)
+		return nil, false, fmt.Errorf("get delayed states query: %w", err)
 	}
 
 	var more bool
-	if len(ds) > cmd.Limit {
-		ds = ds[:cmd.Limit]
+	if len(delayedStates) > limit {
+		delayedStates = delayedStates[:limit]
 		more = true
 	}
 
-	return &flowstate.GetDelayedStatesResult{
-		States: ds,
-		More:   more,
-	}, nil
+	return delayedStates, more, nil
 }
 
 func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {

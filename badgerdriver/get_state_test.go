@@ -216,7 +216,7 @@ func TestGetStatesPreserveOrder(t *testing.T) {
 	// read returns only past commited state
 
 	time.Sleep(time.Millisecond * 200)
-	res, err := d.GetStates(flowstate.GetStatesByLabels(nil).WithLimit(10))
+	states, _, err := d.GetStates(nil, 0, time.Time{}, false, 10)
 	if err != nil {
 		t.Fatalf("failed to get states: %v", err)
 	}
@@ -224,11 +224,11 @@ func TestGetStatesPreserveOrder(t *testing.T) {
 	expStates := []flowstate.State{
 		{ID: `1`, Rev: 1},
 	}
-	assertEqualStates(t, expStates, res.States)
+	assertEqualStates(t, expStates, states)
 
 	wg.Wait()
 
-	res, err = d.GetStates(flowstate.GetStatesByLabels(nil).WithLimit(10))
+	states, _, err = d.GetStates(nil, 0, time.Time{}, false, 10)
 	if err != nil {
 		t.Fatalf("failed to get states: %v", err)
 	}
@@ -239,7 +239,7 @@ func TestGetStatesPreserveOrder(t *testing.T) {
 		{ID: `3`, Rev: 3},
 	}
 
-	assertEqualStates(t, expStates, res.States)
+	assertEqualStates(t, expStates, states)
 }
 
 func assertEqualStates(t *testing.T, exp, act []flowstate.State) {

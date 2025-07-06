@@ -8,24 +8,26 @@ import (
 type Watcher struct {
 	e Engine
 
+	sinceRev   int64
+	sinceTime  time.Time
+	orLabels   []map[string]string
+	latestOnly bool
+	limit      int
+
 	cmd     *GetStatesCommand
 	watchCh chan State
 	closeCh chan struct{}
 }
 
-func NewWatcher(e Engine, cmd *GetStatesCommand) *Watcher {
-	copyCmd := &GetStatesCommand{
-		SinceRev:   cmd.SinceRev,
-		SinceTime:  cmd.SinceTime,
-		Labels:     copyORLabels(cmd.Labels),
-		LatestOnly: cmd.LatestOnly,
-		Limit:      cmd.Limit,
-	}
-	copyCmd.prepare()
-
+func NewWatcher(e Engine, orLabels []map[string]string, sinceRev int64, sinceTime time.Time, latestOnly bool, limit int) *Watcher {
 	w := &Watcher{
-		e:   e,
-		cmd: copyCmd,
+		e: e,
+
+		sinceRev:   sinceRev,
+		sinceTime:  sinceTime,
+		orLabels:   copyORLabels(orLabels),
+		latestOnly: latestOnly,
+		limit:      limit,
 
 		watchCh: make(chan State, 1),
 		closeCh: make(chan struct{}),
@@ -63,29 +65,26 @@ func (w *Watcher) listen() {
 }
 
 func (w *Watcher) stream() bool {
-	getManyCmd := w.cmd
-
-	getManyCmd.Result = nil
-	if err := w.e.Do(getManyCmd); err != nil {
+	states, more, err := w.e.GetStates(w.orLabels, w.sinceRev, w.sinceTime, w.latestOnly, w.limit)
+	if err != nil {
 		log.Printf("ERROR: WatchListener: get many states: %s", err)
 		return false
 	}
 
-	res := getManyCmd.MustResult()
-	if len(res.States) == 0 {
+	if len(states) == 0 {
 		return false
 	}
 
-	for i := range res.States {
+	for i := range states {
 		select {
-		case w.watchCh <- res.States[i]:
-			getManyCmd.SinceRev = res.States[i].Rev
+		case w.watchCh <- states[i]:
+			w.sinceRev = states[i].Rev
 		case <-w.closeCh:
 			return false
 		}
 	}
 
-	return res.More
+	return more
 }
 
 func copyORLabels(orLabels []map[string]string) []map[string]string {

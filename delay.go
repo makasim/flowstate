@@ -82,54 +82,9 @@ type DelayedState struct {
 	ExecuteAt time.Time
 }
 
-const GetDelayedStatesDefaultLimit = 500
-
-type GetDelayedStatesResult struct {
-	States []DelayedState
-	More   bool
-}
-
-func GetDelayedStates(since, until time.Time, offset int64) *GetDelayedStatesCommand {
-	return &GetDelayedStatesCommand{
-		Since:  since,
-		Until:  until,
-		Offset: offset,
-		Limit:  GetDelayedStatesDefaultLimit,
-	}
-}
-
-type GetDelayedStatesCommand struct {
-	command
-
-	Since time.Time
-	Until time.Time
-	// Offset is valid inside the since-until range.
-	// Should be used to pagination results.
-	Offset int64
-	Limit  int
-
-	Result *GetDelayedStatesResult
-}
-
-func (cmd *GetDelayedStatesCommand) MustResult() *GetDelayedStatesResult {
-	if cmd.Result == nil {
-		panic("FATAL: MustResult must be called after successful execution of the command; have you checked for errors?")
-	}
-
-	return cmd.Result
-}
-
-func (cmd *GetDelayedStatesCommand) prepare() {
-	if cmd.Limit == 0 {
-		cmd.Limit = GetDelayedStatesDefaultLimit
-	}
-	if cmd.Until.IsZero() {
-		cmd.Until = time.Now()
-	}
-}
-
 type Delayer struct {
 	e Engine
+	d Driver
 
 	metaStateCtx *StateCtx
 	offset       int64
@@ -147,9 +102,10 @@ type Delayer struct {
 	l         *slog.Logger
 }
 
-func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
-	d := &Delayer{
+func NewDelayer(e Engine, d Driver, l *slog.Logger) (*Delayer, error) {
+	dlr := &Delayer{
 		e: e,
+		d: d,
 		l: l,
 
 		delayedStates: make(map[int64]DelayedState),
@@ -158,7 +114,7 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 	}
 
 	metaStateCtx := &StateCtx{}
-	if err := d.e.Do(GetStateByID(metaStateCtx, `flowstate.delayer.meta`, 0)); errors.Is(err, ErrNotFound) {
+	if err := dlr.e.Do(GetStateByID(metaStateCtx, `flowstate.delayer.meta`, 0)); errors.Is(err, ErrNotFound) {
 		metaStateCtx.Current = State{
 			ID:  `flowstate.delayer.meta`,
 			Rev: 0,
@@ -166,7 +122,7 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 		DisableRecovery(metaStateCtx)
 		setDelayerMetaState(metaStateCtx, time.Unix(0, 0).UTC(), 0)
 
-		if err := d.e.Do(Commit(
+		if err := dlr.e.Do(Commit(
 			Transit(metaStateCtx, `na`),
 		)); IsErrRevMismatch(err) {
 			return nil, fmt.Errorf("another process is already doing delaying; exiting (todo: implement standby mode)")
@@ -174,12 +130,12 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 			return nil, fmt.Errorf("commit meta state: %w", err)
 		}
 	}
-	d.metaStateCtx = metaStateCtx
-	d.committedSince, d.committedOffset = getDelayerMetaState(metaStateCtx)
-	d.since, d.offset = d.committedSince, d.committedOffset
+	dlr.metaStateCtx = metaStateCtx
+	dlr.committedSince, dlr.committedOffset = getDelayerMetaState(metaStateCtx)
+	dlr.since, dlr.offset = dlr.committedSince, dlr.committedOffset
 
 	go func() {
-		defer close(d.stoppedCh)
+		defer close(dlr.stoppedCh)
 
 		updateHeadT := time.NewTicker(time.Second * 30)
 		defer updateHeadT.Stop()
@@ -197,38 +153,38 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 			select {
 			case now := <-updateHeadT.C:
 				until := now.Add(time.Minute)
-				if _, err := d.queryDelayedStates(d.since, until, 0); err != nil {
-					d.l.Error(fmt.Sprintf("query delayed from %s to %s, offset=%d: %s", d.since, until, 0, err))
+				if _, err := dlr.queryDelayedStates(dlr.since, until, 0); err != nil {
+					dlr.l.Error(fmt.Sprintf("query delayed from %s to %s, offset=%d: %s", dlr.since, until, 0, err))
 				}
-				d.since = until
+				dlr.since = until
 			case now := <-updateHeadFreshT.C:
 				var since time.Time
-				if d.offset > 0 {
+				if dlr.offset > 0 {
 					since = now.Add(-time.Hour * 24)
 				}
 				until := now.Add(time.Minute)
-				nextOffset, err := d.queryDelayedStates(since, until, d.offset)
+				nextOffset, err := dlr.queryDelayedStates(since, until, dlr.offset)
 				if err != nil {
-					d.l.Error(fmt.Sprintf("query delayed from %s to %s, offset=%d: %s", since, until, d.offset, err))
+					dlr.l.Error(fmt.Sprintf("query delayed from %s to %s, offset=%d: %s", since, until, dlr.offset, err))
 				}
-				d.offset = nextOffset
+				dlr.offset = nextOffset
 			case now := <-updateTailT.C:
-				if err := d.updateTail(now); err != nil {
-					d.l.Error(fmt.Sprintf("update tail: %s; retrying", err.Error()))
+				if err := dlr.updateTail(now); err != nil {
+					dlr.l.Error(fmt.Sprintf("update tail: %s; retrying", err.Error()))
 				}
 			case <-commitT.C:
-				setDelayerMetaState(d.metaStateCtx, d.committedSince, d.committedOffset)
-				if err := d.e.Do(Commit(Transit(d.metaStateCtx, `na`))); IsErrRevMismatch(err) {
-					d.l.Warn("another process is already doing delaying; exiting (todo: implement standby mode)")
+				setDelayerMetaState(dlr.metaStateCtx, dlr.committedSince, dlr.committedOffset)
+				if err := dlr.e.Do(Commit(Transit(dlr.metaStateCtx, `na`))); IsErrRevMismatch(err) {
+					dlr.l.Warn("another process is already doing delaying; exiting (todo: implement standby mode)")
 				} else if err != nil {
-					d.l.Error(fmt.Sprintf("commit meta state: %s", err))
+					dlr.l.Error(fmt.Sprintf("commit meta state: %s", err))
 				}
-			case <-d.stopCh:
-				setDelayerMetaState(d.metaStateCtx, d.committedSince, d.committedOffset)
-				if err := d.e.Do(Commit(Transit(d.metaStateCtx, `na`))); IsErrRevMismatch(err) {
-					d.l.Warn("another process is already doing delaying; exiting (todo: implement standby mode)")
+			case <-dlr.stopCh:
+				setDelayerMetaState(dlr.metaStateCtx, dlr.committedSince, dlr.committedOffset)
+				if err := dlr.e.Do(Commit(Transit(dlr.metaStateCtx, `na`))); IsErrRevMismatch(err) {
+					dlr.l.Warn("another process is already doing delaying; exiting (todo: implement standby mode)")
 				} else if err != nil {
-					d.l.Error(fmt.Sprintf("commit meta state: %s", err))
+					dlr.l.Error(fmt.Sprintf("commit meta state: %s", err))
 				}
 
 				return
@@ -236,32 +192,31 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 		}
 	}()
 
-	return d, nil
+	return dlr, nil
 }
 
-func (d *Delayer) queryDelayedStates(since, until time.Time, offset int64) (int64, error) {
+func (dlr *Delayer) queryDelayedStates(since, until time.Time, offset int64) (int64, error) {
 	nextOffset := offset
 	for {
-		if len(d.delayedStates) > 1000 {
+		if len(dlr.delayedStates) > 1000 {
 			return 0, nil
 		}
 
-		cmd := GetDelayedStates(since, until, offset)
-		if err := d.e.Do(cmd); err != nil {
+		delayedStates, more, err := dlr.d.GetDelayedStates(since, until, offset, 500)
+		if err != nil {
 			return 0, fmt.Errorf("get delayed states: %w", err)
 		}
 
-		res := cmd.MustResult()
-		if len(res.States) == 0 {
+		if len(delayedStates) == 0 {
 			return nextOffset, nil
 		}
 
-		for _, state := range res.States {
-			d.delayedStates[state.Offset] = state
+		for _, state := range delayedStates {
+			dlr.delayedStates[state.Offset] = state
 			nextOffset = max(nextOffset, state.Offset)
 		}
 
-		if res.More {
+		if more {
 			continue
 		}
 
@@ -269,10 +224,10 @@ func (d *Delayer) queryDelayedStates(since, until time.Time, offset int64) (int6
 	}
 }
 
-func (d *Delayer) updateTail(now time.Time) error {
-	commitSince := d.committedSince
-	commitOffset := d.committedOffset
-	for _, delayedState := range d.delayedStates {
+func (dlr *Delayer) updateTail(now time.Time) error {
+	commitSince := dlr.committedSince
+	commitOffset := dlr.committedOffset
+	for _, delayedState := range dlr.delayedStates {
 		if delayedState.ExecuteAt.After(now) {
 			continue
 		}
@@ -280,20 +235,20 @@ func (d *Delayer) updateTail(now time.Time) error {
 		stateCtx := delayedState.CopyToCtx(&StateCtx{})
 		commit := stateCtx.Current.Transition.Annotations[DelayCommitAnnotation] != `false`
 		if commit {
-			if err := d.e.Do(Commit(CommitStateCtx(stateCtx))); IsErrRevMismatch(err) {
+			if err := dlr.e.Do(Commit(CommitStateCtx(stateCtx))); IsErrRevMismatch(err) {
 				continue
 			} else if err != nil {
 				return fmt.Errorf("commit state ctx: id=%s rev=%d: %w", delayedState.ID, delayedState.Rev, err)
 			}
 		}
 
-		delete(d.delayedStates, delayedState.Offset)
+		delete(dlr.delayedStates, delayedState.Offset)
 
 		// TODO: add concurrency control
 		go func() {
-			if err := d.e.Execute(stateCtx); err != nil && !commit {
+			if err := dlr.e.Execute(stateCtx); err != nil && !commit {
 				// delayed state is not so we warn about it, if commit recovery would kick in
-				d.l.Warn(fmt.Sprintf("delayed uncommited state execution has failed; id=%s rev=%d: %s", delayedState.ID, delayedState.Rev, err.Error()))
+				dlr.l.Warn(fmt.Sprintf("delayed uncommited state execution has failed; id=%s rev=%d: %s", delayedState.ID, delayedState.Rev, err.Error()))
 			}
 		}()
 
@@ -303,20 +258,20 @@ func (d *Delayer) updateTail(now time.Time) error {
 		commitOffset = max(commitOffset, delayedState.Offset)
 	}
 
-	d.committedSince, d.committedOffset = commitSince, commitOffset
+	dlr.committedSince, dlr.committedOffset = commitSince, commitOffset
 
 	return nil
 }
 
-func (d *Delayer) Shutdown(ctx context.Context) error {
+func (dlr *Delayer) Shutdown(ctx context.Context) error {
 	select {
-	case <-d.stopCh:
+	case <-dlr.stopCh:
 		return fmt.Errorf(`already shutdown`)
 	default:
-		close(d.stopCh)
+		close(dlr.stopCh)
 
 		select {
-		case <-d.stoppedCh:
+		case <-dlr.stoppedCh:
 			return nil
 		case <-ctx.Done():
 			return ctx.Err()

@@ -272,14 +272,13 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 		//	return nil
 		//}
 
-		getManyCmd := GetStatesByLabels(nil).WithSinceRev(r.sinceRev)
-		if err := r.e.Do(getManyCmd); err != nil {
-			return fmt.Errorf("get many states: %w; since_rev=%d", err, r.sinceRev)
+		states, more, err := r.e.GetStates(nil, r.sinceRev, time.Time{}, false, 50)
+		if err != nil {
+			return fmt.Errorf("get states: %w; since_rev=%d", err, r.sinceRev)
 		}
-		res := getManyCmd.MustResult()
 
 		completed, added := r.completed, r.added
-		for _, state := range res.States {
+		for _, state := range states {
 			r.sinceRev = state.Rev
 
 			if state.ID == recoveryStateID {
@@ -326,14 +325,14 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 				r.tailTime = r.headTime
 			}
 
-			if len(res.States) == 0 {
+			if len(states) == 0 {
 				return nil
 			}
 		}
 
 		first = false
 
-		if res.More {
+		if more {
 			r.mux.Unlock()
 			r.mux.Lock()
 			continue

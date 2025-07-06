@@ -138,14 +138,14 @@ func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error 
 	})
 }
 
-func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
-	res := &flowstate.GetStatesResult{}
+func (d *Driver) GetStates(orLabels []map[string]string, sinceRev int64, sinceTime time.Time, latestOnly bool, limit int) ([]flowstate.State, bool, error) {
+	states := make([]flowstate.State, 0, limit+1)
+	more := false
 	if err := d.db.View(func(txn *badger.Txn) error {
 		untilRev := d.stateRevSeq.maxViewable()
 
-		sinceRev := cmd.SinceRev
-		if !cmd.SinceTime.IsZero() {
-			caIt := newCommittedAtIterator(txn, cmd.SinceTime, false)
+		if !sinceTime.IsZero() {
+			caIt := newCommittedAtIterator(txn, sinceTime, false)
 			defer caIt.Close()
 
 			if !caIt.Valid() {
@@ -154,7 +154,7 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 
 			sinceRev = caIt.Current().Rev
 		} else if sinceRev == -1 {
-			latestIt := newOrLabelsIterator(txn, cmd.Labels, untilRev, true)
+			latestIt := newOrLabelsIterator(txn, orLabels, untilRev, true)
 			defer latestIt.Close()
 
 			if !latestIt.Valid() {
@@ -166,17 +166,17 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 			sinceRev = sinceRev + 1
 		}
 
-		it := newOrLabelsIterator(txn, cmd.Labels, sinceRev, false)
+		it := newOrLabelsIterator(txn, orLabels, sinceRev, false)
 		defer it.Close()
 
 		for ; it.Valid(); it.Next() {
-			if len(res.States) > cmd.Limit {
-				res.More = true
+			if len(states) > limit {
+				more = true
 				break
 			}
 
 			state := it.Current()
-			if cmd.LatestOnly {
+			if latestOnly {
 				latestRev, _ := getLatestRevIndex(txn, state.ID)
 				if state.Rev < latestRev {
 					continue
@@ -187,14 +187,14 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 				break
 			}
 
-			res.States = append(res.States, state)
+			states = append(states, state)
 		}
 		return nil
 	}); err != nil {
-		return nil, fmt.Errorf("get states: %w", err)
+		return nil, false, fmt.Errorf("get states: %w", err)
 	}
 
-	return res, nil
+	return states, more, nil
 }
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
@@ -224,17 +224,19 @@ func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
 	})
 }
 
-func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
-	res := &flowstate.GetDelayedStatesResult{}
+func (d *Driver) GetDelayedStates(since, until time.Time, offset int64, limit int) ([]flowstate.DelayedState, bool, error) {
+
+	var delayedStates []flowstate.DelayedState
+	var more bool
 
 	if err := d.db.View(func(txn *badger.Txn) error {
 		untilOffset := d.delayedOffsetSeq.maxViewable()
 
-		prefix := delayedStatePrefix(cmd.Since)
-		seekPrefix := delayedStateKey(cmd.Since.Unix(), cmd.Offset)
-		if cmd.Offset > 0 || cmd.Since.IsZero() {
+		prefix := delayedStatePrefix(since)
+		seekPrefix := delayedStateKey(since.Unix(), offset)
+		if offset > 0 || since.IsZero() {
 			prefix = delayedOffsetPrefix()
-			seekPrefix = delayedOffsetKey(cmd.Offset)
+			seekPrefix = delayedOffsetKey(offset)
 		}
 
 		it := &badgerIterator{
@@ -258,30 +260,30 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 			if err := getGOB(txn, delayedStateKey, &delayedState); err != nil {
 				return fmt.Errorf("get delayed state: %w", err)
 			}
-			if delayedState.ExecuteAt.Unix() <= cmd.Since.Unix() {
+			if delayedState.ExecuteAt.Unix() <= since.Unix() {
 				continue
 			}
-			if delayedState.ExecuteAt.Unix() > cmd.Until.Unix() {
+			if delayedState.ExecuteAt.Unix() > until.Unix() {
 				break
 			}
 			if delayedState.Offset > untilOffset {
 				break
 			}
 
-			if len(res.States) >= cmd.Limit {
-				res.More = true
+			if len(delayedStates) >= limit {
+				more = true
 				break
 			}
 
-			res.States = append(res.States, delayedState)
+			delayedStates = append(delayedStates, delayedState)
 		}
 
 		return nil
 	}); err != nil {
-		return nil, fmt.Errorf("get delayed states: %w", err)
+		return nil, false, fmt.Errorf("get delayed states: %w", err)
 	}
 
-	return res, nil
+	return delayedStates, more, nil
 }
 
 func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {

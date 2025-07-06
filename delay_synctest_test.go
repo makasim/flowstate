@@ -67,7 +67,7 @@ func TestDelayer(t *testing.T) {
 			time.Sleep(time.Minute * 10)
 			synctest.Wait()
 
-			dlr, err := flowstate.NewDelayer(e, l)
+			dlr, err := flowstate.NewDelayer(e, d, l)
 			if err != nil {
 				t.Fatalf("failed to create delayer: %v", err)
 			}
@@ -263,7 +263,7 @@ func TestDelayer_Concurrency(t *testing.T) {
 		}
 		defer e.Shutdown(context.Background())
 
-		dlr, err := flowstate.NewDelayer(e, l)
+		dlr, err := flowstate.NewDelayer(e, d, l)
 		if err != nil {
 			t.Fatalf("failed to create delayer: %v", err)
 		}

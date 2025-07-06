@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
@@ -15,6 +16,7 @@ var sessIDS = &atomic.Int64{}
 type Engine interface {
 	Execute(stateCtx *StateCtx) error
 	Do(cmds ...Command) error
+	GetStates(orLabels []map[string]string, sinceRev int64, sinceTime time.Time, latestOnly bool, limit int) ([]State, bool, error)
 	Shutdown(ctx context.Context) error
 }
 
@@ -244,16 +246,6 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 			return err
 		}
 		return e.d.Delay(cmd)
-	case *GetDelayedStatesCommand:
-		cmd.prepare()
-
-		res, err := e.d.GetDelayedStates(cmd)
-		if err != nil {
-			return err
-		}
-		cmd.Result = res
-
-		return nil
 	case *CommitStateCtxCommand:
 		return fmt.Errorf("commit state ctx should be passed inside CommitCommand, not as a separate command")
 	case *CommitCommand:
