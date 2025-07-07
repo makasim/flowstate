@@ -19,7 +19,7 @@ func (cmd *EndCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-func (cmd *EndCommand) do() error {
+func (cmd *EndCommand) Do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{

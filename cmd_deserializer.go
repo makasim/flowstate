@@ -22,7 +22,7 @@ type DeserializeCommand struct {
 	Annotation           string
 }
 
-func (cmd *DeserializeCommand) do() error {
+func (cmd *DeserializeCommand) Do() error {
 	serializedState := cmd.StateCtx.Current.Annotations[cmd.Annotation]
 	if serializedState == `` {
 		return fmt.Errorf("store annotation value empty")

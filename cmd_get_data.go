@@ -14,7 +14,7 @@ type GetDataCommand struct {
 	Data *Data
 }
 
-func (cmd *GetDataCommand) prepare() error {
+func (cmd *GetDataCommand) Prepare() error {
 	if cmd.Data == nil {
 		return fmt.Errorf("data is nil")
 	}

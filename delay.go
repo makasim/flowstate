@@ -50,7 +50,7 @@ func (cmd *DelayCommand) WithCommit(commit bool) *DelayCommand {
 	return cmd
 }
 
-func (cmd *DelayCommand) prepare() error {
+func (cmd *DelayCommand) Prepare() error {
 
 	cmd.DelayingState = cmd.StateCtx.Current.CopyTo(&cmd.DelayingState)
 
@@ -119,7 +119,7 @@ func (cmd *GetDelayedStatesCommand) MustResult() *GetDelayedStatesResult {
 	return cmd.Result
 }
 
-func (cmd *GetDelayedStatesCommand) prepare() {
+func (cmd *GetDelayedStatesCommand) Prepare() {
 	if cmd.Limit == 0 {
 		cmd.Limit = GetDelayedStatesDefaultLimit
 	}

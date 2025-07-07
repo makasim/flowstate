@@ -19,7 +19,7 @@ func (cmd *ResumeCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-func (cmd *ResumeCommand) do() error {
+func (cmd *ResumeCommand) Do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
 	nextTs := Transition{

@@ -130,7 +130,7 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 	}, nil
 }
 
-func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {
+func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 	tx, err := d.conn.BeginTx(context.Background(), pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("conn: begin: %w", err)
@@ -140,10 +140,8 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error 
 	revMismatchErr := &flowstate.ErrRevMismatch{}
 
 	for _, subCmd0 := range cmd.Commands {
-		if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
-			if err := e.Do(subCmd0); err != nil {
-				return fmt.Errorf("%T: do: %w", subCmd0, err)
-			}
+		if err := flowstate.DoCommitSubCommand(d, subCmd0); err != nil {
+			return fmt.Errorf("%T: do: %w", subCmd0, err)
 		}
 
 		committableCmd, ok := subCmd0.(flowstate.CommittableCommand)

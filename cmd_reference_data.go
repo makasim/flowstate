@@ -18,7 +18,7 @@ type ReferenceDataCommand struct {
 	Annotation string
 }
 
-func (cmd *ReferenceDataCommand) do() error {
+func (cmd *ReferenceDataCommand) Do() error {
 	if cmd.Data.ID == "" {
 		return fmt.Errorf("data ID is empty")
 	}
