@@ -12,6 +12,8 @@ import (
 	"github.com/makasim/flowstate"
 )
 
+var _ flowstate.Driver = &Driver{}
+
 type Driver struct {
 	*flowstate.FlowRegistry
 	conn  conn
@@ -30,6 +32,10 @@ func New(conn conn, l *slog.Logger) *Driver {
 		FlowRegistry: &flowstate.FlowRegistry{},
 		l:            l,
 	}
+}
+
+func (d *Driver) Init(_ flowstate.Engine) error {
+	return nil
 }
 
 func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
