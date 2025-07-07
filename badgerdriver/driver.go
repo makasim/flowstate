@@ -14,6 +14,8 @@ import (
 	"github.com/makasim/flowstate"
 )
 
+var _ flowstate.Driver = &Driver{}
+
 type Driver struct {
 	*flowstate.FlowRegistry
 
@@ -56,6 +58,10 @@ func New(db *badger.DB) (*Driver, error) {
 
 		l: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
 	}, nil
+}
+
+func (d *Driver) Init(_ flowstate.Engine) error {
+	return nil
 }
 
 func (d *Driver) Shutdown(_ context.Context) error {

@@ -35,6 +35,10 @@ func NewEngine(d Driver, l *slog.Logger) (Engine, error) {
 		doneCh: make(chan struct{}),
 	}
 
+	if err := d.Init(e); err != nil {
+		return nil, fmt.Errorf("driver: init: %w", err)
+	}
+
 	e.wg.Add(1)
 
 	return e, nil

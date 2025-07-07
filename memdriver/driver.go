@@ -35,6 +35,10 @@ func New(l *slog.Logger) *Driver {
 	return d
 }
 
+func (d *Driver) Init(_ flowstate.Engine) error {
+	return nil
+}
+
 func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
 	data, err := d.dataLog.get(cmd.Data.ID, cmd.Data.Rev)
 	if err != nil {
