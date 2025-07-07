@@ -22,7 +22,7 @@ type SerializeCommand struct {
 	Annotation           string
 }
 
-func (cmd *SerializeCommand) do() error {
+func (cmd *SerializeCommand) Do() error {
 	if cmd.Annotation == `` {
 		return fmt.Errorf("store annotation name empty")
 	}

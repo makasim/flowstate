@@ -177,23 +177,23 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
-		return cmd.do()
+		return cmd.Do()
 	case *PauseCommand:
-		return cmd.do()
+		return cmd.Do()
 	case *ResumeCommand:
-		return cmd.do()
+		return cmd.Do()
 	case *EndCommand:
-		return cmd.do()
+		return cmd.Do()
 	case *NoopCommand:
 		return nil
 	case *SerializeCommand:
-		return cmd.do()
+		return cmd.Do()
 	case *DeserializeCommand:
-		return cmd.do()
+		return cmd.Do()
 	case *DereferenceDataCommand:
-		return cmd.do()
+		return cmd.Do()
 	case *ReferenceDataCommand:
-		return cmd.do()
+		return cmd.Do()
 	case *ExecuteCommand:
 		if cmd.sync {
 			return nil
@@ -213,24 +213,24 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 
 		return nil
 	case *GetDataCommand:
-		if err := cmd.prepare(); err != nil {
+		if err := cmd.Prepare(); err != nil {
 			return err
 		}
 		return e.d.GetData(cmd)
 	case *StoreDataCommand:
-		if err := cmd.prepare(); err != nil {
+		if err := cmd.Prepare(); err != nil {
 			return err
 		}
 		return e.d.StoreData(cmd)
 	case *GetStateByIDCommand:
-		if err := cmd.prepare(); err != nil {
+		if err := cmd.Prepare(); err != nil {
 			return err
 		}
 		return e.d.GetStateByID(cmd)
 	case *GetStateByLabelsCommand:
 		return e.d.GetStateByLabels(cmd)
 	case *GetStatesCommand:
-		cmd.prepare()
+		cmd.Prepare()
 
 		res, err := e.d.GetStates(cmd)
 		if err != nil {
@@ -240,12 +240,12 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 
 		return nil
 	case *DelayCommand:
-		if err := cmd.prepare(); err != nil {
+		if err := cmd.Prepare(); err != nil {
 			return err
 		}
 		return e.d.Delay(cmd)
 	case *GetDelayedStatesCommand:
-		cmd.prepare()
+		cmd.Prepare()
 
 		res, err := e.d.GetDelayedStates(cmd)
 		if err != nil {
@@ -262,15 +262,23 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		}
 
 		for _, c := range cmd.Commands {
+			logDo(execSessID, cmd0, e.l)
+
 			if _, ok := c.(*CommitCommand); ok {
 				return fmt.Errorf("commit command not allowed inside another commit")
 			}
 			if _, ok := c.(*ExecuteCommand); ok {
 				return fmt.Errorf("execute command not allowed inside commit")
 			}
+			if _, ok := c.(*GetDelayedStatesCommand); ok {
+				return fmt.Errorf("get delayed states command not allowed inside commit")
+			}
+			if _, ok := c.(*GetStatesCommand); ok {
+				return fmt.Errorf("get states command not allowed inside commit")
+			}
 		}
 
-		return e.d.Commit(cmd, e)
+		return e.d.Commit(cmd)
 	default:
 		return fmt.Errorf("command %T not supported", cmd0)
 	}

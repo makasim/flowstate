@@ -21,7 +21,7 @@ func NewWatcher(e Engine, cmd *GetStatesCommand) *Watcher {
 		LatestOnly: cmd.LatestOnly,
 		Limit:      cmd.Limit,
 	}
-	copyCmd.prepare()
+	copyCmd.Prepare()
 
 	w := &Watcher{
 		e:   e,

@@ -69,7 +69,7 @@ func (cmd *GetStatesCommand) WithLimit(limit int) *GetStatesCommand {
 	return cmd
 }
 
-func (cmd *GetStatesCommand) prepare() {
+func (cmd *GetStatesCommand) Prepare() {
 	if cmd.Limit == 0 {
 		cmd.Limit = GetManyDefaultLimit
 	}

@@ -14,7 +14,7 @@ type StoreDataCommand struct {
 	Data *Data
 }
 
-func (cmd *StoreDataCommand) prepare() error {
+func (cmd *StoreDataCommand) Prepare() error {
 	if cmd.Data == nil {
 		return fmt.Errorf("data is nil")
 	}

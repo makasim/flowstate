@@ -19,7 +19,7 @@ type GetStateByIDCommand struct {
 	StateCtx *StateCtx
 }
 
-func (cmd *GetStateByIDCommand) prepare() error {
+func (cmd *GetStateByIDCommand) Prepare() error {
 	if cmd.ID == "" {
 		return fmt.Errorf(`id is empty`)
 	}

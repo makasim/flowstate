@@ -22,7 +22,7 @@ type DereferenceDataCommand struct {
 	Annotation string
 }
 
-func (cmd *DereferenceDataCommand) do() error {
+func (cmd *DereferenceDataCommand) Do() error {
 	serializedData := cmd.StateCtx.Current.Annotations[cmd.Annotation]
 	if serializedData == "" {
 		return fmt.Errorf("data is not serialized")

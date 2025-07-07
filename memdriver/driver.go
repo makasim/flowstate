@@ -163,16 +163,14 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 	}, nil
 }
 
-func (d *Driver) Commit(cmd *flowstate.CommitCommand, e flowstate.Engine) error {
+func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 	d.stateLog.Lock()
 	defer d.stateLog.Unlock()
 	defer d.stateLog.Rollback()
 
 	for _, subCmd0 := range cmd.Commands {
-		if _, ok := subCmd0.(*flowstate.CommitStateCtxCommand); !ok {
-			if err := e.Do(subCmd0); err != nil {
-				return fmt.Errorf("%T: do: %w", subCmd0, err)
-			}
+		if err := flowstate.DoCommitSubCommand(d, subCmd0); err != nil {
+			return fmt.Errorf("%T: do: %w", subCmd0, err)
 		}
 
 		subCmd, ok := subCmd0.(flowstate.CommittableCommand)

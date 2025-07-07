@@ -8,7 +8,7 @@ type Driver interface {
 	GetData(cmd *GetDataCommand) error
 	Delay(cmd *DelayCommand) error
 	StoreData(cmd *StoreDataCommand) error
-	Commit(cmd *CommitCommand, e Engine) error
+	Commit(cmd *CommitCommand) error
 
 	Flow(id FlowID) (Flow, error)
 	SetFlow(id FlowID, flow Flow) error

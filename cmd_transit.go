@@ -23,7 +23,7 @@ func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-func (cmd *TransitCommand) do() error {
+func (cmd *TransitCommand) Do() error {
 	if cmd.FlowID == "" {
 		return fmt.Errorf("flow id empty")
 	}
