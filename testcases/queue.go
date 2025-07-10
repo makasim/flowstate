@@ -1,18 +1,15 @@
 package testcases
 
 import (
-	"context"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func Queue(t TestingT, d flowstate.Driver) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
+func Queue(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	trkr := &Tracker{
 		IncludeTaskID: true,
 		IncludeState:  true,
@@ -66,16 +63,6 @@ func Queue(t TestingT, d flowstate.Driver) {
 		), nil
 	}))
 
-	l, _ := NewTestLogger(t)
-	e, err := flowstate.NewEngine(d, l)
-	require.NoError(t, err)
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, e.Shutdown(sCtx))
-	}()
-
 	for i := 0; i < 3; i++ {
 		stateCtx := &flowstate.StateCtx{
 			Current: flowstate.State{
@@ -97,7 +84,7 @@ func Queue(t TestingT, d flowstate.Driver) {
 			ID: "enqueueTID",
 		},
 	}
-	err = e.Do(flowstate.Commit(
+	err := e.Do(flowstate.Commit(
 		flowstate.Transit(enqueueStateCtx, `enqueue`),
 	))
 	require.NoError(t, err)

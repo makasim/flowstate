@@ -9,7 +9,7 @@ import (
 )
 
 func TestSuite(t *testing.T) {
-	s := testcases.Get(func(t testcases.TestingT) flowstate.Driver {
+	s := testcases.Get(func(t *testing.T) flowstate.Driver {
 		l, _ := testcases.NewTestLogger(t)
 		return memdriver.New(l)
 	})

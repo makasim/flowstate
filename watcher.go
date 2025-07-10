@@ -8,9 +8,10 @@ import (
 type Watcher struct {
 	e Engine
 
-	cmd     *GetStatesCommand
-	watchCh chan State
-	closeCh chan struct{}
+	cmd      *GetStatesCommand
+	watchCh  chan State
+	closeCh  chan struct{}
+	closedCh chan struct{}
 }
 
 func NewWatcher(e Engine, cmd *GetStatesCommand) *Watcher {
@@ -27,8 +28,9 @@ func NewWatcher(e Engine, cmd *GetStatesCommand) *Watcher {
 		e:   e,
 		cmd: copyCmd,
 
-		watchCh: make(chan State, 1),
-		closeCh: make(chan struct{}),
+		watchCh:  make(chan State, 1),
+		closeCh:  make(chan struct{}),
+		closedCh: make(chan struct{}),
 	}
 
 	go w.listen()
@@ -42,9 +44,12 @@ func (w *Watcher) Next() <-chan State {
 
 func (w *Watcher) Close() {
 	close(w.closeCh)
+	<-w.closedCh
 }
 
 func (w *Watcher) listen() {
+	defer close(w.closedCh)
+
 	t := time.NewTicker(time.Millisecond * 100)
 	defer t.Stop()
 

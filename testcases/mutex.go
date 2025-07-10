@@ -1,18 +1,15 @@
 package testcases
 
 import (
-	"context"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func Mutex(t TestingT, d flowstate.Driver) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
+func Mutex(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	var raceDetector int
 
 	trkr := &Tracker{}
@@ -108,17 +105,7 @@ func Mutex(t TestingT, d flowstate.Driver) {
 		states = append(states, statesCtx)
 	}
 
-	l, _ := NewTestLogger(t)
-	e, err := flowstate.NewEngine(d, l)
-	require.NoError(t, err)
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, e.Shutdown(sCtx))
-	}()
-
-	err = e.Do(flowstate.Commit(
+	err := e.Do(flowstate.Commit(
 		flowstate.Pause(mutexStateCtx).WithTransit(`unlocked`),
 	))
 	require.NoError(t, err)

@@ -1,38 +1,79 @@
 package testcases
 
 import (
+	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/makasim/flowstate"
+	"go.uber.org/goleak"
 )
 
-type TestingT interface {
-	Helper()
-	Error(...interface{})
-	Errorf(format string, args ...interface{})
-	Fatalf(format string, args ...any)
-	FailNow()
-	Cleanup(f func())
-}
-
 type Suite struct {
-	SetUp func(t TestingT) flowstate.Driver
+	SetUp        func(t *testing.T) flowstate.Driver
+	SetUpDelayer bool
 
-	cases map[string]func(t TestingT, d flowstate.Driver)
+	disableGoleak bool
+	cases         map[string]func(t *testing.T, e flowstate.Engine, d flowstate.Driver)
 }
 
 func (s *Suite) Test(main *testing.T) {
-	for name, fn := range s.cases {
-		main.Run(name, func(t *testing.T) {
-			t.Helper()
-			if fn == nil {
-				t.SkipNow()
-			}
-
-			d := s.SetUp(t)
-			fn(t, d)
-		})
+	for name := range s.cases {
+		s.run(main, name)
 	}
+}
+
+func (s *Suite) run(main *testing.T, name string) {
+	if !s.disableGoleak {
+		defer goleak.VerifyNone(main, goleak.IgnoreCurrent())
+	}
+
+	main.Run(name, func(t *testing.T) {
+		t.Helper()
+
+		fn := s.cases[name]
+		if fn == nil {
+			t.SkipNow()
+		}
+
+		d := s.SetUp(t)
+
+		l, _ := NewTestLogger(t)
+		e, err := flowstate.NewEngine(d, l)
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+		t.Cleanup(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+
+			if err := e.Shutdown(ctx); err != nil {
+				t.Fatalf("failed to shutdown engine: %v", err)
+			}
+		})
+
+		if s.SetUpDelayer {
+			dlr, err := flowstate.NewDelayer(e, l)
+			if err != nil {
+				t.Fatalf("failed to create delayer: %v", err)
+			}
+			t.Cleanup(func() {
+				sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+				defer sCtxCancel()
+
+				if err := dlr.Shutdown(sCtx); err != nil {
+					t.Fatalf("failed to shutdown delayer: %v", err)
+				}
+			})
+		}
+
+		fn(t, e, d)
+	})
+}
+
+func (s *Suite) DisableGoleak() {
+	s.disableGoleak = true
 }
 
 func (s *Suite) Skip(t *testing.T, name string) {
@@ -43,11 +84,12 @@ func (s *Suite) Skip(t *testing.T, name string) {
 	s.cases[name] = nil
 }
 
-func Get(setUp func(t TestingT) flowstate.Driver) *Suite {
+func Get(setUp func(t *testing.T) flowstate.Driver) *Suite {
 	return &Suite{
-		SetUp: setUp,
+		SetUp:        setUp,
+		SetUpDelayer: true,
 
-		cases: map[string]func(t TestingT, d flowstate.Driver){
+		cases: map[string]func(t *testing.T, e flowstate.Engine, d flowstate.Driver){
 			"Actor": Actor,
 
 			"CallFlow":           CallFlow,
@@ -97,4 +139,17 @@ func Get(setUp func(t TestingT) flowstate.Driver) *Suite {
 			"Cron": Cron,
 		},
 	}
+}
+
+func filterSystemStates(states []flowstate.State) []flowstate.State {
+	res := make([]flowstate.State, 0, len(states))
+	for _, s := range states {
+		if strings.HasPrefix(string(s.ID), "flowstate.") {
+			continue
+		}
+
+		res = append(res, s)
+	}
+
+	return res
 }

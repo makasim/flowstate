@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/makasim/flowstate"
@@ -62,7 +63,7 @@ func (trkr *Tracker) VisitedSorted() []string {
 	return visited
 }
 
-func (trkr *Tracker) WaitSortedVisitedEqual(t TestingT, expVisited []string, wait time.Duration) []string {
+func (trkr *Tracker) WaitSortedVisitedEqual(t *testing.T, expVisited []string, wait time.Duration) []string {
 	t.Helper()
 
 	var visited []string
@@ -75,7 +76,7 @@ func (trkr *Tracker) WaitSortedVisitedEqual(t TestingT, expVisited []string, wai
 	return visited
 }
 
-func (trkr *Tracker) WaitVisitedEqual(t TestingT, expVisited []string, wait time.Duration) []string {
+func (trkr *Tracker) WaitVisitedEqual(t *testing.T, expVisited []string, wait time.Duration) []string {
 	t.Helper()
 
 	var visited []string

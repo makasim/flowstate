@@ -14,8 +14,8 @@ import (
 )
 
 func TestSuite(t *testing.T) {
-	openDB := func(t testcases.TestingT, dsn0, dbName string) *pgxpool.Pool {
-		conn := testpgdriver.OpenFreshDB(t.(*testing.T), dsn0, dbName)
+	openDB := func(t *testing.T, dsn0, dbName string) *pgxpool.Pool {
+		conn := testpgdriver.OpenFreshDB(t, dsn0, dbName)
 
 		for i, m := range pgdriver.Migrations {
 			_, err := conn.Exec(context.Background(), m.SQL)
@@ -25,7 +25,7 @@ func TestSuite(t *testing.T) {
 		return conn
 	}
 
-	s := testcases.Get(func(t testcases.TestingT) flowstate.Driver {
+	s := testcases.Get(func(t *testing.T) flowstate.Driver {
 		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable`, ``)
 
 		t.Cleanup(func() {
