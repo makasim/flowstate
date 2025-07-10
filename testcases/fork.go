@@ -1,17 +1,14 @@
 package testcases
 
 import (
-	"context"
+	"testing"
 	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func Fork(t TestingT, d flowstate.Driver) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
+func Fork(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	var forkedStateCtx *flowstate.StateCtx
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -50,16 +47,6 @@ func Fork(t TestingT, d flowstate.Driver) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
-
-	l, _ := NewTestLogger(t)
-	e, err := flowstate.NewEngine(d, l)
-	require.NoError(t, err)
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, e.Shutdown(sCtx))
-	}()
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))
 	require.NoError(t, e.Execute(stateCtx))

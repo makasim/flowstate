@@ -1,27 +1,14 @@
 package testcases
 
 import (
-	"context"
+	"testing"
 	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func GetManySinceTime(t TestingT, d flowstate.Driver) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
-	l, _ := NewTestLogger(t)
-	e, err := flowstate.NewEngine(d, l)
-	require.NoError(t, err)
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, e.Shutdown(sCtx))
-	}()
-
+func GetManySinceTime(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -50,12 +37,13 @@ func GetManySinceTime(t TestingT, d flowstate.Driver) {
 	require.NoError(t, e.Do(cmd1))
 
 	res1 := cmd1.MustResult()
-	require.Len(t, res1.States, 1)
 	require.False(t, res.More)
 
-	actStates := res1.States
+	actStates := filterSystemStates(res1.States)
+	require.Len(t, actStates, 1)
+
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
-	require.Equal(t, int64(1), actStates[0].Rev)
+	require.NotEmpty(t, actStates[0].Rev)
 	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 }

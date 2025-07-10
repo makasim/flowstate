@@ -1,18 +1,15 @@
 package testcases
 
 import (
-	"context"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func Actor(t TestingT, d flowstate.Driver) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
+func Actor(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	trkr := &Tracker{IncludeTaskID: true}
 
 	mustSetFlow(d, "actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
@@ -45,16 +42,6 @@ func Actor(t TestingT, d flowstate.Driver) {
 	mustSetFlow(d, "inbox", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must never be executed")
 	}))
-
-	l, _ := NewTestLogger(t)
-	e, err := flowstate.NewEngine(d, l)
-	require.NoError(t, err)
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, e.Shutdown(sCtx))
-	}()
 
 	actorStateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{

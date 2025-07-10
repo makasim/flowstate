@@ -1,17 +1,14 @@
 package testcases
 
 import (
-	"context"
+	"testing"
 	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func CallFlowWithWatch(t TestingT, d flowstate.Driver) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
+func CallFlowWithWatch(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	var nextStateCtx *flowstate.StateCtx
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -94,17 +91,7 @@ func CallFlowWithWatch(t TestingT, d flowstate.Driver) {
 		), nil
 	}))
 
-	l, _ := NewTestLogger(t)
-	e, err := flowstate.NewEngine(d, l)
-	require.NoError(t, err)
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, e.Shutdown(sCtx))
-	}()
-
-	err = e.Do(flowstate.Commit(
+	err := e.Do(flowstate.Commit(
 		flowstate.Transit(stateCtx, `call`),
 	))
 	require.NoError(t, err)

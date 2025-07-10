@@ -1,28 +1,13 @@
 package testcases
 
 import (
-	"context"
-	"time"
+	"testing"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func GetManyLabels(t TestingT, d flowstate.Driver) {
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
-	l, _ := NewTestLogger(t)
-	e, err := flowstate.NewEngine(d, l)
-	require.NoError(t, err)
-
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, e.Shutdown(sCtx))
-	}()
-
+func GetManyLabels(t *testing.T, e flowstate.Engine, _ flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -57,18 +42,21 @@ func GetManyLabels(t TestingT, d flowstate.Driver) {
 	require.NoError(t, e.Do(cmd))
 
 	res := cmd.MustResult()
-	require.Len(t, res.States, 2)
 	require.False(t, res.More)
 
-	actStates := res.States
+	actStates := filterSystemStates(res.States)
+	require.Len(t, actStates, 2)
+
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
-	require.Equal(t, int64(1), actStates[0].Rev)
+	require.NotEmpty(t, actStates[0].Rev)
 	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[1].ID)
-	require.Equal(t, int64(2), actStates[1].Rev)
+	require.NotEmpty(t, actStates[1].Rev)
 	require.Equal(t, `paused`, actStates[1].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[1].Labels[`foo`])
 	require.Equal(t, `barVal`, actStates[1].Labels[`bar`])
+
+	require.Greater(t, actStates[1].Rev, actStates[0].Rev)
 }

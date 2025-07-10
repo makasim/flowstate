@@ -1,8 +1,8 @@
 package testcases
 
 import (
-	"context"
 	"strconv"
+	"testing"
 	"time"
 
 	"github.com/gorhill/cronexpr"
@@ -11,18 +11,7 @@ import (
 	//"go.uber.org/goleak"
 )
 
-func Cron(t TestingT, d flowstate.Driver) {
-	// does not work in flowstatesrv srvdriver
-	// delayer related goroutines are started inside test by stoped with the app outside
-	//	cron.go:130: found unexpected goroutines:
-	//[Goroutine 155 in state select, with github.com/makasim/flowstate/memdriver.(*Delayer).Do.func1 on top of the stack:
-	//	github.com/makasim/flowstate/memdriver.(*Delayer).Do.func1()
-	//	/foo/flowstatesrv/vendor/github.com/makasim/flowstate/memdriver/delayer.go:59 +0x18c
-	//	created by github.com/makasim/flowstate/memdriver.(*Delayer).Do in goroutine 32
-	//	/foo/flowstatesrv/vendor/github.com/makasim/flowstate/memdriver/delayer.go:51 +0x100
-	//	]
-	// defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
-
+func Cron(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	trkr := &Tracker{}
 
 	mustSetFlow(d, "cron", flowstate.FlowFunc(func(cronStateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
@@ -95,25 +84,6 @@ func Cron(t TestingT, d flowstate.Driver) {
 			flowstate.End(stateCtx),
 		), nil
 	}))
-
-	l, _ := NewTestLogger(t)
-	e, err := flowstate.NewEngine(d, l)
-	require.NoError(t, err)
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, e.Shutdown(sCtx))
-	}()
-
-	dlr, err := flowstate.NewDelayer(e, l)
-	require.NoError(t, err)
-	defer func() {
-		sCtx, sCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer sCtxCancel()
-
-		require.NoError(t, dlr.Shutdown(sCtx))
-	}()
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
