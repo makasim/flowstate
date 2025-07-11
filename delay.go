@@ -137,8 +137,8 @@ type Delayer struct {
 	until        time.Time
 	limit        int
 
-	committedSince  time.Time
-	committedOffset int64
+	commitSince  time.Time
+	commitOffset int64
 
 	delayedStates map[int64]DelayedState
 
@@ -175,8 +175,8 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 		}
 	}
 	d.metaStateCtx = metaStateCtx
-	d.committedSince, d.committedOffset = getDelayerMetaState(metaStateCtx)
-	d.since, d.offset = d.committedSince, d.committedOffset
+	d.commitSince, d.commitOffset = getDelayerMetaState(metaStateCtx)
+	d.since, d.offset = d.commitSince, d.commitOffset
 
 	go func() {
 		defer close(d.stoppedCh)
@@ -217,19 +217,9 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 					d.l.Error(fmt.Sprintf("update tail: %s; retrying", err.Error()))
 				}
 			case <-commitT.C:
-				setDelayerMetaState(d.metaStateCtx, d.committedSince, d.committedOffset)
-				if err := d.e.Do(Commit(Transit(d.metaStateCtx, `na`))); IsErrRevMismatch(err) {
-					d.l.Warn("another process is already doing delaying; exiting (todo: implement standby mode)")
-				} else if err != nil {
-					d.l.Error(fmt.Sprintf("commit meta state: %s", err))
-				}
+				d.maybeCommitMeta()
 			case <-d.stopCh:
-				setDelayerMetaState(d.metaStateCtx, d.committedSince, d.committedOffset)
-				if err := d.e.Do(Commit(Transit(d.metaStateCtx, `na`))); IsErrRevMismatch(err) {
-					d.l.Warn("another process is already doing delaying; exiting (todo: implement standby mode)")
-				} else if err != nil {
-					d.l.Error(fmt.Sprintf("commit meta state: %s", err))
-				}
+				d.maybeCommitMeta()
 
 				return
 			}
@@ -237,6 +227,29 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 	}()
 
 	return d, nil
+}
+
+func (d *Delayer) maybeCommitMeta() {
+	// no delayed states at all, no need to commit
+	if d.commitSince.Equal(time.Unix(0, 0).UTC()) && d.commitOffset == 0 {
+		return
+	}
+
+	committedSince, committedOffset := getDelayerMetaState(d.metaStateCtx)
+	if d.commitSince.Equal(committedSince) && d.commitOffset == committedOffset {
+		// no changes since last commit, no need to commit
+		return
+	}
+
+	nextMetaState := d.metaStateCtx.CopyTo(&StateCtx{})
+	setDelayerMetaState(nextMetaState, d.commitSince, d.commitOffset)
+	if err := d.e.Do(Commit(Transit(nextMetaState, `na`))); IsErrRevMismatch(err) {
+		d.l.Warn("another process is already doing delaying; exiting (todo: implement standby mode)")
+	} else if err != nil {
+		d.l.Error(fmt.Sprintf("commit meta state: %s", err))
+	}
+
+	nextMetaState.CopyTo(d.metaStateCtx)
 }
 
 func (d *Delayer) queryDelayedStates(since, until time.Time, offset int64) (int64, error) {
@@ -270,8 +283,8 @@ func (d *Delayer) queryDelayedStates(since, until time.Time, offset int64) (int6
 }
 
 func (d *Delayer) updateTail(now time.Time) error {
-	commitSince := d.committedSince
-	commitOffset := d.committedOffset
+	commitSince := d.commitSince
+	commitOffset := d.commitOffset
 	for _, delayedState := range d.delayedStates {
 		if delayedState.ExecuteAt.After(now) {
 			continue
@@ -303,7 +316,7 @@ func (d *Delayer) updateTail(now time.Time) error {
 		commitOffset = max(commitOffset, delayedState.Offset)
 	}
 
-	d.committedSince, d.committedOffset = commitSince, commitOffset
+	d.commitSince, d.commitOffset = commitSince, commitOffset
 
 	return nil
 }
