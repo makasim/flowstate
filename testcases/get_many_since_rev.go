@@ -28,7 +28,15 @@ func GetManySinceRev(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 		flowstate.Pause(stateCtx),
 	)))
 
+	// filter all since zero revision
 	cmd := flowstate.GetStatesByLabels(map[string]string{
+		`foo`: `fooVal`,
+	}).WithSinceRev(0)
+	require.NoError(t, e.Do(cmd))
+	require.Len(t, filterSystemStates(cmd.MustResult().States), 3)
+
+	// filter since specific revision
+	cmd = flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceRev(sinceRev)
 	require.NoError(t, e.Do(cmd))
@@ -51,4 +59,11 @@ func GetManySinceRev(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	require.Equal(t, `fooVal`, actStates[1].Labels[`foo`])
 
 	require.Greater(t, actStates[1].Rev, actStates[0].Rev)
+
+	// filter since the latest revision
+	cmd = flowstate.GetStatesByLabels(map[string]string{
+		`foo`: `fooVal`,
+	}).WithSinceRev(actStates[1].Rev)
+	require.NoError(t, e.Do(cmd))
+	require.Len(t, filterSystemStates(cmd.MustResult().States), 0)
 }
