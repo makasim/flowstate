@@ -3,6 +3,7 @@ module github.com/makasim/flowstate
 go 1.24.0
 
 require (
+	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	github.com/jackc/pgx/v5 v5.6.0

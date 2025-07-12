@@ -2,7 +2,6 @@ package flowstate
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 )
 
@@ -30,10 +29,7 @@ func (cmd *SerializeCommand) Do() error {
 		return fmt.Errorf("store annotation already set")
 	}
 
-	b, err := json.Marshal(cmd.SerializableStateCtx)
-	if err != nil {
-		return fmt.Errorf("json marshal prev state ctx: %s", err)
-	}
+	b := MarshalStateCtx(cmd.SerializableStateCtx, nil)
 	serialized := base64.StdEncoding.EncodeToString(b)
 
 	cmd.StateCtx.Current.SetAnnotation(cmd.Annotation, serialized)

@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package flowstate.v1;
+
+message State {
+  string id = 1;
+  int64 rev = 2;
+  map<string, string> annotations = 3;
+  map<string, string> labels = 4;
+  int64 committed_at_unix_milli = 5;
+  Transition transition = 6;
+}
+
+message StateCtx {
+  State committed = 1;
+  State current = 2;
+  repeated Transition transitions = 3;
+}
+
+message StateRef {
+  string id = 1;
+  int64 rev = 2;
+}
+
+message DelayedState {
+  State state = 1;
+  int64 offset = 2;
+  int64 execute_at_sec = 3;
+}
+
+message Transition {
+  string from = 1;
+  string to = 2;
+  map<string, string> annotations = 3;
+}
+
+message Data {
+  string id = 1;
+  int64 rev = 2;
+  bool binary = 3;
+  string b = 4;
+}
+
+message DataRef {
+  string id = 1;
+  int64 rev = 2;
+}
+
+message Command {
+  repeated StateCtx state_ctxs = 1;
+  repeated Data datas = 2;
+
+  TransitCommand transit = 3;
+  PauseCommand pause = 4;
+  ResumeCommand resume = 5;
+  EndCommand end = 6;
+  ExecuteCommand execute = 7;
+  DelayCommand delay = 8;
+  CommitCommand commit = 9;
+  NoopCommand noop = 10;
+  SerializeCommand serialize = 11;
+  DeserializeCommand deserialize = 12;
+  StoreDataCommand store_data = 13;
+  GetDataCommand get_data = 14;
+  ReferenceDataCommand reference_data = 15;
+  DereferenceDataCommand dereference_data = 16;
+  GetStateByIDCommand get_state_by_id = 17;
+  GetStateByLabelsCommand get_state_by_labels = 18;
+  GetStatesCommand get_states = 19;
+  GetDelayedStatesCommand get_delayed_states = 20;
+  CommitStateCtxCommand commit_state = 21;
+}
+
+message TransitCommand {
+  StateRef state_ref = 1;
+  string flow_id = 2;
+}
+
+message PauseCommand {
+  StateRef state_ref = 1;
+  string flow_id = 2;
+}
+
+message ResumeCommand {
+  StateRef state_ref = 1;
+}
+
+message EndCommand {
+  StateRef state_ref = 1;
+}
+
+message ExecuteCommand {
+  StateRef state_ref = 1;
+}
+
+message DelayCommand {
+  StateRef state_ref = 1;
+  State delaying_state = 2;
+  int64 execute_at_sec = 3;
+  bool commit = 4;
+}
+
+message CommitCommand {
+  repeated Command commands = 1;
+}
+
+message NoopCommand {
+  StateRef state_ref = 1;
+}
+
+message SerializeCommand {
+  StateRef serializable_state_ref = 1;
+  StateRef state_ref = 2;
+  string annotation = 3;
+}
+
+message DeserializeCommand {
+  StateRef deserialized_state_ref = 1;
+  StateRef state_ref = 2;
+  string annotation = 3;
+}
+
+message StoreDataCommand {
+  DataRef data_ref = 1;
+}
+
+message GetDataCommand {
+  DataRef data_ref = 1;
+}
+
+message ReferenceDataCommand {
+  StateRef state_ref = 1;
+  DataRef data_ref = 2;
+  string annotation = 3;
+}
+
+message DereferenceDataCommand {
+  StateRef state_ref = 1;
+  DataRef data_ref = 2;
+  string annotation = 3;
+}
+
+message GetStateByIDCommand {
+  string id = 1;
+  int64 rev = 2;
+  StateRef state_ref = 3;
+}
+
+message GetStateByLabelsCommand {
+  map<string, string> labels = 1;
+  StateRef state_ref = 2;
+}
+
+message GetStatesCommand {
+  message Labels {
+    map<string, string> labels = 1;
+  }
+
+  message Result {
+    repeated State states = 1;
+    bool more = 2;
+  }
+
+  int64 since_rev = 1;
+  int64 since_time_usec = 2;
+  repeated Labels labels = 3;
+  bool latest_only = 4;
+  int64 limit = 5;
+
+  Result result = 6;
+}
+
+message GetDelayedStatesCommand {
+  message Result {
+    repeated DelayedState delayed_states = 1;
+    bool more = 2;
+  }
+
+  int64 since_time_sec = 1;
+  int64 until_time_sec = 2;
+  int64 offset = 3;
+  int64 limit = 4;
+
+  Result result = 5;
+}
+
+message CommitStateCtxCommand {
+  StateRef state_ref = 1;
+}

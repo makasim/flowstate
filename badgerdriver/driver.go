@@ -256,14 +256,20 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 		it.Seek(seekPrefix)
 
 		for ; it.Valid(); it.Next() {
-			delayedStateKey, err := it.Item().ValueCopy(nil)
-			if err != nil {
-				return fmt.Errorf("get delayed state execute at: %w", err)
-			}
 			delayedState := flowstate.DelayedState{}
-			if err := getGOB(txn, delayedStateKey, &delayedState); err != nil {
-				return fmt.Errorf("get delayed state: %w", err)
+			if err := it.Item().Value(func(delayedStateKey []byte) error {
+				item, err := txn.Get(delayedStateKey)
+				if err != nil {
+					return fmt.Errorf("get delayed state: %w", err)
+				}
+
+				return item.Value(func(d []byte) error {
+					return flowstate.UnmarshalDelayedState(d, &delayedState)
+				})
+			}); err != nil {
+				return err
 			}
+
 			if delayedState.ExecuteAt.Unix() <= cmd.Since.Unix() {
 				continue
 			}
