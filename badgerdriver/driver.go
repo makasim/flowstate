@@ -310,7 +310,7 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 	for {
 
 		if err := d.db.Update(func(txn *badger.Txn) error {
-			for i, subCmd0 := range cmd.Commands {
+			for _, subCmd0 := range cmd.Commands {
 				nextRev, err := getRev()
 				if err != nil {
 					return fmt.Errorf("get next sequence: %w", err)
@@ -335,9 +335,7 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 					return err
 				}
 				if stateCtx.Committed.Rev != commitedRev {
-					conflictErr := &flowstate.ErrRevMismatch{}
-					conflictErr.Add(fmt.Sprintf("%T", cmd.Commands[i]), stateCtx.Current.ID, nil)
-					return conflictErr
+					return &flowstate.ErrRevMismatch{IDS: []flowstate.StateID{stateCtx.Current.ID}}
 				}
 
 				commitedState := stateCtx.Current.CopyTo(&flowstate.State{})

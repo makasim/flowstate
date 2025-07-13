@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package flowstate.v1;
+
+import "flowstate/v1/messages.proto";
+
+service Driver {
+  rpc Do(Command) returns (Command) {}
+
+  rpc GetStateByID(Command) returns (Command) {}
+  rpc GetStateByLabels(Command) returns (Command) {}
+  rpc GetStates(Command) returns (GetStatesResult) {}
+  rpc GetDelayedStates(Command) returns (GetDelayedStatesResult) {}
+  rpc Delay(Command) returns (Command) {}
+  rpc Commit(Command) returns (Command) {}
+  rpc GetData(Command) returns (Command) {}
+  rpc StoreData(Command) returns (Command) {}
+}
+
+service Flow {
+  rpc Execute(StateCtx) returns (Command) {}
+}

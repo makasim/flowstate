@@ -156,32 +156,32 @@ message GetStatesCommand {
     map<string, string> labels = 1;
   }
 
-  message Result {
-    repeated State states = 1;
-    bool more = 2;
-  }
-
   int64 since_rev = 1;
   int64 since_time_usec = 2;
   repeated Labels labels = 3;
   bool latest_only = 4;
   int64 limit = 5;
 
-  Result result = 6;
+  GetStatesResult result = 6;
+}
+
+message GetStatesResult {
+  repeated State states = 1;
+  bool more = 2;
 }
 
 message GetDelayedStatesCommand {
-  message Result {
-    repeated DelayedState delayed_states = 1;
-    bool more = 2;
-  }
-
   int64 since_time_sec = 1;
   int64 until_time_sec = 2;
   int64 offset = 3;
   int64 limit = 4;
 
-  Result result = 5;
+  GetDelayedStatesResult result = 5;
+}
+
+message GetDelayedStatesResult {
+  repeated DelayedState delayed_states = 1;
+  bool more = 2;
 }
 
 message CommitStateCtxCommand {

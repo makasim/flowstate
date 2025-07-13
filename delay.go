@@ -173,7 +173,10 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 		} else if err != nil {
 			return nil, fmt.Errorf("commit meta state: %w", err)
 		}
+	} else if err != nil {
+		return nil, fmt.Errorf("get meta state: %w", err)
 	}
+
 	d.metaStateCtx = metaStateCtx
 	d.commitSince, d.commitOffset = getDelayerMetaState(metaStateCtx)
 	d.since, d.offset = d.commitSince, d.commitOffset
@@ -346,7 +349,7 @@ func getDelayerMetaState(metaStateCtx *StateCtx) (time.Time, int64) {
 	offset0 := metaStateCtx.Current.Annotations[`flowstate.delayer.offset`]
 	offset, err := strconv.ParseInt(offset0, 10, 64)
 	if err != nil {
-		panic(fmt.Errorf("cannot parse flowstate.delayer.offset=%s into int64: %w", offset0, err))
+		panic(fmt.Errorf("cannot parse flowstate.delayer.offset='%s' into int64: %w", offset0, err))
 	}
 
 	since0 := metaStateCtx.Current.Annotations[`flowstate.delayer.since`]

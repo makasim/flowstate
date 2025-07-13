@@ -337,6 +337,23 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 
 	f(&flowstate.CommitCommand{})
 
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
+			ID:  "theTransitID",
+			Rev: 123,
+		},
+	}
+	f(&flowstate.CommitCommand{
+		Commands: []flowstate.Command{
+			&flowstate.TransitCommand{
+				StateCtx: stateCtx,
+			},
+			&flowstate.PauseCommand{
+				StateCtx: stateCtx,
+			},
+		},
+	})
+
 	f(&flowstate.CommitCommand{
 		Commands: []flowstate.Command{
 			&flowstate.TransitCommand{
@@ -355,6 +372,29 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 						Rev: 234,
 					},
 				},
+			},
+		},
+	})
+
+	data := &flowstate.Data{ID: "theDataID", Rev: 123, B: []byte("theDataValue")}
+	f(&flowstate.CommitCommand{
+		Commands: []flowstate.Command{
+			&flowstate.StoreDataCommand{
+				Data: data,
+			},
+			&flowstate.GetDataCommand{
+				Data: data,
+			},
+		},
+	})
+
+	f(&flowstate.CommitCommand{
+		Commands: []flowstate.Command{
+			&flowstate.StoreDataCommand{
+				Data: &flowstate.Data{ID: "theDataID", Rev: 123, B: []byte("theDataValue")},
+			},
+			&flowstate.StoreDataCommand{
+				Data: &flowstate.Data{ID: "theOtherDataID", Rev: 234},
 			},
 		},
 	})
