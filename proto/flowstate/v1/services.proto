@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package flowstate.v1;
+
+import "flowstate/v1/messages.proto";
+
+service Engine {
+  rpc Do(Command) returns (Command) {}
+  rpc Execute(StateCtx) returns (Command) {}
+}
+
+service Flow {
+  rpc Execute(StateCtx) returns (Command) {}
+}
