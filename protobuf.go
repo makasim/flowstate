@@ -389,6 +389,10 @@ func UnmarshalData(src []byte, d *Data) (err error) {
 		}
 	}
 
+	if len(b) == 0 {
+		return nil
+	}
+
 	if d.Binary {
 		b, err := base64.StdEncoding.AppendDecode(d.B[:0], []byte(b))
 		if err != nil {
