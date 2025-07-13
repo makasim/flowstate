@@ -1,9 +1,7 @@
 package badgerdriver
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"time"
@@ -13,12 +11,22 @@ import (
 )
 
 func setState(txn *badger.Txn, state flowstate.State) error {
-	return setGOB(txn, stateKey(state), state)
+	return txn.Set(
+		stateKey(state),
+		flowstate.MarshalState(state, nil),
+	)
 }
 
 func getState(txn *badger.Txn, stateID flowstate.StateID, stateRev int64) (flowstate.State, error) {
 	state := flowstate.State{ID: stateID, Rev: stateRev}
-	if err := getGOB(txn, stateKey(state), &state); err != nil {
+	item, err := txn.Get(stateKey(state))
+	if err != nil {
+		return flowstate.State{}, err
+	}
+
+	if err := item.Value(func(val []byte) error {
+		return flowstate.UnmarshalState(val, &state)
+	}); err != nil {
 		return flowstate.State{}, err
 	}
 
@@ -27,42 +35,6 @@ func getState(txn *badger.Txn, stateID flowstate.StateID, stateRev int64) (flows
 
 func stateKey(state flowstate.State) []byte {
 	return []byte(fmt.Sprintf(`flowstate.states.%020d.%s`, state.Rev, state.ID))
-}
-
-func setGOB(txn *badger.Txn, k []byte, m any) error {
-	var v bytes.Buffer
-	if err := gob.NewEncoder(&v).Encode(m); err != nil {
-		return err
-	}
-
-	if err := txn.Set(k, v.Bytes()); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getGOB(txn *badger.Txn, k []byte, m any) error {
-	item, err := txn.Get(k)
-	if err != nil {
-		return err
-	}
-
-	return getItemGOB(item, m)
-}
-
-func getItemGOB(item *badger.Item, m any) error {
-	if err := item.Value(func(val []byte) error {
-		if err := gob.NewDecoder(bytes.NewBuffer(val)).Decode(m); err != nil {
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func setLatestRevIndex(txn *badger.Txn, state flowstate.State) error {
@@ -203,17 +175,10 @@ func getData(txn *badger.Txn, data *flowstate.Data) error {
 }
 
 func setDelayedState(txn *badger.Txn, delayedState flowstate.DelayedState) error {
-	return setGOB(txn, delayedStateKey(delayedState.ExecuteAt.Unix(), delayedState.Offset), delayedState)
-}
-
-func getDelayedState(txn *badger.Txn, executeAt, offset int64) (flowstate.DelayedState, error) {
-	delayedState := flowstate.DelayedState{}
-
-	if err := getGOB(txn, delayedStateKey(executeAt, offset), delayedState); err != nil {
-		return flowstate.DelayedState{}, fmt.Errorf("get delayed state: %w", err)
-	}
-
-	return delayedState, nil
+	return txn.Set(
+		delayedStateKey(delayedState.ExecuteAt.Unix(), delayedState.Offset),
+		flowstate.MarshalDelayedState(delayedState, nil),
+	)
 }
 
 func delayedStateKey(executeAt, offset int64) []byte {

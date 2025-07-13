@@ -2,7 +2,6 @@ package flowstate
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 )
 
@@ -33,8 +32,8 @@ func (cmd *DeserializeCommand) Do() error {
 		return fmt.Errorf("base64 decode: %s", err)
 	}
 
-	if err := json.Unmarshal(b, cmd.DeserializedStateCtx); err != nil {
-		return fmt.Errorf("json unmarshal: %s", err)
+	if err := UnmarshalStateCtx(b, cmd.DeserializedStateCtx); err != nil {
+		return fmt.Errorf("unmarshal: %s", err)
 	}
 
 	cmd.StateCtx.Current.Annotations[cmd.Annotation] = ``

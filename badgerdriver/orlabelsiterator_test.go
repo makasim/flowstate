@@ -114,7 +114,7 @@ func TestOrLabelsIterator(t *testing.T) {
 			{
 				ID:     "id2",
 				Rev:    2,
-				Labels: map[string]string{},
+				Labels: nil,
 			},
 			{
 				ID:     "id3",
@@ -152,7 +152,7 @@ func TestOrLabelsIterator(t *testing.T) {
 			{
 				ID:     "id2",
 				Rev:    2,
-				Labels: map[string]string{},
+				Labels: nil,
 			},
 			{
 				ID:     "id1",
