@@ -270,7 +270,7 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 				Rev: 123,
 			},
 		},
-		FlowID: "theFlowID",
+		To: "theFlowID",
 	})
 
 	f(&flowstate.PauseCommand{})
@@ -282,7 +282,7 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 				Rev: 123,
 			},
 		},
-		FlowID: "theFlowID",
+		To: "theFlowID",
 	})
 
 	f(&flowstate.ResumeCommand{})
@@ -346,7 +346,7 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 						Rev: 123,
 					},
 				},
-				FlowID: "theFlowID",
+				To: "theFlowID",
 			},
 			&flowstate.PauseCommand{
 				StateCtx: &flowstate.StateCtx{

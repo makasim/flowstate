@@ -6,17 +6,17 @@ import (
 
 var StateAnnotation = `flowstate.state`
 
-func Transit(stateCtx *StateCtx, fID FlowID) *TransitCommand {
+func Transit(stateCtx *StateCtx, to TransitionID) *TransitCommand {
 	return &TransitCommand{
 		StateCtx: stateCtx,
-		FlowID:   fID,
+		To:       to,
 	}
 }
 
 type TransitCommand struct {
 	command
 	StateCtx *StateCtx
-	FlowID   FlowID
+	To       TransitionID
 }
 
 func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
@@ -24,7 +24,7 @@ func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
 }
 
 func (cmd *TransitCommand) Do() error {
-	if cmd.FlowID == "" {
+	if cmd.To == "" {
 		return fmt.Errorf("flow id empty")
 	}
 
@@ -32,7 +32,7 @@ func (cmd *TransitCommand) Do() error {
 
 	nextTs := Transition{
 		From:        cmd.StateCtx.Current.Transition.To,
-		To:          cmd.FlowID,
+		To:          cmd.To,
 		Annotations: nil,
 	}
 

@@ -143,9 +143,11 @@ func (s *StateCtx) Value(key any) any {
 	return s.Current.Annotations[key1]
 }
 
+type TransitionID string
+
 type Transition struct {
-	From        FlowID            `json:"from"`
-	To          FlowID            `json:"to"`
+	From        TransitionID      `json:"from"`
+	To          TransitionID      `json:"to"`
 	Annotations map[string]string `json:"annotations"`
 }
 

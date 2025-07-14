@@ -13,6 +13,6 @@ type Driver interface {
 	GetData(cmd *GetDataCommand) error
 	StoreData(cmd *StoreDataCommand) error
 
-	Flow(id FlowID) (Flow, error)
-	SetFlow(id FlowID, flow Flow) error
+	Flow(id TransitionID) (Flow, error)
+	SetFlow(id TransitionID, flow Flow) error
 }

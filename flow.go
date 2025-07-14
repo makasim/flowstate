@@ -5,8 +5,6 @@ import (
 	"sync"
 )
 
-type FlowID string
-
 type Flow interface {
 	Execute(stateCtx *StateCtx, e Engine) (Command, error)
 }
@@ -19,10 +17,10 @@ func (f FlowFunc) Execute(stateCtx *StateCtx, e Engine) (Command, error) {
 
 type FlowRegistry struct {
 	mux   sync.Mutex
-	flows map[FlowID]Flow
+	flows map[TransitionID]Flow
 }
 
-func (fr *FlowRegistry) Flow(id FlowID) (Flow, error) {
+func (fr *FlowRegistry) Flow(id TransitionID) (Flow, error) {
 	fr.mux.Lock()
 	defer fr.mux.Unlock()
 
@@ -42,12 +40,12 @@ func (fr *FlowRegistry) Flow(id FlowID) (Flow, error) {
 	return f, nil
 }
 
-func (fr *FlowRegistry) SetFlow(id FlowID, flow Flow) error {
+func (fr *FlowRegistry) SetFlow(id TransitionID, flow Flow) error {
 	fr.mux.Lock()
 	defer fr.mux.Unlock()
 
 	if fr.flows == nil {
-		fr.flows = make(map[FlowID]Flow)
+		fr.flows = make(map[TransitionID]Flow)
 	}
 
 	fr.flows[id] = flow
