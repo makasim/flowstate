@@ -7,7 +7,7 @@ func Paused(state State) bool {
 func Pause(stateCtx *StateCtx) *PauseCommand {
 	return &PauseCommand{
 		StateCtx: stateCtx,
-		FlowID:   stateCtx.Current.Transition.To,
+		To:       stateCtx.Current.Transition.To,
 	}
 }
 
@@ -15,11 +15,11 @@ type PauseCommand struct {
 	command
 
 	StateCtx *StateCtx
-	FlowID   FlowID
+	To       TransitionID
 }
 
-func (cmd *PauseCommand) WithTransit(fID FlowID) *PauseCommand {
-	cmd.FlowID = fID
+func (cmd *PauseCommand) WithTransit(to TransitionID) *PauseCommand {
+	cmd.To = to
 	return cmd
 }
 
@@ -32,7 +32,7 @@ func (cmd *PauseCommand) Do() error {
 
 	nextTs := Transition{
 		From:        cmd.StateCtx.Current.Transition.To,
-		To:          cmd.FlowID,
+		To:          cmd.To,
 		Annotations: nil,
 	}
 	nextTs.SetAnnotation(StateAnnotation, `paused`)

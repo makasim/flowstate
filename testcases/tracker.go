@@ -89,7 +89,7 @@ func (trkr *Tracker) WaitVisitedEqual(t *testing.T, expVisited []string, wait ti
 	return visited
 }
 
-func mustSetFlow(d flowstate.Driver, id flowstate.FlowID, f flowstate.Flow) {
+func mustSetFlow(d flowstate.Driver, id flowstate.TransitionID, f flowstate.Flow) {
 	if err := d.SetFlow(id, f); err != nil {
 		panic(fmt.Sprintf("set flow %s: %s", id, err))
 	}

@@ -288,13 +288,13 @@ func UnmarshalTransition(src []byte, ts *Transition) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read 'string from = 1;' field")
 			}
-			ts.From = FlowID(strings.Clone(from))
+			ts.From = TransitionID(strings.Clone(from))
 		case 2:
 			to, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read 'string to = 2;' field")
 			}
-			ts.To = FlowID(strings.Clone(to))
+			ts.To = TransitionID(strings.Clone(to))
 		case 3:
 			data, ok := fc.MessageData()
 			if !ok {
@@ -464,8 +464,8 @@ func marshalCommand(cmd0 Command, sub bool, mm *easyproto.MessageMarshaler) {
 				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
 			}
 
-			if cmd.FlowID != "" {
-				mm.AppendString(2, string(cmd.FlowID))
+			if cmd.To != "" {
+				mm.AppendString(2, string(cmd.To))
 			}
 		}(mm.AppendMessage(3))
 	case *PauseCommand:
@@ -478,8 +478,8 @@ func marshalCommand(cmd0 Command, sub bool, mm *easyproto.MessageMarshaler) {
 				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
 			}
 
-			if cmd.FlowID != "" {
-				mm.AppendString(2, string(cmd.FlowID))
+			if cmd.To != "" {
+				mm.AppendString(2, string(cmd.To))
 			}
 		}(mm.AppendMessage(4))
 	case *ResumeCommand:
@@ -1075,7 +1075,7 @@ func unmarshalTransitCommand(src []byte, cmd *TransitCommand, stateCtxs stateCtx
 				return fmt.Errorf("cannot read 'string flow_id = 2;' field")
 			}
 
-			cmd.FlowID = FlowID(strings.Clone(v))
+			cmd.To = TransitionID(strings.Clone(v))
 		}
 	}
 
@@ -1112,7 +1112,7 @@ func unmarshalPauseCommand(src []byte, cmd *PauseCommand, stateCtxs stateCtxs) (
 				return fmt.Errorf("cannot read 'string flow_id = 2;' field")
 			}
 
-			cmd.FlowID = FlowID(strings.Clone(v))
+			cmd.To = TransitionID(strings.Clone(v))
 		}
 	}
 

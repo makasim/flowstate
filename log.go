@@ -48,7 +48,7 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 			"cmd", "transit",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
-			"to", cmd.FlowID,
+			"to", cmd.To,
 			"labels", cmd.StateCtx.Current.Labels,
 		)
 	case *PauseCommand:
@@ -57,8 +57,8 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 		)
-		if cmd.FlowID != `` {
-			args = append(args, "to", cmd.FlowID)
+		if cmd.To != `` {
+			args = append(args, "to", cmd.To)
 		}
 		args = append(args, "labels", cmd.StateCtx.Current.Labels)
 	case *ResumeCommand:

@@ -388,7 +388,7 @@ type delayedState struct {
 	At      time.Time
 }
 
-func mustSetFlow(d flowstate.Driver, id flowstate.FlowID, f flowstate.Flow) {
+func mustSetFlow(d flowstate.Driver, id flowstate.TransitionID, f flowstate.Flow) {
 	if err := d.SetFlow(id, f); err != nil {
 		panic(fmt.Sprintf("set flow %s: %s", id, err))
 	}
