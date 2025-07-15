@@ -83,7 +83,7 @@ func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error 
 	return nil
 }
 
-func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
+func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) error {
 	states := make([]flowstate.State, 0, cmd.Limit)
 	limit := cmd.Limit + 1
 
@@ -110,9 +110,10 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 		d.stateLog.Unlock()
 
 		if len(logStates) == 0 {
-			return &flowstate.GetStatesResult{
+			cmd.Result = &flowstate.GetStatesResult{
 				States: states,
-			}, nil
+			}
+			return nil
 		}
 
 		for _, s := range logStates {
@@ -130,15 +131,17 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 		}
 
 		if len(states) >= cmd.Limit {
-			return &flowstate.GetStatesResult{
+			cmd.Result = &flowstate.GetStatesResult{
 				States: states[:cmd.Limit],
 				More:   len(states) > cmd.Limit,
-			}, nil
+			}
+			return nil
 		} else if sinceRev >= untilRev {
-			return &flowstate.GetStatesResult{
+			cmd.Result = &flowstate.GetStatesResult{
 				States: states,
 				More:   false,
-			}, nil
+			}
+			return nil
 		}
 	}
 }
@@ -152,7 +155,7 @@ func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
 	return nil
 }
 
-func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
+func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) error {
 	delayedStates := d.delayedStateLog.Get(cmd.Since, cmd.Until, cmd.Offset, cmd.Limit+1)
 
 	more := false
@@ -161,10 +164,11 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 		delayedStates = delayedStates[:cmd.Limit]
 	}
 
-	return &flowstate.GetDelayedStatesResult{
+	cmd.Result = &flowstate.GetDelayedStatesResult{
 		States: delayedStates,
 		More:   more,
-	}, nil
+	}
+	return nil
 }
 
 func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
