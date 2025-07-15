@@ -40,12 +40,12 @@ func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error 
 	return d.do(cmd, "/flowstate.v1.Driver/GetStateByLabels")
 }
 
-func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
-	return nil, fmt.Errorf("not implemented")
+func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) error {
+	return fmt.Errorf("not implemented")
 }
 
-func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
-	return nil, fmt.Errorf("not implemented")
+func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) error {
+	return fmt.Errorf("not implemented")
 }
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
