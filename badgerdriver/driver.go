@@ -144,7 +144,7 @@ func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error 
 	})
 }
 
-func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
+func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) error {
 	res := &flowstate.GetStatesResult{}
 	if err := d.db.View(func(txn *badger.Txn) error {
 		untilRev := d.stateRevSeq.maxViewable()
@@ -197,10 +197,12 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 		}
 		return nil
 	}); err != nil {
-		return nil, fmt.Errorf("get states: %w", err)
+		return fmt.Errorf("get states: %w", err)
 	}
 
-	return res, nil
+	cmd.Result = res
+
+	return nil
 }
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
@@ -230,7 +232,7 @@ func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
 	})
 }
 
-func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
+func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) error {
 	res := &flowstate.GetDelayedStatesResult{}
 
 	if err := d.db.View(func(txn *badger.Txn) error {
@@ -290,10 +292,12 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 
 		return nil
 	}); err != nil {
-		return nil, fmt.Errorf("get delayed states: %w", err)
+		return fmt.Errorf("get delayed states: %w", err)
 	}
 
-	return res, nil
+	cmd.Result = res
+
+	return nil
 }
 
 func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {

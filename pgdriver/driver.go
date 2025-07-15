@@ -82,19 +82,19 @@ func (d *Driver) GetStateByLabels(cmd *flowstate.GetStateByLabelsCommand) error 
 	return nil
 }
 
-func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetStatesResult, error) {
+func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) error {
 	ss := make([]flowstate.State, cmd.Limit+1)
 	if cmd.LatestOnly {
 		var err error
 		ss, err = d.q.GetLatestStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, cmd.SinceTime, ss)
 		if err != nil {
-			return nil, fmt.Errorf("get latest states by labels query: %w", err)
+			return fmt.Errorf("get latest states by labels query: %w", err)
 		}
 	} else {
 		var err error
 		ss, err = d.q.GetStatesByLabels(context.Background(), d.conn, cmd.Labels, cmd.SinceRev, cmd.SinceTime, ss)
 		if err != nil {
-			return nil, fmt.Errorf("get states by labels query: %w", err)
+			return fmt.Errorf("get states by labels query: %w", err)
 		}
 	}
 
@@ -104,10 +104,11 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) (*flowstate.GetState
 		more = true
 	}
 
-	return &flowstate.GetStatesResult{
+	cmd.Result = &flowstate.GetStatesResult{
 		States: ss,
 		More:   more,
-	}, nil
+	}
+	return nil
 }
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
@@ -118,10 +119,10 @@ func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
 	return nil
 }
 
-func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flowstate.GetDelayedStatesResult, error) {
+func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) error {
 	ds, err := d.q.GetDelayedStates(context.Background(), d.conn, cmd.Since.Unix(), cmd.Until.Unix(), cmd.Offset, cmd.Limit+1)
 	if err != nil {
-		return nil, fmt.Errorf("get delayed states query: %w", err)
+		return fmt.Errorf("get delayed states query: %w", err)
 	}
 
 	var more bool
@@ -130,10 +131,11 @@ func (d *Driver) GetDelayedStates(cmd *flowstate.GetDelayedStatesCommand) (*flow
 		more = true
 	}
 
-	return &flowstate.GetDelayedStatesResult{
+	cmd.Result = &flowstate.GetDelayedStatesResult{
 		States: ds,
 		More:   more,
-	}, nil
+	}
+	return nil
 }
 
 func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {

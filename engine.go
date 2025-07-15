@@ -236,11 +236,12 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 	case *GetStatesCommand:
 		cmd.Prepare()
 
-		res, err := e.d.GetStates(cmd)
-		if err != nil {
+		if err := e.d.GetStates(cmd); err != nil {
 			return err
 		}
-		cmd.Result = res
+		if cmd.Result == nil {
+			return fmt.Errorf("get states command contains nil result")
+		}
 
 		return nil
 	case *DelayCommand:
@@ -251,11 +252,12 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 	case *GetDelayedStatesCommand:
 		cmd.Prepare()
 
-		res, err := e.d.GetDelayedStates(cmd)
-		if err != nil {
+		if err := e.d.GetDelayedStates(cmd); err != nil {
 			return err
 		}
-		cmd.Result = res
+		if cmd.Result == nil {
+			return fmt.Errorf("get delayed states command contains nil result")
+		}
 
 		return nil
 	case *CommitStateCtxCommand:

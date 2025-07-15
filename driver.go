@@ -6,8 +6,8 @@ type Driver interface {
 
 	GetStateByID(cmd *GetStateByIDCommand) error
 	GetStateByLabels(cmd *GetStateByLabelsCommand) error
-	GetStates(cmd *GetStatesCommand) (*GetStatesResult, error)
-	GetDelayedStates(cmd *GetDelayedStatesCommand) (*GetDelayedStatesResult, error)
+	GetStates(cmd *GetStatesCommand) error
+	GetDelayedStates(cmd *GetDelayedStatesCommand) error
 	Delay(cmd *DelayCommand) error
 	Commit(cmd *CommitCommand) error
 	GetData(cmd *GetDataCommand) error
