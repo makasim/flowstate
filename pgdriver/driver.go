@@ -163,14 +163,14 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 
 		if committableStateCtx.Committed.Rev > 0 {
 			if err := d.q.UpdateState(context.Background(), tx, &nextState); isRevMismatchErr(err) {
-				revMismatchErr.Add(fmt.Sprintf("%T", cmd), committableStateCtx.Current.ID, err)
+				revMismatchErr.Add(committableStateCtx.Current.ID)
 				return revMismatchErr
 			} else if err != nil {
 				return fmt.Errorf("update state: %w", err)
 			}
 		} else {
 			if err := d.q.InsertState(context.Background(), tx, &nextState); isRevMismatchErr(err) {
-				revMismatchErr.Add(fmt.Sprintf("%T", cmd), committableStateCtx.Current.ID, err)
+				revMismatchErr.Add(committableStateCtx.Current.ID)
 				return revMismatchErr
 			} else if err != nil {
 				return fmt.Errorf("insert state: %w", err)
@@ -182,7 +182,7 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 		committableStateCtx.Transitions = committableStateCtx.Transitions[:0]
 	}
 
-	if len(revMismatchErr.TaskIDs()) > 0 {
+	if len(revMismatchErr.All()) > 0 {
 		return revMismatchErr
 	}
 

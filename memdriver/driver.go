@@ -192,9 +192,7 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 		}
 
 		if _, rev := d.stateLog.GetLatestByID(stateCtx.Current.ID); rev != stateCtx.Committed.Rev {
-			conflictErr := &flowstate.ErrRevMismatch{}
-			conflictErr.Add(fmt.Sprintf("%T", cmd), stateCtx.Current.ID, fmt.Errorf("rev mismatch"))
-			return conflictErr
+			return &flowstate.ErrRevMismatch{IDS: []flowstate.StateID{stateCtx.Current.ID}}
 		}
 
 		d.stateLog.Append(stateCtx)

@@ -2119,7 +2119,7 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 		return nil
 	}
 
-	slices.CompactFunc(stateCtxs, func(l, r *StateCtx) bool {
+	stateCtxs = slices.CompactFunc(stateCtxs, func(l, r *StateCtx) bool {
 		return l.Current.ID == r.Current.ID && l.Current.Rev == r.Current.Rev
 	})
 
@@ -2154,7 +2154,7 @@ func commandDatas(cmd0 Command) []*Data {
 		return nil
 	}
 
-	slices.CompactFunc(datas, func(l, r *Data) bool {
+	datas = slices.CompactFunc(datas, func(l, r *Data) bool {
 		return l.ID == r.ID && l.Rev == r.Rev
 	})
 
