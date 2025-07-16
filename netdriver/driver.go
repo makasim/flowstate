@@ -197,23 +197,23 @@ func syncResult(inCmd0, resCmd0 flowstate.Command) error {
 
 		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
 		return nil
-	case *flowstate.SerializeCommand:
-		resCmd, ok := resCmd0.(*flowstate.SerializeCommand)
+	case *flowstate.StackCommand:
+		resCmd, ok := resCmd0.(*flowstate.StackCommand)
 		if !ok {
-			return fmt.Errorf("resCmd is not a SerializeCommand")
+			return fmt.Errorf("resCmd is not a StackCommand")
 		}
 
-		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
-		resCmd.SerializableStateCtx.CopyTo(inCmd.SerializableStateCtx)
+		resCmd.CarrierStateCtx.CopyTo(inCmd.CarrierStateCtx)
+		resCmd.StackedStateCtx.CopyTo(inCmd.StackedStateCtx)
 		return nil
-	case *flowstate.DeserializeCommand:
-		resCmd, ok := resCmd0.(*flowstate.DeserializeCommand)
+	case *flowstate.UnstackCommand:
+		resCmd, ok := resCmd0.(*flowstate.UnstackCommand)
 		if !ok {
-			return fmt.Errorf("resCmd is not a DeserializeCommand")
+			return fmt.Errorf("resCmd is not a UnstackCommand")
 		}
 
-		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
-		resCmd.DeserializedStateCtx.CopyTo(inCmd.DeserializedStateCtx)
+		resCmd.CarrierStateCtx.CopyTo(inCmd.CarrierStateCtx)
+		resCmd.UnstackStateCtx.CopyTo(inCmd.UnstackStateCtx)
 		return nil
 	case *flowstate.GetDataCommand:
 		resCmd, ok := resCmd0.(*flowstate.GetDataCommand)

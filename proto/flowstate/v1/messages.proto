@@ -58,8 +58,8 @@ message Command {
   DelayCommand delay = 8;
   CommitCommand commit = 9;
   NoopCommand noop = 10;
-  SerializeCommand serialize = 11;
-  DeserializeCommand deserialize = 12;
+  StackCommand stack = 11;
+  UnstackCommand unstack = 12;
   StoreDataCommand store_data = 13;
   GetDataCommand get_data = 14;
   ReferenceDataCommand reference_data = 15;
@@ -108,15 +108,15 @@ message NoopCommand {
   StateRef state_ref = 1;
 }
 
-message SerializeCommand {
-  StateRef serializable_state_ref = 1;
-  StateRef state_ref = 2;
+message StackCommand {
+  StateRef carrier_state_ref = 1;
+  StateRef stack_state_ref = 2;
   string annotation = 3;
 }
 
-message DeserializeCommand {
-  StateRef deserialized_state_ref = 1;
-  StateRef state_ref = 2;
+message UnstackCommand {
+  StateRef carrier_state_ref = 1;
+  StateRef unstack_state_ref = 2;
   string annotation = 3;
 }
 

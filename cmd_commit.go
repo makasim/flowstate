@@ -53,9 +53,9 @@ func DoCommitSubCommand(d Driver, subCmd0 Command) error {
 		return subCmd.Do()
 	case *EndCommand:
 		return subCmd.Do()
-	case *SerializeCommand:
+	case *StackCommand:
 		return subCmd.Do()
-	case *DeserializeCommand:
+	case *UnstackCommand:
 		return subCmd.Do()
 	case *DereferenceDataCommand:
 		return subCmd.Do()

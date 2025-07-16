@@ -119,10 +119,10 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 		args = append(args, "cmd", "store_data", "data_id", cmd.Data.ID, "data_rev", cmd.Data.Rev)
 	case *GetDataCommand:
 		args = append(args, "cmd", "get_data", "data_id", cmd.Data.ID, "data_rev", cmd.Data.Rev)
-	case *DeserializeCommand:
-		args = append(args, "cmd", "deserialize")
-	case *SerializeCommand:
-		args = append(args, "cmd", "serialize")
+	case *UnstackCommand:
+		args = append(args, "cmd", "unstack")
+	case *StackCommand:
+		args = append(args, "cmd", "stack")
 	case *GetStatesCommand:
 		args = append(args, "cmd", "watch")
 		if cmd.SinceRev > 0 {

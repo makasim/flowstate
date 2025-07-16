@@ -410,16 +410,16 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 		},
 	})
 
-	f(&flowstate.SerializeCommand{})
+	f(&flowstate.StackCommand{})
 
-	f(&flowstate.SerializeCommand{
-		SerializableStateCtx: &flowstate.StateCtx{
+	f(&flowstate.StackCommand{
+		StackedStateCtx: &flowstate.StateCtx{
 			Current: flowstate.State{
 				ID:  "theSerializableID",
 				Rev: 234,
 			},
 		},
-		StateCtx: &flowstate.StateCtx{
+		CarrierStateCtx: &flowstate.StateCtx{
 			Current: flowstate.State{
 				ID:  "theID",
 				Rev: 123,
@@ -428,16 +428,16 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 		Annotation: "theAnnotation",
 	})
 
-	f(&flowstate.DeserializeCommand{})
+	f(&flowstate.UnstackCommand{})
 
-	f(&flowstate.DeserializeCommand{
-		DeserializedStateCtx: &flowstate.StateCtx{
+	f(&flowstate.UnstackCommand{
+		UnstackStateCtx: &flowstate.StateCtx{
 			Current: flowstate.State{
-				ID:  "theDeserializedID",
+				ID:  "theUnstackID",
 				Rev: 234,
 			},
 		},
-		StateCtx: &flowstate.StateCtx{
+		CarrierStateCtx: &flowstate.StateCtx{
 			Current: flowstate.State{
 				ID:  "theID",
 				Rev: 123,

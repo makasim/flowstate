@@ -35,7 +35,7 @@ func Mutex(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 
 				if err := e.Do(flowstate.Commit(
 					flowstate.Pause(copyMutexStateCtx).WithTransit(`locked`),
-					flowstate.Serialize(copyMutexStateCtx, copyStateCtx, `mutex_state`),
+					flowstate.Stack(copyStateCtx, copyMutexStateCtx, `mutex_state`),
 					flowstate.Transit(copyStateCtx, `protected`),
 				)); flowstate.IsErrRevMismatchContains(err, mutexStateCtx.Current.ID) {
 					mutexStateCtx = nil
@@ -76,7 +76,7 @@ func Mutex(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 
 		mutexStateCtx := &flowstate.StateCtx{}
 		if err := e.Do(flowstate.Commit(
-			flowstate.Deserialize(stateCtx, mutexStateCtx, `mutex_state`),
+			flowstate.Unstack(stateCtx, mutexStateCtx, `mutex_state`),
 			flowstate.Pause(mutexStateCtx).WithTransit(`unlocked`),
 			flowstate.End(stateCtx),
 		)); err != nil {

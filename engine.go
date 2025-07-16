@@ -190,9 +190,9 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		return cmd.Do()
 	case *NoopCommand:
 		return nil
-	case *SerializeCommand:
+	case *StackCommand:
 		return cmd.Do()
-	case *DeserializeCommand:
+	case *UnstackCommand:
 		return cmd.Do()
 	case *DereferenceDataCommand:
 		return cmd.Do()

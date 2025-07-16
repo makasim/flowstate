@@ -427,8 +427,8 @@ func MarshalCommand(cmd Command, dst []byte) []byte {
 //	 DelayCommand delay = 8;
 //	 CommitCommand commit = 9;
 //	 NoopCommand noop = 10;
-//	 SerializeCommand serialize = 11;
-//	 DeserializeCommand deserialize = 12;
+//	 StackCommand stack = 11;
+//	 UnstackCommand unstack = 12;
 //	 StoreDataCommand store_data = 13;
 //	 GetDataCommand get_data = 14;
 //	 ReferenceDataCommand reference_data = 15;
@@ -546,35 +546,35 @@ func marshalCommand(cmd0 Command, sub bool, mm *easyproto.MessageMarshaler) {
 				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
 			}
 		}(mm.AppendMessage(10))
-	case *SerializeCommand:
-		// message SerializeCommand {
-		//  StateRef serializable_state_ref = 1;
-		//  StateRef state_ref = 2;
+	case *StackCommand:
+		// message StackCommand {
+		//  StateRef carrier_state_ref = 1;
+		//  StateRef stack_state_ref = 2;
 		//  string annotation = 3;
 		// }
 		func(mm *easyproto.MessageMarshaler) {
-			if cmd.SerializableStateCtx != nil {
-				marshalStateRef(cmd.SerializableStateCtx.Current, mm.AppendMessage(1))
+			if cmd.CarrierStateCtx != nil {
+				marshalStateRef(cmd.CarrierStateCtx.Current, mm.AppendMessage(1))
 			}
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(2))
+			if cmd.StackedStateCtx != nil {
+				marshalStateRef(cmd.StackedStateCtx.Current, mm.AppendMessage(2))
 			}
 			if cmd.Annotation != "" {
 				mm.AppendString(3, cmd.Annotation)
 			}
 		}(mm.AppendMessage(11))
-	case *DeserializeCommand:
-		// message DeserializeCommand {
-		//  StateRef deserialized_state_ref = 1;
-		//  StateRef state_ref = 2;
+	case *UnstackCommand:
+		// message UnstackCommand {
+		//  StateRef carrier_state_ref = 1;
+		//  StateRef unstack_state_ref = 2;
 		//  string annotation = 3;
 		// }
 		func(mm *easyproto.MessageMarshaler) {
-			if cmd.DeserializedStateCtx != nil {
-				marshalStateRef(cmd.DeserializedStateCtx.Current, mm.AppendMessage(1))
+			if cmd.CarrierStateCtx != nil {
+				marshalStateRef(cmd.CarrierStateCtx.Current, mm.AppendMessage(1))
 			}
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(2))
+			if cmd.UnstackStateCtx != nil {
+				marshalStateRef(cmd.UnstackStateCtx.Current, mm.AppendMessage(2))
 			}
 			if cmd.Annotation != "" {
 				mm.AppendString(3, cmd.Annotation)
@@ -912,27 +912,27 @@ func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, er
 			}
 
 			return cmd, nil
-		case 11: // SerializeCommand serialize = 11;
+		case 11: // StackCommand stack = 11;
 			data, ok := fc.MessageData()
 			if !ok {
-				return nil, fmt.Errorf("cannot read 'SerializeCommand serialize = 11;' field")
+				return nil, fmt.Errorf("cannot read 'StackCommand stack = 11;' field")
 			}
 
-			cmd := &SerializeCommand{}
-			if err := unmarshalSerializeCommand(data, cmd, stateCtxs); err != nil {
-				return nil, fmt.Errorf("cannot read 'SerializeCommand serialize = 11;' field: %w", err)
+			cmd := &StackCommand{}
+			if err := unmarshalStackCommand(data, cmd, stateCtxs); err != nil {
+				return nil, fmt.Errorf("cannot read 'StackCommand stack = 11;' field: %w", err)
 			}
 
 			return cmd, nil
-		case 12: // DeserializeCommand deserialize = 12;
+		case 12: // UnstackCommand unstack = 12;
 			data, ok := fc.MessageData()
 			if !ok {
-				return nil, fmt.Errorf("cannot read 'DeserializeCommand deserialize = 12;' field")
+				return nil, fmt.Errorf("cannot read 'UnstackCommand unstack = 12;' field")
 			}
 
-			cmd := &DeserializeCommand{}
-			if err := unmarshalDeserializeCommand(data, cmd, stateCtxs); err != nil {
-				return nil, fmt.Errorf("cannot read 'DeserializeCommand deserialize = 12;' field: %w", err)
+			cmd := &UnstackCommand{}
+			if err := unmarshalUnstackCommand(data, cmd, stateCtxs); err != nil {
+				return nil, fmt.Errorf("cannot read 'UnstackCommand unstack = 12;' field: %w", err)
 			}
 
 			return cmd, nil
@@ -1323,7 +1323,7 @@ func unmarshalNoopCommand(src []byte, cmd *NoopCommand, stateCtxs stateCtxs) (er
 	return nil
 }
 
-func unmarshalSerializeCommand(src []byte, cmd *SerializeCommand, stateCtxs stateCtxs) (err error) {
+func unmarshalStackCommand(src []byte, cmd *StackCommand, stateCtxs stateCtxs) (err error) {
 	fc := easyproto.FieldContext{}
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -1331,9 +1331,9 @@ func unmarshalSerializeCommand(src []byte, cmd *SerializeCommand, stateCtxs stat
 			return fmt.Errorf("cannot read next field")
 		}
 
-		// message SerializeCommand {
-		//  StateRef serializable_state_ref = 1;
-		//  StateRef state_ref = 2;
+		// message StackCommand {
+		//  StateRef carrier_state_ref = 1;
+		//  StateRef stack_state_ref = 2;
 		//  string annotation = 3;
 		// }
 
@@ -1341,32 +1341,32 @@ func unmarshalSerializeCommand(src []byte, cmd *SerializeCommand, stateCtxs stat
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef serializable_state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateRef carrier_state_ref = 1;' field")
 			}
 
 			id, rev, err := unmarshalStateRef(data)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef serializable_state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateRef carrier_state_ref = 1;' field: %w", err)
 			}
 
-			cmd.SerializableStateCtx = stateCtxs.find(id, rev)
-			if cmd.SerializableStateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef serializable_state_ref = 1;' field with id %q and rev %d", id, rev)
+			cmd.CarrierStateCtx = stateCtxs.find(id, rev)
+			if cmd.CarrierStateCtx == nil {
+				return fmt.Errorf("cannot find StateCtx for 'StateRef carrier_state_ref = 1;' field with id %q and rev %d", id, rev)
 			}
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 2;' field")
+				return fmt.Errorf("cannot read 'StateRef stack_state_ref = 2;' field")
 			}
 
 			id, rev, err := unmarshalStateRef(data)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 2;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateRef stack_state_ref = 2;' field: %w", err)
 			}
 
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 2;' field with id %q and rev %d", id, rev)
+			cmd.StackedStateCtx = stateCtxs.find(id, rev)
+			if cmd.StackedStateCtx == nil {
+				return fmt.Errorf("cannot find StateCtx for 'StateRef stack_state_ref = 2;' field with id %q and rev %d", id, rev)
 			}
 		case 3:
 			v, ok := fc.String()
@@ -1380,7 +1380,7 @@ func unmarshalSerializeCommand(src []byte, cmd *SerializeCommand, stateCtxs stat
 	return nil
 }
 
-func unmarshalDeserializeCommand(src []byte, cmd *DeserializeCommand, stateCtxs stateCtxs) (err error) {
+func unmarshalUnstackCommand(src []byte, cmd *UnstackCommand, stateCtxs stateCtxs) (err error) {
 	fc := easyproto.FieldContext{}
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -1388,9 +1388,9 @@ func unmarshalDeserializeCommand(src []byte, cmd *DeserializeCommand, stateCtxs 
 			return fmt.Errorf("cannot read next field")
 		}
 
-		// message DeserializeCommand {
-		//  StateRef deserialized_state_ref = 1;
-		//  StateRef state_ref = 2;
+		// message UnstackCommand {
+		//  StateRef carrier_state_ref = 1;
+		//  StateRef unstack_state_ref = 2;
 		//  string annotation = 3;
 		// }
 
@@ -1398,32 +1398,32 @@ func unmarshalDeserializeCommand(src []byte, cmd *DeserializeCommand, stateCtxs 
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef deserialized_state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateRef carrier_state_ref = 1;' field")
 			}
 
 			id, rev, err := unmarshalStateRef(data)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef deserialized_state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateRef carrier_state_ref = 1;' field: %w", err)
 			}
 
-			cmd.DeserializedStateCtx = stateCtxs.find(id, rev)
-			if cmd.DeserializedStateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef deserialized_state_ref = 1;' field with id %q and rev %d", id, rev)
+			cmd.CarrierStateCtx = stateCtxs.find(id, rev)
+			if cmd.CarrierStateCtx == nil {
+				return fmt.Errorf("cannot find StateCtx for 'StateRef carrier_state_ref = 1;' field with id %q and rev %d", id, rev)
 			}
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 2;' field")
+				return fmt.Errorf("cannot read 'StateRef unstack_state_ref = 2;' field")
 			}
 
 			id, rev, err := unmarshalStateRef(data)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 2;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateRef unstack_state_ref = 2;' field: %w", err)
 			}
 
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 2;' field with id %q and rev %d", id, rev)
+			cmd.UnstackStateCtx = stateCtxs.find(id, rev)
+			if cmd.UnstackStateCtx == nil {
+				return fmt.Errorf("cannot find StateCtx for 'StateRef unstack_state_ref = 2;' field with id %q and rev %d", id, rev)
 			}
 		case 3:
 			v, ok := fc.String()
@@ -2077,19 +2077,19 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 		if cmd.StateCtx != nil {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}
-	case *SerializeCommand:
-		if cmd.StateCtx != nil {
-			stateCtxs = append(stateCtxs, cmd.StateCtx)
+	case *StackCommand:
+		if cmd.CarrierStateCtx != nil {
+			stateCtxs = append(stateCtxs, cmd.CarrierStateCtx)
 		}
-		if cmd.SerializableStateCtx != nil {
-			stateCtxs = append(stateCtxs, cmd.SerializableStateCtx)
+		if cmd.StackedStateCtx != nil {
+			stateCtxs = append(stateCtxs, cmd.StackedStateCtx)
 		}
-	case *DeserializeCommand:
-		if cmd.StateCtx != nil {
-			stateCtxs = append(stateCtxs, cmd.StateCtx)
+	case *UnstackCommand:
+		if cmd.CarrierStateCtx != nil {
+			stateCtxs = append(stateCtxs, cmd.CarrierStateCtx)
 		}
-		if cmd.DeserializedStateCtx != nil {
-			stateCtxs = append(stateCtxs, cmd.DeserializedStateCtx)
+		if cmd.UnstackStateCtx != nil {
+			stateCtxs = append(stateCtxs, cmd.UnstackStateCtx)
 		}
 	case *CommitCommand:
 		for _, subCmd := range cmd.Commands {

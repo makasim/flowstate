@@ -28,7 +28,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 		if err := e.Do(
 			flowstate.Commit(
 				flowstate.Pause(stateCtx),
-				flowstate.Serialize(stateCtx, nextStateCtx, `caller_state`),
+				flowstate.Stack(nextStateCtx, stateCtx, `caller_state`),
 				flowstate.Transit(nextStateCtx, `called`),
 			),
 			flowstate.Execute(nextStateCtx),
@@ -57,7 +57,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 
 			if err := e.Do(
 				flowstate.Commit(
-					flowstate.Deserialize(stateCtx, callStateCtx, `caller_state`),
+					flowstate.Unstack(stateCtx, callStateCtx, `caller_state`),
 					flowstate.Resume(callStateCtx),
 					flowstate.End(stateCtx),
 				),
