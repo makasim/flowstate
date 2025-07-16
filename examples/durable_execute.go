@@ -13,7 +13,7 @@ func main() {
 	e, d, tearDown := setUp()
 	defer tearDown()
 
-	err := d.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	err := d.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
 		slog.Default().Info(fmt.Sprintf("executing state: %s", stateCtx.Current.ID))
 
 		// put your business logic here
