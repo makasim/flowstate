@@ -2,8 +2,11 @@ package flowstate
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
+
+	"github.com/oklog/ulid/v2"
 )
 
 type DataID string
@@ -18,81 +21,6 @@ type Data struct {
 	B []byte
 }
 
-func ReferenceData(stateCtx *StateCtx, data *Data, annotation string) *ReferenceDataCommand {
-	return &ReferenceDataCommand{
-		StateCtx:   stateCtx,
-		Data:       data,
-		Annotation: annotation,
-	}
-
-}
-
-type ReferenceDataCommand struct {
-	command
-	StateCtx   *StateCtx
-	Data       *Data
-	Annotation string
-}
-
-func (cmd *ReferenceDataCommand) Do() error {
-	if cmd.Data.ID == "" {
-		return fmt.Errorf("data ID is empty")
-	}
-	if cmd.Data.Rev < 0 {
-		return fmt.Errorf("data revision is negative")
-	}
-
-	cmd.StateCtx.Current.SetAnnotation(cmd.Annotation, fmt.Sprintf("data:%s:%d", cmd.Data.ID, cmd.Data.Rev))
-	return nil
-}
-
-func DereferenceData(stateCtx *StateCtx, data *Data, annotation string) *DereferenceDataCommand {
-	return &DereferenceDataCommand{
-		StateCtx:   stateCtx,
-		Data:       data,
-		Annotation: annotation,
-	}
-
-}
-
-type DereferenceDataCommand struct {
-	command
-	StateCtx   *StateCtx
-	Data       *Data
-	Annotation string
-}
-
-func (cmd *DereferenceDataCommand) Do() error {
-	serializedData := cmd.StateCtx.Current.Annotations[cmd.Annotation]
-	if serializedData == "" {
-		return fmt.Errorf("data is not serialized")
-	}
-
-	splits := strings.SplitN(serializedData, ":", 3)
-	if len(splits) != 3 {
-		return fmt.Errorf("data is not serialized correctly")
-	}
-	if splits[0] != "data" {
-		return fmt.Errorf("data is not serialized correctly")
-	}
-	if splits[1] == "" {
-		return fmt.Errorf("serialized data ID is empty")
-	}
-	if splits[2] == "" {
-		return fmt.Errorf("serialized data revision is empty")
-	}
-
-	dRev, err := strconv.ParseInt(splits[2], 10, 64)
-	if err != nil {
-		return fmt.Errorf("serialized data revision is not integer: %w", err)
-	}
-
-	cmd.Data.ID = DataID(splits[1])
-	cmd.Data.Rev = dRev
-
-	return nil
-}
-
 func (d *Data) CopyTo(to *Data) *Data {
 	to.ID = d.ID
 	to.Rev = d.Rev
@@ -102,54 +30,101 @@ func (d *Data) CopyTo(to *Data) *Data {
 	return to
 }
 
-func StoreData(d *Data) *StoreDataCommand {
-	return &StoreDataCommand{
-		Data: d,
+func AttachData(stateCtx *StateCtx, data *Data, alias string) *AttachDataCommand {
+	return &AttachDataCommand{
+		StateCtx: stateCtx,
+		Data:     data,
+		Alias:    alias,
+
+		Store: true,
 	}
 }
 
-type StoreDataCommand struct {
+type AttachDataCommand struct {
 	command
-
-	Data *Data
+	StateCtx *StateCtx
+	Data     *Data
+	Alias    string
+	Store    bool
 }
 
-func (cmd *StoreDataCommand) Prepare() error {
-	if cmd.Data == nil {
-		return fmt.Errorf("data is nil")
+func (cmd *AttachDataCommand) WithoutStore() *AttachDataCommand {
+	cmd.Store = false
+	return cmd
+}
+
+func (cmd *AttachDataCommand) Prepare() error {
+	if cmd.Alias == "" {
+		return fmt.Errorf("alias is empty")
 	}
 	if cmd.Data.ID == "" {
-		return fmt.Errorf("data ID is empty")
+		cmd.Data.ID = DataID(ulid.Make().String())
 	}
-	if len(cmd.Data.B) == 0 {
-		return fmt.Errorf("data body is empty")
+	if cmd.Data.Rev < 0 {
+		return fmt.Errorf("Data.Rev is negative")
+	}
+	if cmd.Data.B == nil || len(cmd.Data.B) == 0 {
+		return fmt.Errorf("Data.B is empty")
 	}
 
 	return nil
 }
 
-func GetData(d *Data) *GetDataCommand {
+func (cmd *AttachDataCommand) Do() {
+	cmd.StateCtx.Current.SetAnnotation(
+		dataAnnotation(cmd.Alias),
+		string(cmd.Data.ID)+":"+strconv.FormatInt(cmd.Data.Rev, 10),
+	)
+}
+
+func GetData(stateCtx *StateCtx, data *Data, alias string) *GetDataCommand {
 	return &GetDataCommand{
-		Data: d,
+		StateCtx: stateCtx,
+		Data:     data,
+		Alias:    alias,
 	}
+
 }
 
 type GetDataCommand struct {
 	command
-
-	Data *Data
+	StateCtx *StateCtx
+	Data     *Data
+	Alias    string
 }
 
 func (cmd *GetDataCommand) Prepare() error {
 	if cmd.Data == nil {
 		return fmt.Errorf("data is nil")
 	}
-	if cmd.Data.ID == "" {
-		return fmt.Errorf("data ID is empty")
-	}
-	if cmd.Data.Rev < 0 {
-		return fmt.Errorf("data revision is negative")
+	if cmd.Alias == "" {
+		return fmt.Errorf("alias is empty")
 	}
 
+	annotKey := dataAnnotation(cmd.Alias)
+	idRevStr := cmd.StateCtx.Current.Annotations[annotKey]
+	if idRevStr == "" {
+		return fmt.Errorf("annotation %q is not set", annotKey)
+	}
+
+	sepIdx := strings.LastIndexAny(idRevStr, ":")
+	log.Println(sepIdx, sepIdx < 1, sepIdx+1 == len(idRevStr))
+	if sepIdx < 1 || sepIdx+1 == len(idRevStr) {
+		return fmt.Errorf("annotation %q contains invalid data reference; got %q", annotKey, idRevStr)
+	}
+
+	id := DataID(idRevStr[:sepIdx])
+	rev, err := strconv.ParseInt(idRevStr[sepIdx+1:], 10, 64)
+	if err != nil {
+		return fmt.Errorf("annotation %q contains invalid data revision; got %q: %w", annotKey, idRevStr[sepIdx+1:], err)
+	}
+
+	cmd.Data.ID = id
+	cmd.Data.Rev = rev
+
 	return nil
+}
+
+func dataAnnotation(alias string) string {
+	return "flowstate.data." + string(alias)
 }

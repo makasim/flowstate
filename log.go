@@ -97,28 +97,24 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 			"rev", cmd.StateCtx.Current.Rev,
 			"labels", cmd.StateCtx.Current.Labels,
 		)
-	case *ReferenceDataCommand:
+	case *AttachDataCommand:
 		args = append(args,
-			"cmd", "reference_data",
+			"cmd", "attach_data",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 			"data_id", cmd.Data.ID,
 			"data_rev", cmd.Data.Rev,
-			"annot", cmd.Annotation,
+			"alias", cmd.Alias,
 		)
-	case *DereferenceDataCommand:
-		args = append(args,
-			"cmd", "dereference_data",
-			"id", cmd.StateCtx.Current.ID,
-			"rev", cmd.StateCtx.Current.Rev,
-			"data_id", cmd.Data.ID,
-			"data_rev", cmd.Data.Rev,
-			"annot", cmd.Annotation,
-		)
-	case *StoreDataCommand:
-		args = append(args, "cmd", "store_data", "data_id", cmd.Data.ID, "data_rev", cmd.Data.Rev)
 	case *GetDataCommand:
-		args = append(args, "cmd", "get_data", "data_id", cmd.Data.ID, "data_rev", cmd.Data.Rev)
+		args = append(args,
+			"cmd", "get_data",
+			"id", cmd.StateCtx.Current.ID,
+			"rev", cmd.StateCtx.Current.Rev,
+			"data_id", cmd.Data.ID,
+			"data_rev", cmd.Data.Rev,
+			"alias", cmd.Alias,
+		)
 	case *UnstackCommand:
 		args = append(args, "cmd", "unstack")
 	case *StackCommand:

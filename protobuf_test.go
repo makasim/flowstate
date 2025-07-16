@@ -379,8 +379,9 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 	data := &flowstate.Data{ID: "theDataID", Rev: 123, B: []byte("theDataValue")}
 	f(&flowstate.CommitCommand{
 		Commands: []flowstate.Command{
-			&flowstate.StoreDataCommand{
-				Data: data,
+			&flowstate.AttachDataCommand{
+				Data:  data,
+				Store: true,
 			},
 			&flowstate.GetDataCommand{
 				Data: data,
@@ -390,11 +391,13 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 
 	f(&flowstate.CommitCommand{
 		Commands: []flowstate.Command{
-			&flowstate.StoreDataCommand{
-				Data: &flowstate.Data{ID: "theDataID", Rev: 123, B: []byte("theDataValue")},
+			&flowstate.AttachDataCommand{
+				Data:  &flowstate.Data{ID: "theDataID", Rev: 123, B: []byte("theDataValue")},
+				Store: true,
 			},
-			&flowstate.StoreDataCommand{
-				Data: &flowstate.Data{ID: "theOtherDataID", Rev: 234},
+			&flowstate.AttachDataCommand{
+				Data:  &flowstate.Data{ID: "theOtherDataID", Rev: 234},
+				Store: true,
 			},
 		},
 	})
@@ -446,16 +449,6 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 		Annotation: "theAnnotation",
 	})
 
-	f(&flowstate.StoreDataCommand{})
-
-	f(&flowstate.StoreDataCommand{
-		Data: &flowstate.Data{
-			ID:  "theDataID",
-			Rev: 123,
-			B:   []byte("theDataValue"),
-		},
-	})
-
 	f(&flowstate.GetDataCommand{})
 
 	f(&flowstate.GetDataCommand{
@@ -466,9 +459,9 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 		},
 	})
 
-	f(&flowstate.ReferenceDataCommand{})
+	f(&flowstate.AttachDataCommand{})
 
-	f(&flowstate.ReferenceDataCommand{
+	f(&flowstate.AttachDataCommand{
 		StateCtx: &flowstate.StateCtx{
 			Current: flowstate.State{
 				ID:  "theID",
@@ -480,12 +473,13 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 			Rev: 123,
 			B:   []byte("theDataValue"),
 		},
-		Annotation: "theAnnotation",
+		Alias: "theAnnotation",
+		Store: true,
 	})
 
-	f(&flowstate.DereferenceDataCommand{})
+	f(&flowstate.GetDataCommand{})
 
-	f(&flowstate.DereferenceDataCommand{
+	f(&flowstate.GetDataCommand{
 		StateCtx: &flowstate.StateCtx{
 			Current: flowstate.State{
 				ID:  "theID",
@@ -497,7 +491,7 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 			Rev: 123,
 			B:   []byte("theDataValue"),
 		},
-		Annotation: "theAnnotation",
+		Alias: "theAnnotation",
 	})
 
 	f(&flowstate.GetStateByIDCommand{})

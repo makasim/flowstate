@@ -46,7 +46,7 @@ func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
 	return nil
 }
 
-func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
+func (d *Driver) StoreData(cmd *flowstate.AttachDataCommand) error {
 	if err := d.q.InsertData(context.Background(), d.conn, cmd.Data); err != nil {
 		return fmt.Errorf("insert data queue: %w", err)
 	}

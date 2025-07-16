@@ -49,7 +49,7 @@ func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
 	return nil
 }
 
-func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
+func (d *Driver) StoreData(cmd *flowstate.AttachDataCommand) error {
 	d.dataLog.append(cmd.Data)
 	return nil
 }

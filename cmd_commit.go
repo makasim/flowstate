@@ -57,20 +57,24 @@ func DoCommitSubCommand(d Driver, subCmd0 Command) error {
 		return subCmd.Do()
 	case *UnstackCommand:
 		return subCmd.Do()
-	case *DereferenceDataCommand:
-		return subCmd.Do()
-	case *ReferenceDataCommand:
-		return subCmd.Do()
 	case *GetDataCommand:
 		if err := subCmd.Prepare(); err != nil {
 			return err
 		}
 		return d.GetData(subCmd)
-	case *StoreDataCommand:
+	case *AttachDataCommand:
 		if err := subCmd.Prepare(); err != nil {
 			return err
 		}
-		return d.StoreData(subCmd)
+
+		if subCmd.Store {
+			if err := d.StoreData(subCmd); err != nil {
+				return fmt.Errorf("store data: %w", err)
+			}
+		}
+
+		subCmd.Do()
+		return nil
 	case *GetStateByIDCommand:
 		if err := subCmd.Prepare(); err != nil {
 			return err

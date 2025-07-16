@@ -86,7 +86,7 @@ func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
 	})
 }
 
-func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
+func (d *Driver) StoreData(cmd *flowstate.AttachDataCommand) error {
 	nextRev, err := d.dataRevSeq.Next()
 	if err != nil {
 		return fmt.Errorf("get next sequence: %w", err)

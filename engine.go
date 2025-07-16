@@ -194,10 +194,24 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		return cmd.Do()
 	case *UnstackCommand:
 		return cmd.Do()
-	case *DereferenceDataCommand:
-		return cmd.Do()
-	case *ReferenceDataCommand:
-		return cmd.Do()
+	case *GetDataCommand:
+		if err := cmd.Prepare(); err != nil {
+			return err
+		}
+		return e.d.GetData(cmd)
+	case *AttachDataCommand:
+		if err := cmd.Prepare(); err != nil {
+			return err
+		}
+
+		if cmd.Store {
+			if err := e.d.StoreData(cmd); err != nil {
+				return fmt.Errorf("store data: %w", err)
+			}
+		}
+
+		cmd.Do()
+		return nil
 	case *ExecuteCommand:
 		if cmd.sync {
 			return nil
@@ -216,16 +230,6 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		}()
 
 		return nil
-	case *GetDataCommand:
-		if err := cmd.Prepare(); err != nil {
-			return err
-		}
-		return e.d.GetData(cmd)
-	case *StoreDataCommand:
-		if err := cmd.Prepare(); err != nil {
-			return err
-		}
-		return e.d.StoreData(cmd)
 	case *GetStateByIDCommand:
 		if err := cmd.Prepare(); err != nil {
 			return err

@@ -33,8 +33,7 @@ func DataStoreGetWithCommit(t *testing.T, e flowstate.Engine, d flowstate.Driver
 		}
 
 		if err := e.Do(flowstate.Commit(
-			flowstate.StoreData(d),
-			flowstate.ReferenceData(stateCtx, d, `aDataKey`),
+			flowstate.AttachData(stateCtx, d, `aDataKey`),
 			flowstate.Transit(stateCtx, `get`),
 		)); err != nil {
 			return nil, err
@@ -46,8 +45,7 @@ func DataStoreGetWithCommit(t *testing.T, e flowstate.Engine, d flowstate.Driver
 		Track(stateCtx, trkr)
 
 		if err := e.Do(flowstate.Commit(
-			flowstate.DereferenceData(stateCtx, actData, `aDataKey`),
-			flowstate.GetData(actData),
+			flowstate.GetData(stateCtx, actData, `aDataKey`),
 			flowstate.Transit(stateCtx, `end`),
 		)); err != nil {
 			return nil, err

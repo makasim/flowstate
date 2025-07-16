@@ -39,10 +39,8 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 		data := &flowstate.Data{}
 		cfgs := &flowstate.Data{}
 		if err := e.Do(
-			flowstate.DereferenceData(stateCtx, cfgs, `config_set`),
-			flowstate.DereferenceData(stateCtx, data, `data`),
-			flowstate.GetData(cfgs),
-			flowstate.GetData(data),
+			flowstate.GetData(stateCtx, cfgs, `config_set`),
+			flowstate.GetData(stateCtx, data, `data`),
 		); err != nil {
 			return nil, err
 		}
@@ -65,8 +63,7 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 		data.B = append(data.B[:0], b...)
 
 		if err := e.Do(
-			flowstate.StoreData(data),
-			flowstate.ReferenceData(stateCtx, data, `data`),
+			flowstate.AttachData(stateCtx, data, `data`),
 			flowstate.Transit(stateCtx, `bar`),
 		); err != nil {
 			return nil, err
@@ -80,10 +77,8 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 		data := &flowstate.Data{}
 		cfgs := &flowstate.Data{}
 		if err := e.Do(
-			flowstate.DereferenceData(stateCtx, cfgs, `config_set`),
-			flowstate.DereferenceData(stateCtx, data, `data`),
-			flowstate.GetData(cfgs),
-			flowstate.GetData(data),
+			flowstate.GetData(stateCtx, cfgs, `config_set`),
+			flowstate.GetData(stateCtx, data, `data`),
 		); err != nil {
 			return nil, err
 		}
@@ -106,8 +101,7 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 		data.B = append(data.B[:0], b...)
 
 		if err := e.Do(
-			flowstate.StoreData(data),
-			flowstate.ReferenceData(stateCtx, data, `data`),
+			flowstate.AttachData(stateCtx, data, `data`),
 			flowstate.Transit(stateCtx, `end`),
 		); err != nil {
 			return nil, err
@@ -148,10 +142,8 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	}
 
 	require.NoError(t, e.Do(
-		flowstate.StoreData(configSet),
-		flowstate.StoreData(data),
-		flowstate.ReferenceData(stateCtx, configSet, `config_set`),
-		flowstate.ReferenceData(stateCtx, data, `data`),
+		flowstate.AttachData(stateCtx, configSet, `config_set`),
+		flowstate.AttachData(stateCtx, data, `data`),
 	))
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `foo`)))

@@ -197,7 +197,7 @@ func HandleStoreData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver
 		return false
 	}
 
-	cmd, err := readCmd[*flowstate.StoreDataCommand](r)
+	cmd, err := readCmd[*flowstate.AttachDataCommand](r)
 	if err != nil {
 		writeInvalidArgumentError(rw, err.Error())
 		return true

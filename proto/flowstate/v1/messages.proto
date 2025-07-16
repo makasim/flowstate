@@ -60,10 +60,8 @@ message Command {
   NoopCommand noop = 10;
   StackCommand stack = 11;
   UnstackCommand unstack = 12;
-  StoreDataCommand store_data = 13;
+  AttachDataCommand attach_data = 13;
   GetDataCommand get_data = 14;
-  ReferenceDataCommand reference_data = 15;
-  DereferenceDataCommand dereference_data = 16;
   GetStateByIDCommand get_state_by_id = 17;
   GetStateByLabelsCommand get_state_by_labels = 18;
   GetStatesCommand get_states = 19;
@@ -120,24 +118,17 @@ message UnstackCommand {
   string annotation = 3;
 }
 
-message StoreDataCommand {
-  DataRef data_ref = 1;
+message AttachDataCommand {
+  StateRef state_ref = 1;
+  DataRef data_ref = 2;
+  string alias = 3;
+  bool commit = 4;
 }
 
 message GetDataCommand {
-  DataRef data_ref = 1;
-}
-
-message ReferenceDataCommand {
   StateRef state_ref = 1;
   DataRef data_ref = 2;
-  string annotation = 3;
-}
-
-message DereferenceDataCommand {
-  StateRef state_ref = 1;
-  DataRef data_ref = 2;
-  string annotation = 3;
+  string alias = 3;
 }
 
 message GetStateByIDCommand {
