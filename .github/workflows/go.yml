@@ -54,8 +54,12 @@ jobs:
         set -e  # Exit on any error
   
         for file in examples/*.go; do
+          if [[ "$file" == "examples/setup.go" ]]; then
+            continue
+          fi
+        
           echo "Running $file"
-          go run "$file"
+          go run "$file" examples/setup.go
           echo "----------------------"
           echo
         done

@@ -1,27 +1,19 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
 	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/memdriver"
 )
 
 func main() {
 	slog.Default().Info("Example of durable execute")
 
-	d := memdriver.New(slog.Default())
+	e, d, tearDown := setUp()
+	defer tearDown()
 
-	e, err := flowstate.NewEngine(d, slog.Default())
-	handleError(err)
-
-	r, err := flowstate.NewRecoverer(e, slog.Default())
-	handleError(err)
-	defer r.Shutdown(context.Background())
-
-	err = d.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	err := d.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 
 		// durable execute
 		slog.Default().Info(fmt.Sprintf("executing state: %s", stateCtx.Current.ID))
@@ -36,15 +28,11 @@ func main() {
 		},
 	}
 
+	// After the state is commited it is guaranteed that the state will be executed
+	// at least flowstate.DefaultMaxRecoveryAttempts
 	err = e.Do(flowstate.Commit(flowstate.Transit(stateCtx, `example`)))
 	handleError(err)
 
 	err = e.Execute(stateCtx)
 	handleError(err)
-}
-
-func handleError(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
