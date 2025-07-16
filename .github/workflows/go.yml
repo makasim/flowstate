@@ -48,3 +48,14 @@ jobs:
         done 
 
         GOEXPERIMENT=synctest GODEBUG=asynctimerchan=0 go test -v ./...
+
+    - name: Examples
+      run: |
+        set -e  # Exit on any error
+  
+        for file in examples/*.go; do
+          echo "Running $file"
+          go run "$file"
+          echo "----------------------"
+          echo
+        done
