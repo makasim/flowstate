@@ -20,7 +20,7 @@ type flowRegistry struct {
 	hostFlows map[string]flowstate.Flow
 }
 
-func NewFlowRegistry(httpHost string) *flowRegistry {
+func newFlowRegistry(httpHost string) *flowRegistry {
 	return &flowRegistry{
 		httpHost: httpHost,
 		flows:    make(map[flowstate.TransitionID]flowstate.Flow),
