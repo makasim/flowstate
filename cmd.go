@@ -10,26 +10,6 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-type Command interface {
-	setSessID(id int64)
-	SessID() int64
-	cmd()
-}
-
-type command struct {
-	sessID int64
-}
-
-func (_ *command) cmd() {}
-
-func (cmd *command) setSessID(doID int64) {
-	cmd.sessID = doID
-}
-
-func (cmd *command) SessID() int64 {
-	return cmd.sessID
-}
-
 var _ Command = &TransitCommand{}
 
 var _ Command = &PauseCommand{}
@@ -63,6 +43,26 @@ var _ Command = &CommitCommand{}
 var _ Command = &CommitStateCtxCommand{}
 
 var _ Command = &ExecuteCommand{}
+
+type Command interface {
+	setSessID(id int64)
+	SessID() int64
+	cmd()
+}
+
+type command struct {
+	sessID int64
+}
+
+func (_ *command) cmd() {}
+
+func (cmd *command) setSessID(doID int64) {
+	cmd.sessID = doID
+}
+
+func (cmd *command) SessID() int64 {
+	return cmd.sessID
+}
 
 func Commit(cmds ...Command) *CommitCommand {
 	return &CommitCommand{
