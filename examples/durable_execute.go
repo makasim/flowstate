@@ -18,7 +18,7 @@ func main() {
 
 		// Put your business logic here
 
-		// Tell then engine that the state is executed successfully
+		// Tell the engine that the state is completed
 		return flowstate.Commit(flowstate.End(stateCtx)), nil
 	}))
 	handleError(err)
