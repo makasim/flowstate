@@ -120,7 +120,7 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 	case *StackCommand:
 		args = append(args, "cmd", "stack")
 	case *GetStatesCommand:
-		args = append(args, "cmd", "watch")
+		args = append(args, "cmd", "get_states")
 		if cmd.SinceRev > 0 {
 			args = append(args, "since_rev", cmd.SinceRev)
 		}
