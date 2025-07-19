@@ -22,6 +22,8 @@ type Registry struct {
 	hostFlows     map[string]*Flow
 	closeCh       chan struct{}
 	closedCh      chan struct{}
+
+	sinceRev int64
 }
 
 func NewRegistry(httpHost string, d flowstate.Driver, l *slog.Logger) *Registry {
@@ -128,67 +130,8 @@ func (fr *Registry) watchFlows() {
 	t := time.NewTicker(time.Second * 10)
 	defer t.Stop()
 
-	labels := map[string]string{`flow.type`: `remote`}
-	getStatesCmd := flowstate.GetStatesByLabels(labels).WithLatestOnly()
-
 	for {
-		fr.l.Debug("get states", "labels", labels, "latest_only", true, "since_rev", getStatesCmd.SinceRev)
-
-		if err := fr.d.GetStates(getStatesCmd); err != nil {
-			fr.l.Error("driver: get states failed", "error", err)
-			continue
-		}
-
-		res := getStatesCmd.MustResult()
-
-		for _, state := range res.States {
-			getStatesCmd.SinceRev = state.Rev
-
-			if state.Annotations[`flowstate.flow.http_host`] == `` {
-				fr.l.Warn("state has no 'flowstate.flow.http_host' annotation set, skipping", "state_id", state.ID, "state_rev", state.Rev)
-				continue
-			}
-			httpHost := state.Annotations[`flowstate.flow.http_host`]
-
-			// local flow, skip
-			if httpHost == fr.httpHost {
-				continue
-			}
-
-			if state.Annotations[`flowstate.flow.transition_id`] == `` {
-				fr.l.Warn("flow state has no 'flowstate.flow.transition_id' annotation set, skipping", "state_id", state.ID, "state_rev", state.Rev)
-				continue
-			}
-			tsID := flowstate.TransitionID(state.Annotations[`flowstate.flow.transition_id`])
-
-			if flowstate.Ended(state) {
-				if err := fr.fr.UnsetFlow(tsID); err != nil {
-					fr.l.Warn("flow registry: unset flow failed", "error", err, "transition_id", tsID, "state_id", state.ID, "state_rev", state.Rev)
-				}
-
-				continue
-			}
-
-			fr.hostsFlowsMux.Lock()
-
-			if fr.hostFlows == nil {
-				fr.hostFlows = make(map[string]*Flow)
-			}
-
-			f, ok := fr.hostFlows[httpHost]
-			if !ok {
-				f = New(httpHost)
-				fr.hostFlows[httpHost] = f
-			}
-
-			fr.hostsFlowsMux.Unlock()
-
-			if err := fr.fr.SetFlow(tsID, f); err != nil {
-				fr.l.Warn("flow registry: set flow failed", "error", err, "transition_id", tsID, "state_id", state.ID, "state_rev", state.Rev)
-			}
-		}
-
-		if res.More {
+		if fr.sync() {
 			continue
 		}
 
@@ -199,6 +142,72 @@ func (fr *Registry) watchFlows() {
 			return
 		}
 	}
+}
+
+func (fr *Registry) sync() bool {
+	labels := map[string]string{`flow.type`: `remote`}
+
+	getStatesCmd := flowstate.GetStatesByLabels(labels).
+		WithLatestOnly().
+		WithSinceRev(fr.sinceRev)
+
+	fr.l.Debug("get states", "labels", labels, "latest_only", true, "since_rev", fr.sinceRev)
+
+	if err := fr.d.GetStates(getStatesCmd); err != nil {
+		fr.l.Error("driver: get states failed", "error", err)
+		return false
+	}
+
+	res := getStatesCmd.MustResult()
+
+	for _, state := range res.States {
+		fr.sinceRev = state.Rev
+
+		if state.Annotations[`flowstate.flow.http_host`] == `` {
+			fr.l.Warn("state has no 'flowstate.flow.http_host' annotation set, skipping", "state_id", state.ID, "state_rev", state.Rev)
+			continue
+		}
+		httpHost := state.Annotations[`flowstate.flow.http_host`]
+
+		// local flow, skip
+		if httpHost == fr.httpHost {
+			continue
+		}
+
+		if state.Annotations[`flowstate.flow.transition_id`] == `` {
+			fr.l.Warn("flow state has no 'flowstate.flow.transition_id' annotation set, skipping", "state_id", state.ID, "state_rev", state.Rev)
+			continue
+		}
+		tsID := flowstate.TransitionID(state.Annotations[`flowstate.flow.transition_id`])
+
+		if flowstate.Ended(state) {
+			if err := fr.fr.UnsetFlow(tsID); err != nil {
+				fr.l.Warn("flow registry: unset flow failed", "error", err, "transition_id", tsID, "state_id", state.ID, "state_rev", state.Rev)
+			}
+
+			continue
+		}
+
+		fr.hostsFlowsMux.Lock()
+
+		if fr.hostFlows == nil {
+			fr.hostFlows = make(map[string]*Flow)
+		}
+
+		f, ok := fr.hostFlows[httpHost]
+		if !ok {
+			f = New(httpHost)
+			fr.hostFlows[httpHost] = f
+		}
+
+		fr.hostsFlowsMux.Unlock()
+
+		if err := fr.fr.SetFlow(tsID, f); err != nil {
+			fr.l.Warn("flow registry: set flow failed", "error", err, "transition_id", tsID, "state_id", state.ID, "state_rev", state.Rev)
+		}
+	}
+
+	return res.More
 }
 
 func flowStateID(tsID flowstate.TransitionID) flowstate.StateID {
