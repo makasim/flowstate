@@ -119,17 +119,38 @@ func logDo(execSessID int64, cmd0 Command, l *slog.Logger) {
 		args = append(args, "cmd", "unstack")
 	case *StackCommand:
 		args = append(args, "cmd", "stack")
+	case *GetStateByIDCommand:
+		args = append(args, "cmd", "get_state_by_id",
+			"id", cmd.ID,
+			"rev", cmd.Rev,
+		)
+	case *GetStateByLabelsCommand:
+		args = append(args, "cmd", "get_state_by_labels",
+			"labels", cmd.Labels,
+		)
 	case *GetStatesCommand:
 		args = append(args, "cmd", "get_states")
 		if cmd.SinceRev > 0 {
 			args = append(args, "since_rev", cmd.SinceRev)
 		}
+		if cmd.LatestOnly {
+			args = append(args, "latest_only", true)
+		}
 		if !cmd.SinceTime.IsZero() {
 			args = append(args, "since_time", cmd.SinceTime)
 		}
-		if len(cmd.Labels) > 0 {
-			args = append(args, "labels", cmd.Labels)
+		for i, labels := range cmd.Labels {
+			args = append(args, fmt.Sprintf("labels[%d]", i), labels)
 		}
+		if cmd.Limit != GetStatesDefaultLimit {
+			args = append(args, "limit", cmd.Limit)
+		}
+	case *GetDelayedStatesCommand:
+		args = append(args, "cmd", "get_delayed_states",
+			"since", cmd.Since,
+			"until", cmd.Until,
+			"offset", cmd.Offset,
+		)
 	default:
 		args = append(args, "cmd", fmt.Sprintf("%T", cmd))
 	}
