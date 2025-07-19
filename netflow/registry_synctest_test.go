@@ -44,22 +44,7 @@ func TestRegistry(t *testing.T) {
 		})); err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-
-		// only local flows should be available
-
-		if _, err := firstFR.Flow(`aFlowOnFirstFR`); err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-		if _, err := firstFR.Flow(`aFlowOnSecondFR`); err == nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-		if _, err := secondFR.Flow(`aFlowOnSecondFR`); err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-		if _, err := secondFR.Flow(`aFlowOnFirstFR`); err == nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-
+		
 		time.Sleep(time.Second * 7)
 
 		// now we should be able to get all flows
@@ -140,6 +125,39 @@ func TestRegistry(t *testing.T) {
 		}
 		if _, err = secondFR.Flow(`aFlowOnSecondFR`); !errors.Is(err, flowstate.ErrFlowNotFound) {
 			t.Fatalf("expected flow not found error, got %v", err)
+		}
+	})
+}
+
+func TestRegistry_Flow_SlowPath(t *testing.T) {
+	synctest.Run(func() {
+		lh := slogassert.New(t, slog.LevelDebug, nil)
+		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
+		l = slog.Default()
+
+		d := memdriver.New(l)
+
+		fr := netflow.NewRegistry(`http://aHost:8080`, d, l)
+		defer fr.Close()
+
+		// make sure we skipped the first round of Registry.watchFlows call
+		time.Sleep(time.Second * 5)
+
+		// simulate a flow registered by someone else, but not yet available in the registry
+		stateCtx := &flowstate.StateCtx{
+			Current: flowstate.State{
+				ID: `flowstate.flow.aFlowID`,
+			},
+		}
+		stateCtx.Current.SetLabel(`flow.type`, `remote`)
+		stateCtx.Current.SetAnnotation(`flowstate.flow.transition_id`, `aFlowID`)
+		stateCtx.Current.SetAnnotation(`flowstate.flow.http_host`, `http://anotherHost:8080`)
+		if err := d.Commit(flowstate.Commit(flowstate.Pause(stateCtx))); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if _, err := fr.Flow(`aFlowID`); err != nil {
+			t.Fatalf("expected no error, got %v", err)
 		}
 	})
 }
