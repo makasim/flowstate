@@ -15,7 +15,7 @@ type Suite struct {
 	SetUpDelayer bool
 
 	disableGoleak bool
-	cases         map[string]func(t *testing.T, e flowstate.Engine, d flowstate.Driver)
+	cases         map[string]func(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver)
 }
 
 func (s *Suite) Test(main *testing.T) {
@@ -37,10 +37,12 @@ func (s *Suite) run(main *testing.T, name string) {
 			t.SkipNow()
 		}
 
-		d := s.SetUp(t)
-
 		l, _ := NewTestLogger(t)
-		e, err := flowstate.NewEngine(d, l)
+
+		d := s.SetUp(t)
+		fr := &flowstate.DefaultFlowRegistry{}
+
+		e, err := flowstate.NewEngine(d, fr, l)
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}
@@ -68,7 +70,7 @@ func (s *Suite) run(main *testing.T, name string) {
 			})
 		}
 
-		fn(t, e, d)
+		fn(t, e, fr, d)
 	})
 }
 
@@ -89,7 +91,7 @@ func Get(setUp func(t *testing.T) flowstate.Driver) *Suite {
 		SetUp:        setUp,
 		SetUpDelayer: true,
 
-		cases: map[string]func(t *testing.T, e flowstate.Engine, d flowstate.Driver){
+		cases: map[string]func(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver){
 			"Actor": Actor,
 
 			"CallFlow":           CallFlow,

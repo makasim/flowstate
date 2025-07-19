@@ -10,10 +10,10 @@ import (
 func main() {
 	slog.Default().Info("Example of durable execute")
 
-	e, d, tearDown := setUp()
+	e, fr, _, tearDown := setUp()
 	defer tearDown()
 
-	err := d.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+	err := fr.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
 		slog.Default().Info(fmt.Sprintf("executing state: %s", stateCtx.Current.ID))
 
 		// put your business logic here

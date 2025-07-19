@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Queue(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
+func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	trkr := &Tracker{
 		IncludeTaskID: true,
 		IncludeState:  true,
 	}
 
-	mustSetFlow(d, "queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		if flowstate.Resumed(stateCtx.Current) {
 			return flowstate.Transit(stateCtx, `dequeued`), nil
@@ -27,7 +27,7 @@ func Queue(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 			flowstate.Pause(stateCtx),
 		), nil
 	}))
-	mustSetFlow(d, "enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
@@ -56,7 +56,7 @@ func Queue(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 			}
 		}
 	}))
-	mustSetFlow(d, "dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.End(stateCtx),

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func CallFlow(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
+func CallFlow(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	var nextStateCtx *flowstate.StateCtx
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -19,7 +19,7 @@ func CallFlow(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	endedCh := make(chan struct{})
 	trkr := &Tracker{}
 
-	mustSetFlow(d, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if flowstate.Resumed(stateCtx.Current) {
@@ -43,11 +43,11 @@ func CallFlow(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 
 		return flowstate.Noop(stateCtx), nil
 	}))
-	mustSetFlow(d, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	mustSetFlow(d, "calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if stateCtx.Current.Annotations[`caller_state`] != "" {
@@ -68,7 +68,7 @@ func CallFlow(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 		return flowstate.End(stateCtx), nil
 	}))
 
-	mustSetFlow(d, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		close(endedCh)

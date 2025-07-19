@@ -12,7 +12,4 @@ type Driver interface {
 	Commit(cmd *CommitCommand) error
 	GetData(cmd *GetDataCommand) error
 	StoreData(cmd *AttachDataCommand) error
-
-	Flow(id TransitionID) (Flow, error)
-	SetFlow(id TransitionID, flow Flow) error
 }

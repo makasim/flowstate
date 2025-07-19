@@ -17,7 +17,7 @@ import (
 var _ flowstate.Driver = &Driver{}
 
 type Driver struct {
-	*flowstate.FlowRegistry
+	*flowstate.DefaultFlowRegistry
 
 	db               *badger.DB
 	dataRevSeq       *badger.Sequence
@@ -54,7 +54,7 @@ func New(db *badger.DB) (*Driver, error) {
 			seq:     delayedOffsetSeq,
 			ongoing: make(map[int64]struct{}),
 		},
-		FlowRegistry: &flowstate.FlowRegistry{},
+		DefaultFlowRegistry: &flowstate.DefaultFlowRegistry{},
 
 		l: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})),
 	}, nil

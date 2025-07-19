@@ -15,18 +15,26 @@ func (f FlowFunc) Execute(stateCtx *StateCtx, e Engine) (Command, error) {
 	return f(stateCtx, e)
 }
 
-type FlowRegistry struct {
+type FlowRegistry interface {
+	Flow(id TransitionID) (Flow, error)
+	SetFlow(id TransitionID, flow Flow) error
+	UnsetFlow(id TransitionID) error
+}
+
+var _ FlowRegistry = (*DefaultFlowRegistry)(nil)
+
+type DefaultFlowRegistry struct {
 	mux   sync.Mutex
 	flows map[TransitionID]Flow
 }
 
-func (fr *FlowRegistry) Flow(id TransitionID) (Flow, error) {
-	fr.mux.Lock()
-	defer fr.mux.Unlock()
-
+func (fr *DefaultFlowRegistry) Flow(id TransitionID) (Flow, error) {
 	if id == "" {
 		return nil, fmt.Errorf("flow id empty")
 	}
+
+	fr.mux.Lock()
+	defer fr.mux.Unlock()
 
 	if fr.flows == nil {
 		return nil, ErrFlowNotFound
@@ -40,7 +48,11 @@ func (fr *FlowRegistry) Flow(id TransitionID) (Flow, error) {
 	return f, nil
 }
 
-func (fr *FlowRegistry) SetFlow(id TransitionID, flow Flow) error {
+func (fr *DefaultFlowRegistry) SetFlow(id TransitionID, flow Flow) error {
+	if id == "" {
+		return fmt.Errorf("flow id empty")
+	}
+
 	fr.mux.Lock()
 	defer fr.mux.Unlock()
 
@@ -49,5 +61,21 @@ func (fr *FlowRegistry) SetFlow(id TransitionID, flow Flow) error {
 	}
 
 	fr.flows[id] = flow
+	return nil
+}
+
+func (fr *DefaultFlowRegistry) UnsetFlow(id TransitionID) error {
+	if id == "" {
+		return fmt.Errorf("flow id empty")
+	}
+
+	fr.mux.Lock()
+	defer fr.mux.Unlock()
+
+	if fr.flows == nil {
+		return nil
+	}
+
+	delete(fr.flows, id)
 	return nil
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Fork_WithCommit(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
+func Fork_WithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	var forkedStateCtx *flowstate.StateCtx
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -18,7 +18,7 @@ func Fork_WithCommit(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 
 	trkr := &Tracker{}
 
-	mustSetFlow(d, "fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		forkedStateCtx = &flowstate.StateCtx{}
@@ -40,12 +40,12 @@ func Fork_WithCommit(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 
 		return flowstate.Noop(stateCtx), nil
 	}))
-	mustSetFlow(d, "forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))
 
-	mustSetFlow(d, "origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

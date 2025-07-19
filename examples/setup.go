@@ -8,10 +8,11 @@ import (
 	"github.com/makasim/flowstate/memdriver"
 )
 
-func setUp() (flowstate.Engine, flowstate.Driver, func()) {
+func setUp() (flowstate.Engine, flowstate.FlowRegistry, flowstate.Driver, func()) {
 	d := memdriver.New(slog.Default())
+	fr := &flowstate.DefaultFlowRegistry{}
 
-	e, err := flowstate.NewEngine(d, slog.Default())
+	e, err := flowstate.NewEngine(d, fr, slog.Default())
 	handleError(err)
 
 	r, err := flowstate.NewRecoverer(e, slog.Default())
@@ -20,7 +21,7 @@ func setUp() (flowstate.Engine, flowstate.Driver, func()) {
 	dlr, err := flowstate.NewDelayer(e, slog.Default())
 	handleError(err)
 
-	return e, d, func() {
+	return e, fr, d, func() {
 		err := dlr.Shutdown(context.Background())
 		handleError(err)
 

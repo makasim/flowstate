@@ -19,17 +19,19 @@ type Engine interface {
 }
 
 type engine struct {
-	d Driver
-	l *slog.Logger
+	d  Driver
+	fr FlowRegistry
+	l  *slog.Logger
 
 	wg     *sync.WaitGroup
 	doneCh chan struct{}
 }
 
-func NewEngine(d Driver, l *slog.Logger) (Engine, error) {
+func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (Engine, error) {
 	e := &engine{
-		d: d,
-		l: l,
+		d:  d,
+		fr: fr,
+		l:  l,
 
 		wg:     &sync.WaitGroup{},
 		doneCh: make(chan struct{}),
@@ -74,7 +76,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 			return fmt.Errorf(`transition to id empty`)
 		}
 
-		f, err := e.d.Flow(stateCtx.Current.Transition.To)
+		f, err := e.fr.Flow(stateCtx.Current.Transition.To)
 		if err != nil {
 			return err
 		}

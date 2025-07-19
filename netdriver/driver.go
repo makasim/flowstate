@@ -13,8 +13,6 @@ import (
 var _ flowstate.Driver = (*Driver)(nil)
 
 type Driver struct {
-	flowstate.FlowRegistry
-
 	httpHost string
 
 	c *http.Client

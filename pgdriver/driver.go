@@ -15,7 +15,6 @@ import (
 var _ flowstate.Driver = &Driver{}
 
 type Driver struct {
-	*flowstate.FlowRegistry
 	conn  conn
 	q     *queries
 	doers []flowstate.Driver
@@ -27,10 +26,9 @@ type Driver struct {
 func New(conn conn, l *slog.Logger) *Driver {
 	return &Driver{
 		conn: conn,
-
-		q:            &queries{},
-		FlowRegistry: &flowstate.FlowRegistry{},
-		l:            l,
+		l:    l,
+		
+		q: &queries{},
 	}
 }
 

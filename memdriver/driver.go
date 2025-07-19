@@ -13,8 +13,6 @@ import (
 var _ flowstate.Driver = &Driver{}
 
 type Driver struct {
-	*flowstate.FlowRegistry
-
 	stateLog        *stateLog
 	dataLog         *dataLog
 	delayedStateLog *delayedStateLog
@@ -27,7 +25,6 @@ func New(l *slog.Logger) *Driver {
 		stateLog:        &stateLog{},
 		dataLog:         &dataLog{},
 		delayedStateLog: &delayedStateLog{},
-		FlowRegistry:    &flowstate.FlowRegistry{},
 
 		l: l,
 	}
