@@ -11,7 +11,31 @@ on:
 
 jobs:
 
-  build:
+  run-examples:
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Examples
+        run: |
+          set -e  # Exit on any error
+          
+          for file in examples/*.go; do
+            if [[ "$file" == "examples/setup.go" ]]; then
+              continue
+            fi
+          
+            echo "Running $file"
+            go run "$file" examples/setup.go
+            echo "----------------------"
+            echo
+          done
+
+  test:
     runs-on: ubuntu-latest
 
     services:
@@ -37,9 +61,6 @@ jobs:
       with:
         go-version: '1.24'
 
-    - name: Build
-      run: go build ./...
-
     - name: Test
       run: |
         until pg_isready -h 127.0.0.1 -p 5432 -U user; do
@@ -48,18 +69,3 @@ jobs:
         done 
 
         GOEXPERIMENT=synctest GODEBUG=asynctimerchan=0 go test -v ./...
-
-    - name: Examples
-      run: |
-        set -e  # Exit on any error
-  
-        for file in examples/*.go; do
-          if [[ "$file" == "examples/setup.go" ]]; then
-            continue
-          fi
-        
-          echo "Running $file"
-          go run "$file" examples/setup.go
-          echo "----------------------"
-          echo
-        done
