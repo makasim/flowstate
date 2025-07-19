@@ -86,4 +86,5 @@ jobs:
           sleep 3;
         done 
 
+        rm -rf examples/
         GOEXPERIMENT=synctest GODEBUG=asynctimerchan=0 go test -v ./...
