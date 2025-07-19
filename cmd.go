@@ -267,7 +267,7 @@ func (cmd *GetStateByLabelsCommand) Result() (*StateCtx, error) {
 	return cmd.StateCtx, nil
 }
 
-const GetManyDefaultLimit = 50
+const GetStatesDefaultLimit = 50
 
 type GetStatesResult struct {
 	States []State
@@ -275,7 +275,9 @@ type GetStatesResult struct {
 }
 
 func GetStatesByLabels(labels map[string]string) *GetStatesCommand {
-	return (&GetStatesCommand{}).WithORLabels(labels)
+	return (&GetStatesCommand{
+		Limit: GetStatesDefaultLimit,
+	}).WithORLabels(labels)
 }
 
 type GetStatesCommand struct {
@@ -333,9 +335,6 @@ func (cmd *GetStatesCommand) WithLimit(limit int) *GetStatesCommand {
 }
 
 func (cmd *GetStatesCommand) Prepare() {
-	if cmd.Limit == 0 {
-		cmd.Limit = GetManyDefaultLimit
-	}
 }
 
 func Noop(stateCtx *StateCtx) *NoopCommand {

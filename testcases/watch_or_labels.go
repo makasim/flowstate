@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func WatchORLabels(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
+func WatchORLabels(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	require.NoError(t, e.Do(flowstate.Commit(
 		flowstate.Pause(&flowstate.StateCtx{
 			Current: flowstate.State{

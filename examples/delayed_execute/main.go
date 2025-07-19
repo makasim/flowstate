@@ -6,15 +6,16 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/examples"
 )
 
 func main() {
 	slog.Default().Info("Example of delayed execute")
 
-	e, d, tearDown := setUp()
+	e, fr, _, tearDown := examples.SetUp()
 	defer tearDown()
 
-	err := d.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+	err := fr.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
 		slog.Default().Info(fmt.Sprintf("executing state: %s", stateCtx.Current.ID))
 
 		// Put your business logic here
@@ -22,7 +23,7 @@ func main() {
 		// Tell the engine that the state is completed
 		return flowstate.Commit(flowstate.End(stateCtx)), nil
 	}))
-	handleError(err)
+	examples.HandleError(err)
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -38,7 +39,7 @@ func main() {
 		flowstate.Transit(stateCtx, `example`),
 		flowstate.Delay(stateCtx, time.Second*10),
 	)
-	handleError(err)
+	examples.HandleError(err)
 
 	time.Sleep(time.Second * 15)
 }

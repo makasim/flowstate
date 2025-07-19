@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func DataStoreGet(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
+func DataStoreGet(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -24,7 +24,7 @@ func DataStoreGet(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 	}
 	actData := &flowstate.Data{}
 
-	mustSetFlow(d, "store", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "store", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		d := &flowstate.Data{
@@ -41,7 +41,7 @@ func DataStoreGet(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	mustSetFlow(d, "get", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "get", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if err := e.Do(
@@ -53,7 +53,7 @@ func DataStoreGet(t *testing.T, e flowstate.Engine, d flowstate.Driver) {
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	mustSetFlow(d, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.End(stateCtx), nil
 	}))

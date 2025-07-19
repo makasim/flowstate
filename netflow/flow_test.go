@@ -19,15 +19,16 @@ func TestFlowExecute(t *testing.T) {
 	l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 	d := memdriver.New(l)
+	fr := &flowstate.DefaultFlowRegistry{}
 	executedCh := make(chan struct{})
-	if err := d.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+	if err := fr.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
 		close(executedCh)
 		return flowstate.End(stateCtx), nil
 	})); err != nil {
 		t.Fatalf("failed to set flow: %v", err)
 	}
 
-	e, err := flowstate.NewEngine(d, l)
+	e, err := flowstate.NewEngine(d, fr, l)
 	if err != nil {
 		t.Fatalf("failed to create flowstate engine: %v", err)
 	}
