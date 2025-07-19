@@ -26,11 +26,7 @@ jobs:
         run: |
           set -e  # Exit on any error
           
-          for file in examples/*.go; do
-            if [[ "$file" == "examples/setup.go" ]]; then
-              continue
-            fi
-          
+          for file in examples/*/main.go; do
             echo "Running $file"
             go run "$file" examples/setup.go
             echo "----------------------"

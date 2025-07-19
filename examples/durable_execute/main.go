@@ -5,12 +5,13 @@ import (
 	"log/slog"
 
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/examples"
 )
 
 func main() {
 	slog.Default().Info("Example of durable execute")
 
-	e, fr, _, tearDown := setUp()
+	e, fr, _, tearDown := examples.SetUp()
 	defer tearDown()
 
 	err := fr.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
@@ -21,7 +22,7 @@ func main() {
 		// Tell the engine that the state is completed
 		return flowstate.Commit(flowstate.End(stateCtx)), nil
 	}))
-	handleError(err)
+	examples.HandleError(err)
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -32,10 +33,10 @@ func main() {
 	// After the state is commited it is guaranteed that the state will be executed
 	// at least flowstate.DefaultMaxRecoveryAttempts attempts
 	err = e.Do(flowstate.Commit(flowstate.Transit(stateCtx, `example`)))
-	handleError(err)
+	examples.HandleError(err)
 
 	// Execute the state synchronously
 	// The engine will call the example flow.
 	err = e.Execute(stateCtx)
-	handleError(err)
+	examples.HandleError(err)
 }

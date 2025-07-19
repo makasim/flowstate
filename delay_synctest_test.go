@@ -31,7 +31,8 @@ func TestDelayer(t *testing.T) {
 			actMux := &sync.Mutex{}
 			act := make([]delayedState, 0, len(delayingStates))
 			d := memdriver.New(l)
-			mustSetFlow(d, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+			fr := &flowstate.DefaultFlowRegistry{}
+			mustSetFlow(fr, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 				actMux.Lock()
 				defer actMux.Unlock()
 
@@ -43,7 +44,7 @@ func TestDelayer(t *testing.T) {
 				return flowstate.Commit(flowstate.End(stateCtx)), nil
 			}))
 
-			e, err := flowstate.NewEngine(d, l)
+			e, err := flowstate.NewEngine(d, fr, l)
 			if err != nil {
 				t.Fatalf("failed to create engine: %v", err)
 			}
@@ -247,7 +248,8 @@ func TestDelayer_Concurrency(t *testing.T) {
 		var delayedFutureCnt atomic.Int64
 		var delayedPastCnt atomic.Int64
 		d := memdriver.New(l)
-		mustSetFlow(d, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		fr := &flowstate.DefaultFlowRegistry{}
+		mustSetFlow(fr, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			if stateCtx.Current.Labels[`delay`] == `future` {
 				delayedFutureCnt.Add(1)
 			} else {
@@ -257,7 +259,7 @@ func TestDelayer_Concurrency(t *testing.T) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
 
-		e, err := flowstate.NewEngine(d, l)
+		e, err := flowstate.NewEngine(d, fr, l)
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}
@@ -388,8 +390,8 @@ type delayedState struct {
 	At      time.Time
 }
 
-func mustSetFlow(d flowstate.Driver, id flowstate.TransitionID, f flowstate.Flow) {
-	if err := d.SetFlow(id, f); err != nil {
+func mustSetFlow(fr flowstate.FlowRegistry, id flowstate.TransitionID, f flowstate.Flow) {
+	if err := fr.SetFlow(id, f); err != nil {
 		panic(fmt.Sprintf("set flow %s: %s", id, err))
 	}
 }

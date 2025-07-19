@@ -1,4 +1,4 @@
-package main
+package examples
 
 import (
 	"context"
@@ -8,29 +8,29 @@ import (
 	"github.com/makasim/flowstate/memdriver"
 )
 
-func setUp() (flowstate.Engine, flowstate.FlowRegistry, flowstate.Driver, func()) {
+func SetUp() (flowstate.Engine, flowstate.FlowRegistry, flowstate.Driver, func()) {
 	d := memdriver.New(slog.Default())
 	fr := &flowstate.DefaultFlowRegistry{}
 
 	e, err := flowstate.NewEngine(d, fr, slog.Default())
-	handleError(err)
+	HandleError(err)
 
 	r, err := flowstate.NewRecoverer(e, slog.Default())
-	handleError(err)
+	HandleError(err)
 
 	dlr, err := flowstate.NewDelayer(e, slog.Default())
-	handleError(err)
+	HandleError(err)
 
 	return e, fr, d, func() {
 		err := dlr.Shutdown(context.Background())
-		handleError(err)
+		HandleError(err)
 
 		err = r.Shutdown(context.Background())
-		handleError(err)
+		HandleError(err)
 	}
 }
 
-func handleError(err error) {
+func HandleError(err error) {
 	if err != nil {
 		panic(err)
 	}

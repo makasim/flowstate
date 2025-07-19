@@ -19,9 +19,9 @@ Flowstate is a great fit when you need:
 
 ## Examples
 
-* [Durable execute](examples/durable_execute.go)
-* [Delayed execute](examples/delayed_execute.go)
-* [Execute with delay](examples/execute_with_timeout.go)
+* [Durable execute](examples/durable_execute/main.go)
+* [Delayed execute](examples/delayed_execute/main.go)
+* [Execute with delay](examples/execute_with_timeout/main.go)
 * Real-time Two-Player Game – GoGame: [Live Demo](https://gogame.makasim.com/) | [Video](https://x.com/maksim_ka2/status/1825587227163795478) | [Source Code](https://github.com/makasim/gogame).
 * [Testcases](testcases)
 

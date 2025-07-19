@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func GetManyLabels(t *testing.T, e flowstate.Engine, _ flowstate.Driver) {
+func GetManyLabels(t *testing.T, e flowstate.Engine, _ flowstate.FlowRegistry, _ flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",

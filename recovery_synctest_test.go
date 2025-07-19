@@ -25,9 +25,10 @@ func TestRecovererRetryLogic(t *testing.T) {
 			l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 			d := memdriver.New(l)
-			mustSetFlow(d, `aFlow`, flowFn)
+			fr := &flowstate.DefaultFlowRegistry{}
+			mustSetFlow(fr, `aFlow`, flowFn)
 
-			e, err := flowstate.NewEngine(d, l)
+			e, err := flowstate.NewEngine(d, fr, l)
 			if err != nil {
 				t.Fatalf("failed to create engine: %v", err)
 			}
@@ -505,11 +506,12 @@ func TestRecovererActiveStandby(t *testing.T) {
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 		d := memdriver.New(l)
-		mustSetFlow(d, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		fr := &flowstate.DefaultFlowRegistry{}
+		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
 
-		e, err := flowstate.NewEngine(d, l)
+		e, err := flowstate.NewEngine(d, fr, l)
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}
@@ -592,11 +594,12 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 		d := memdriver.New(l)
-		mustSetFlow(d, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		fr := &flowstate.DefaultFlowRegistry{}
+		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
 
-		e, err := flowstate.NewEngine(d, l)
+		e, err := flowstate.NewEngine(d, fr, l)
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}
@@ -688,11 +691,12 @@ func TestRecovererOnlyOneActive(t *testing.T) {
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
 		d := memdriver.New(l)
-		mustSetFlow(d, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		fr := &flowstate.DefaultFlowRegistry{}
+		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.End(stateCtx)), nil
 		}))
 
-		e, err := flowstate.NewEngine(d, l)
+		e, err := flowstate.NewEngine(d, fr, l)
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}

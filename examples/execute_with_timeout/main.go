@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/makasim/flowstate"
+	"github.com/makasim/flowstate/examples"
 )
 
 func main() {
 	slog.Default().Info("Example of delayed execute")
 
-	e, d, tearDown := setUp()
+	e, fr, _, tearDown := examples.SetUp()
 	defer tearDown()
 
-	err := d.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+	err := fr.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
 		// The condition succeeds if the main execution timed out.
 		// The delayed task wont be executed if the state was completed before the timeout.
 		if flowstate.Delayed(stateCtx.Current) {
@@ -34,7 +35,7 @@ func main() {
 		// Tell the engine that the state is completed
 		return flowstate.Commit(flowstate.End(stateCtx)), nil
 	}))
-	handleError(err)
+	examples.HandleError(err)
 
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -51,7 +52,7 @@ func main() {
 		),
 		flowstate.Execute(stateCtx),
 	)
-	handleError(err)
+	examples.HandleError(err)
 
 	time.Sleep(time.Second * 15)
 }
