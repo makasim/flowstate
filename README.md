@@ -5,6 +5,8 @@ long-running workflows with built-in state persistence, crash recovery, and flow
 Whether you're managing retries, coordinating external services, or executing multi-step business logic, 
 Flowstate ensures your progress is persisted and never lost, even in the face of panics, crashes, or OOMs.
 
+You can even use Flowstate to power real-time applications like games. [Watch it in action](https://x.com/maksim_ka2/status/1825587227163795478).
+
 ## When to Use
 
 Flowstate is a great fit when you need:
