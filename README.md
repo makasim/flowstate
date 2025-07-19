@@ -1,102 +1,51 @@
 # Flowstate
 
-The flowstate is a low-level state and workflow engine designed to provide a minimalistic set of primitives and actions. 
-These primitives aim to offer the flexibility needed to build any state or workflow engine, low-code solution, or distributed execution.
+Flowstate is a lightweight Go library for building durable, 
+long-running workflows with built-in state persistence, crash recovery, and flow orchestration.
+Whether you're managing retries, coordinating external services, or executing multi-step business logic, 
+Flowstate ensures your progress is persisted and never lost, even in the face of panics, crashes, or OOMs.
 
-Flow: A flow is like a function. It takes a state, performs an action, and returns a command.
+You can even use Flowstate to power real-time applications like games. [Watch it in action](https://x.com/maksim_ka2/status/1825587227163795478).
 
-State: A state records the transitions between flows and may hold other lifecycle-related information. States can be watched.
+## When to Use
 
-Engine: An engine executes commands given by flows and transitions a state between the flows.
+Flowstate is a great fit when you need:
 
-Command: A command is an instruction to the engine to perform a particular action, usually on a state.
-
-Data: Data is a payload that can be attached to a state. It can be anything and is not used or interpreted by the engine.
-
-Watcher: A watcher can subscribe to state changes and stream them to a client.
-
-![flowstate](https://github.com/user-attachments/assets/6f102e1e-1365-48bd-a5e9-6b0f3284849c)
-
-Get you started:
-```go
-package main
-
-import (
-	"context"
-
-	"github.com/makasim/flowstate"
-	"github.com/makasim/flowstate/memdriver"
-)
-
-func main() {
-	d := memdriver.New()
-
-	d.SetFlow("first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
-		return flowstate.Transit(stateCtx, `second`), nil
-	}))
-	d.SetFlow("second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
-		return flowstate.End(stateCtx), nil
-	}))
-
-	e, err := flowstate.NewEngine(d)
-	if err != nil {
-		panic(err)
-	}
-	defer e.Shutdown(context.Background())
-
-	stateCtx := &flowstate.StateCtx{
-		Current: flowstate.State{
-			ID:  "aTID",
-		},
-	}
-
-	if err := e.Do(flowstate.Transit(stateCtx, `first`)); err != nil {
-		panic(err)
-	}
-	if err := e.Execute(stateCtx); err != nil {
-		panic(err)
-	}
-}
-```
-
-## Recovery
-
-Flowstate guarantees that if a flow is committed, it will eventually complete either successfully on retry or forcefully when the maximum retry limit is reached. 
-
-The recovery system automatically retries states that haven't reached a terminal state (ended or paused) within the configured time frame. 
-By default, recovery checks for stalled states after 2 minutes, but this can be adjusted using `recovery.SetRetryAfter()`. 
-The system performs up to 3 retry attempts by default before forcefully ending the state, configurable via `recovery.SetMaxAttempts()`.
-
-Recovery timing is approximate (equal or greater than retry after) and depends on system load and available resources. 
-The retry logic applies to all states by default unless explicitly disabled with `recovery.Disable()`.
-
-In cluster mode, one process remains active to handle all recovery operations while others stay in standby mode, ready to take over if needed.
-
-Example:
-```golang
-l := slog.New(slog.NewTextHandler(os.Stderr, nil))
-d := memdriver.New()
-
-e, err := flowstate.NewEngine(d, l)
-if err != nil {
-    log.Fatalf("failed to create engine: %v", err)
-}
-
-r := recovery.New(e, l)
-if err := r.Init(); err != nil {
-    log.Fatalf("failed to init recoverer: %v", err)
-}
-
-// do stuff with the engine
-
-if err := r.Shutdown(context.Background()); err != nil {
-    log.Fatalf("failed to shutdown recoverer: %v", err)
-}
-if err := e.Shutdown(context.Background()); err != nil {
-    log.Fatalf("failed to shutdown engine: %v", err)
-}
-```
+- Durable, crash-resistant business workflows
+- Retry logic that survives restarts
+- Flow coordination without introducing heavyweight workflow engines
+- A minimal, embeddable orchestration layer for Go microservices
+- Distributed orchestration with persistence
 
 ## Examples
 
-Take a look at [testcases](testcases) for examples.
+* [Durable execute](examples/durable_execute.go)
+* [Delayed execute](examples/delayed_execute.go)
+* [Execute with delay](examples/execute_with_timeout.go)
+* Real-time Two-Player Game – GoGame: [Live Demo](https://gogame.makasim.com/) | [Video](https://x.com/maksim_ka2/status/1825587227163795478) | [Source Code](https://github.com/makasim/gogame).
+* [Testcases](testcases)
+
+## Install
+
+```bash
+go get github.com/makasim/flowstate
+```
+
+## Drivers
+
+Flowstate supports multiple persistence backends via a simple driver interface:
+
+- In-memory
+- PostgreSQL
+- BadgerDB
+- Network driver
+
+You can plug in your own driver by implementing the minimal `flowstate.Driver` interface.
+
+## Contributing
+
+Issues, feedback, and PRs are welcome!
+
+## License
+
+[MIT](LiCENSE)
