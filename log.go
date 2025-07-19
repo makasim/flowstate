@@ -29,7 +29,11 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 	l.Info("engine: execute", args...)
 }
 
-func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
+func LogCommand(msg string, cmd0 Command, l *slog.Logger) {
+	logCommand(msg, 0, cmd0, l)
+}
+
+func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 	var args []any
 
 	if execSessID > 0 {
@@ -38,25 +42,26 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 		args = []any{"sess", cmd0.SessID()}
 	}
 
-	cmdArg := "cmd"
-	if subCmd {
-		cmdArg = "sub_cmd"
-	}
-
 	switch cmd := cmd0.(type) {
 	case *CommitCommand:
-		args = append(args, cmdArg, "commit", "len", len(cmd.Commands))
+		args = append(args, "cmd", "commit", "len", len(cmd.Commands))
+		l.Info(msg, args...)
+
+		for _, subCmd := range cmd.Commands {
+			logCommand("commit sub cmd", execSessID, subCmd, l)
+		}
+		return
 	case *CommitStateCtxCommand:
-		args = append(args, cmdArg, "commit_state_ctx", "id", cmd.StateCtx.Current.ID, "rev", cmd.StateCtx.Current.Rev)
+		args = append(args, "cmd", "commit_state_ctx", "id", cmd.StateCtx.Current.ID, "rev", cmd.StateCtx.Current.Rev)
 	case *TransitCommand:
-		args = append(args, cmdArg, "transit", "id", cmd.StateCtx.Current.ID, "rev", cmd.StateCtx.Current.Rev, "to", cmd.To)
+		args = append(args, "cmd", "transit", "id", cmd.StateCtx.Current.ID, "rev", cmd.StateCtx.Current.Rev, "to", cmd.To)
 
 		if len(cmd.StateCtx.Current.Labels) > 0 {
 			args = append(args, "labels", cmd.StateCtx.Current.Labels)
 		}
 	case *PauseCommand:
 		args = append(args,
-			cmdArg, "pause",
+			"cmd", "pause",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 		)
@@ -66,7 +71,7 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 		args = append(args, "labels", cmd.StateCtx.Current.Labels)
 	case *ResumeCommand:
 		args = append(args,
-			cmdArg, "resume",
+			"cmd", "resume",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 		)
@@ -75,7 +80,7 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 		}
 	case *EndCommand:
 		args = append(args,
-			cmdArg, "end",
+			"cmd", "end",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 		)
@@ -84,7 +89,7 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 		}
 	case *DelayCommand:
 		args = append(args,
-			cmdArg, "delay",
+			"cmd", "delay",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 			"execute_at", cmd.ExecuteAt,
@@ -94,7 +99,7 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 		}
 	case *ExecuteCommand:
 		args = append(args,
-			cmdArg, "execute",
+			"cmd", "execute",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 		)
@@ -103,7 +108,7 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 		}
 	case *NoopCommand:
 		args = append(args,
-			cmdArg, "noop",
+			"cmd", "noop",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 		)
@@ -112,7 +117,7 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 		}
 	case *AttachDataCommand:
 		args = append(args,
-			cmdArg, "attach_data",
+			"cmd", "attach_data",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 			"data_id", cmd.Data.ID,
@@ -121,7 +126,7 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 		)
 	case *GetDataCommand:
 		args = append(args,
-			cmdArg, "get_data",
+			"cmd", "get_data",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 			"data_id", cmd.Data.ID,
@@ -129,20 +134,20 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 			"alias", cmd.Alias,
 		)
 	case *UnstackCommand:
-		args = append(args, cmdArg, "unstack")
+		args = append(args, "cmd", "unstack")
 	case *StackCommand:
-		args = append(args, cmdArg, "stack")
+		args = append(args, "cmd", "stack")
 	case *GetStateByIDCommand:
-		args = append(args, cmdArg, "get_state_by_id",
+		args = append(args, "cmd", "get_state_by_id",
 			"id", cmd.ID,
 			"rev", cmd.Rev,
 		)
 	case *GetStateByLabelsCommand:
-		args = append(args, cmdArg, "get_state_by_labels",
+		args = append(args, "cmd", "get_state_by_labels",
 			"labels", cmd.Labels,
 		)
 	case *GetStatesCommand:
-		args = append(args, cmdArg, "get_states")
+		args = append(args, "cmd", "get_states")
 		if cmd.SinceRev > 0 {
 			args = append(args, "since_rev", cmd.SinceRev)
 		}
@@ -159,15 +164,14 @@ func logDo(execSessID int64, cmd0 Command, subCmd bool, l *slog.Logger) {
 			args = append(args, "limit", cmd.Limit)
 		}
 	case *GetDelayedStatesCommand:
-		args = append(args, cmdArg, "get_delayed_states",
+		args = append(args, "cmd", "get_delayed_states",
 			"since", cmd.Since,
 			"until", cmd.Until,
 			"offset", cmd.Offset,
 		)
 	default:
-		args = append(args, cmdArg, fmt.Sprintf("%T", cmd))
+		args = append(args, "cmd", fmt.Sprintf("%T", cmd))
 	}
 
-	l.Info("engine: do", args...)
-
+	l.Info(msg, args...)
 }

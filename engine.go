@@ -179,7 +179,7 @@ func (e *engine) Shutdown(ctx context.Context) error {
 }
 
 func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
-	logDo(execSessID, cmd0, false, e.l)
+	logCommand("engine: do", execSessID, cmd0, e.l)
 
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
@@ -274,8 +274,6 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		}
 
 		for _, subCmd := range cmd.Commands {
-			logDo(execSessID, subCmd, true, e.l)
-
 			if _, ok := subCmd.(*CommitCommand); ok {
 				return fmt.Errorf("commit command not allowed inside another commit")
 			}

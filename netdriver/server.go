@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -11,36 +12,36 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-func HandleAll(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
-	if HandleGetStateByID(rw, r, d) {
+func HandleAll(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
+	if HandleGetStateByID(rw, r, d, l) {
 		return true
 	}
-	if HandleGetStateByLabels(rw, r, d) {
+	if HandleGetStateByLabels(rw, r, d, l) {
 		return true
 	}
-	if HandleCommit(rw, r, d) {
+	if HandleCommit(rw, r, d, l) {
 		return true
 	}
-	if HandleGetStates(rw, r, d) {
+	if HandleGetStates(rw, r, d, l) {
 		return true
 	}
-	if HandleGetDelayedStates(rw, r, d) {
+	if HandleGetDelayedStates(rw, r, d, l) {
 		return true
 	}
-	if HandleDelay(rw, r, d) {
+	if HandleDelay(rw, r, d, l) {
 		return true
 	}
-	if HandleGetData(rw, r, d) {
+	if HandleGetData(rw, r, d, l) {
 		return true
 	}
-	if HandleStoreData(rw, r, d) {
+	if HandleStoreData(rw, r, d, l) {
 		return true
 	}
 
 	return false
 }
 
-func HandleGetStateByID(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
+func HandleGetStateByID(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
 	if r.URL.Path != "/flowstate.v1.Driver/GetStateByID" {
 		return false
 	}
@@ -51,6 +52,7 @@ func HandleGetStateByID(rw http.ResponseWriter, r *http.Request, d flowstate.Dri
 		return true
 	}
 
+	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetStateByID(cmd); errors.Is(err, flowstate.ErrNotFound) {
 		writeNotFoundError(rw, err.Error())
 		return true
@@ -63,7 +65,7 @@ func HandleGetStateByID(rw http.ResponseWriter, r *http.Request, d flowstate.Dri
 	return true
 }
 
-func HandleGetStateByLabels(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
+func HandleGetStateByLabels(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
 	if r.URL.Path != "/flowstate.v1.Driver/GetStateByLabels" {
 		return false
 	}
@@ -74,6 +76,7 @@ func HandleGetStateByLabels(rw http.ResponseWriter, r *http.Request, d flowstate
 		return true
 	}
 
+	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetStateByLabels(cmd); errors.Is(err, flowstate.ErrNotFound) {
 		writeNotFoundError(rw, err.Error())
 		return true
@@ -86,7 +89,7 @@ func HandleGetStateByLabels(rw http.ResponseWriter, r *http.Request, d flowstate
 	return true
 }
 
-func HandleGetStates(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
+func HandleGetStates(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
 	if r.URL.Path != "/flowstate.v1.Driver/GetStates" {
 		return false
 	}
@@ -97,6 +100,7 @@ func HandleGetStates(rw http.ResponseWriter, r *http.Request, d flowstate.Driver
 		return true
 	}
 
+	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetStates(cmd); err != nil {
 		writeUnknownError(rw, err.Error())
 		return true
@@ -106,7 +110,7 @@ func HandleGetStates(rw http.ResponseWriter, r *http.Request, d flowstate.Driver
 	return true
 }
 
-func HandleGetDelayedStates(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
+func HandleGetDelayedStates(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
 	if r.URL.Path != "/flowstate.v1.Driver/GetDelayedStates" {
 		return false
 	}
@@ -117,6 +121,7 @@ func HandleGetDelayedStates(rw http.ResponseWriter, r *http.Request, d flowstate
 		return true
 	}
 
+	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetDelayedStates(cmd); err != nil {
 		writeUnknownError(rw, err.Error())
 		return true
@@ -126,7 +131,7 @@ func HandleGetDelayedStates(rw http.ResponseWriter, r *http.Request, d flowstate
 	return true
 }
 
-func HandleDelay(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
+func HandleDelay(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
 	if r.URL.Path != "/flowstate.v1.Driver/Delay" {
 		return false
 	}
@@ -137,6 +142,7 @@ func HandleDelay(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bo
 		return true
 	}
 
+	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.Delay(cmd); err != nil {
 		writeUnknownError(rw, err.Error())
 		return true
@@ -146,7 +152,7 @@ func HandleDelay(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bo
 	return true
 }
 
-func HandleCommit(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
+func HandleCommit(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
 	if r.URL.Path != "/flowstate.v1.Driver/Commit" {
 		return false
 	}
@@ -157,6 +163,7 @@ func HandleCommit(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) b
 		return true
 	}
 
+	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.Commit(cmd); flowstate.IsErrRevMismatch(err) {
 		writeAbortedError(rw, err.Error())
 		return true
@@ -172,7 +179,7 @@ func HandleCommit(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) b
 	return true
 }
 
-func HandleGetData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
+func HandleGetData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
 	if r.URL.Path != "/flowstate.v1.Driver/GetData" {
 		return false
 	}
@@ -183,6 +190,7 @@ func HandleGetData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) 
 		return true
 	}
 
+	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetData(cmd); err != nil {
 		writeUnknownError(rw, err.Error())
 		return true
@@ -192,7 +200,7 @@ func HandleGetData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) 
 	return true
 }
 
-func HandleStoreData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver) bool {
+func HandleStoreData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l *slog.Logger) bool {
 	if r.URL.Path != "/flowstate.v1.Driver/StoreData" {
 		return false
 	}
@@ -203,6 +211,7 @@ func HandleStoreData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver
 		return true
 	}
 
+	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.StoreData(cmd); err != nil {
 		writeUnknownError(rw, err.Error())
 		return true
