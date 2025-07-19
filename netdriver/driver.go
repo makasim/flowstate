@@ -13,7 +13,7 @@ import (
 var _ flowstate.Driver = (*Driver)(nil)
 
 type Driver struct {
-	flowRegistry
+	flowstate.FlowRegistry
 
 	httpHost string
 
@@ -28,14 +28,8 @@ func New(httpHost string) *Driver {
 	}
 }
 
-func (d *Driver) Init(e flowstate.Engine) error {
-	d.flowRegistry.Init(e)
-
+func (d *Driver) Init(_ flowstate.Engine) error {
 	return nil
-}
-
-func (d *Driver) Shutdown() error {
-	// TODO
 }
 
 func (d *Driver) GetStateByID(cmd *flowstate.GetStateByIDCommand) error {
