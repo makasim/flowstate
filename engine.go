@@ -179,7 +179,7 @@ func (e *engine) Shutdown(ctx context.Context) error {
 }
 
 func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
-	logDo(execSessID, cmd0, e.l)
+	logDo(execSessID, cmd0, false, e.l)
 
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
@@ -273,19 +273,19 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 			return fmt.Errorf("no commands to commit")
 		}
 
-		for _, c := range cmd.Commands {
-			logDo(execSessID, cmd0, e.l)
+		for _, subCmd := range cmd.Commands {
+			logDo(execSessID, subCmd, true, e.l)
 
-			if _, ok := c.(*CommitCommand); ok {
+			if _, ok := subCmd.(*CommitCommand); ok {
 				return fmt.Errorf("commit command not allowed inside another commit")
 			}
-			if _, ok := c.(*ExecuteCommand); ok {
+			if _, ok := subCmd.(*ExecuteCommand); ok {
 				return fmt.Errorf("execute command not allowed inside commit")
 			}
-			if _, ok := c.(*GetDelayedStatesCommand); ok {
+			if _, ok := subCmd.(*GetDelayedStatesCommand); ok {
 				return fmt.Errorf("get delayed states command not allowed inside commit")
 			}
-			if _, ok := c.(*GetStatesCommand); ok {
+			if _, ok := subCmd.(*GetStatesCommand); ok {
 				return fmt.Errorf("get states command not allowed inside commit")
 			}
 		}
