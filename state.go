@@ -10,14 +10,14 @@ var _ context.Context = &StateCtx{}
 type StateID string
 
 type State struct {
-	ID          StateID           `json:"id"`
-	Rev         int64             `json:"rev"`
-	Annotations map[string]string `json:"annotations"`
-	Labels      map[string]string `json:"labels"`
+	ID          StateID           `json:"id,omitempty"`
+	Rev         int64             `json:"rev,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
 
-	CommittedAtUnixMilli int64 `json:"committed_at_unix_milli"`
+	CommittedAtUnixMilli int64 `json:"committed_at_unix_milli,omitempty"`
 
-	Transition Transition `json:"transition"`
+	Transition Transition `json:"transition,omitempty"`
 }
 
 func (s *State) SetCommitedAt(at time.Time) {
@@ -69,11 +69,11 @@ func (s *State) SetLabel(name, value string) {
 type StateCtx struct {
 	noCopy noCopy
 
-	Current   State `json:"current"`
-	Committed State `json:"committed"`
+	Current   State `json:"current,omitempty"`
+	Committed State `json:"committed,omitempty"`
 
 	// Transitions between committed and current states
-	Transitions []Transition `json:"transitions"`
+	Transitions []Transition `json:"transitions,omitempty"`
 
 	sessID int64  `json:"-"`
 	e      Engine `json:"-"`
@@ -146,9 +146,9 @@ func (s *StateCtx) Value(key any) any {
 type TransitionID string
 
 type Transition struct {
-	From        TransitionID      `json:"from"`
-	To          TransitionID      `json:"to"`
-	Annotations map[string]string `json:"annotations"`
+	From        TransitionID      `json:"from,omitempty"`
+	To          TransitionID      `json:"to,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 func (ts *Transition) SetAnnotation(name, value string) {

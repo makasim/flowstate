@@ -8,14 +8,17 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-func TestMarshalUnmarshalState(t *testing.T) {
+func TestMarshalUnmarshalJSONState(t *testing.T) {
 	f := func(exp flowstate.State) {
 		t.Helper()
 
-		b := flowstate.MarshalState(exp, nil)
+		b, err := flowstate.MarshalJSONState(exp)
+		if err != nil {
+			t.Fatalf("cannot marshal flowstate.State: %v", err)
+		}
 
 		var act flowstate.State
-		if err := flowstate.UnmarshalState(b, &act); err != nil {
+		if err := flowstate.UnmarshalJSONState(b, &act); err != nil {
 			t.Fatalf("cannot unmarshal flowstate.State: %v", err)
 		}
 
@@ -50,14 +53,17 @@ func TestMarshalUnmarshalState(t *testing.T) {
 	})
 }
 
-func TestMarshalUnmarshalStateCtx(t *testing.T) {
+func TestMarshalUnmarshalJSONStateCtx(t *testing.T) {
 	f := func(exp *flowstate.StateCtx) {
 		t.Helper()
 
-		b := flowstate.MarshalStateCtx(exp, nil)
+		b, err := flowstate.MarshalJSONStateCtx(exp)
+		if err != nil {
+			t.Fatalf("cannot marshal flowstate.StateCtx: %v", err)
+		}
 
 		act := &flowstate.StateCtx{}
-		if err := flowstate.UnmarshalStateCtx(b, act); err != nil {
+		if err := flowstate.UnmarshalJSONStateCtx(b, act); err != nil {
 			t.Fatalf("cannot unmarshal state ctx: %v", err)
 		}
 
@@ -124,14 +130,17 @@ func TestMarshalUnmarshalStateCtx(t *testing.T) {
 	})
 }
 
-func TestMarshalUnmarshalDelayedState(t *testing.T) {
+func TestMarshalUnmarshalJSONDelayedState(t *testing.T) {
 	f := func(exp flowstate.DelayedState) {
 		t.Helper()
 
-		b := flowstate.MarshalDelayedState(exp, nil)
+		b, err := flowstate.MarshalJSONDelayedState(exp)
+		if err != nil {
+			t.Fatalf("cannot marshal flowstate.DelayedState: %v", err)
+		}
 
 		act := flowstate.DelayedState{}
-		if err := flowstate.UnmarshalDelayedState(b, &act); err != nil {
+		if err := flowstate.UnmarshalJSONDelayedState(b, &act); err != nil {
 			t.Fatalf("cannot unmarshal delayed state: %v", err)
 		}
 
@@ -171,14 +180,17 @@ func TestMarshalUnmarshalDelayedState(t *testing.T) {
 	})
 }
 
-func TestMarshalUnmarshalTransition(t *testing.T) {
+func TestMarshalUnmarshalJSONTransition(t *testing.T) {
 	f := func(exp flowstate.Transition) {
 		t.Helper()
 
-		b := flowstate.MarshalTransition(exp, nil)
+		b, err := flowstate.MarshalJSONTransition(exp)
+		if err != nil {
+			t.Fatalf("cannot marshal flowstate.Transition: %v", err)
+		}
 
 		var act flowstate.Transition
-		if err := flowstate.UnmarshalTransition(b, &act); err != nil {
+		if err := flowstate.UnmarshalJSONTransition(b, &act); err != nil {
 			t.Fatalf("cannot unmarshal state: %v", err)
 		}
 
@@ -204,14 +216,17 @@ func TestMarshalUnmarshalTransition(t *testing.T) {
 	})
 }
 
-func TestMarshalUnmarshalData(t *testing.T) {
+func TestMarshalUnmarshalJSONData(t *testing.T) {
 	f := func(exp *flowstate.Data) {
 		t.Helper()
 
-		b := flowstate.MarshalData(exp, nil)
+		b, err := flowstate.MarshalJSONData(exp)
+		if err != nil {
+			t.Fatalf("cannot marshal flowstate.Data: %v", err)
+		}
 
 		act := &flowstate.Data{}
-		if err := flowstate.UnmarshalData(b, act); err != nil {
+		if err := flowstate.UnmarshalJSONData(b, act); err != nil {
 			t.Fatalf("cannot unmarshal flowstate.Data: %v", err)
 		}
 
@@ -245,13 +260,18 @@ func TestMarshalUnmarshalData(t *testing.T) {
 	})
 }
 
-func TestMarshalUnmarshalCommand(t *testing.T) {
+func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 	f := func(exp flowstate.Command) {
 		t.Helper()
 
-		b := flowstate.MarshalCommand(exp, nil)
+		b, err := flowstate.MarshalJSONCommand(exp)
+		if err != nil {
+			t.Fatalf("cannot marshal flowstate.Command: %v", err)
+		}
 
-		act, err := flowstate.UnmarshalCommand(b)
+		//log.Printf("%T: %s", exp, string(b))
+
+		act, err := flowstate.UnmarshalJSONCommand(b)
 		if err != nil {
 			t.Fatalf("cannot unmarshal flowstate.Command: %v", err)
 		}

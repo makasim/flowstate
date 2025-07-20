@@ -2,6 +2,7 @@ package flowstate
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -77,9 +78,45 @@ func (cmd *DelayCommand) Prepare() error {
 }
 
 type DelayedState struct {
-	State
-	Offset    int64
-	ExecuteAt time.Time
+	State     `json:"-"`
+	Offset    int64     `json:"-"`
+	ExecuteAt time.Time `json:"-"`
+}
+
+func (ds DelayedState) MarshalJSON() ([]byte, error) {
+	var execAtSec int64
+	if !ds.ExecuteAt.IsZero() {
+		execAtSec = ds.ExecuteAt.Unix()
+	}
+
+	return json.Marshal(&struct {
+		State        `json:"state,omitempty"`
+		Offset       int64 `json:"offset,omitempty"`
+		ExecuteAtSec int64 `json:"executeAtSec,omitempty"`
+	}{
+		State:        ds.State,
+		Offset:       ds.Offset,
+		ExecuteAtSec: execAtSec,
+	})
+}
+
+func (ds *DelayedState) UnmarshalJSON(data []byte) error {
+	ds0 := &struct {
+		State        `json:"state,omitempty"`
+		Offset       int64 `json:"offset,omitempty"`
+		ExecuteAtSec int64 `json:"executeAtSec,omitempty"`
+	}{}
+	if err := json.Unmarshal(data, &ds0); err != nil {
+		return err
+	}
+
+	ds.State = ds0.State
+	ds.Offset = ds0.Offset
+	if ds0.ExecuteAtSec != 0 {
+		ds.ExecuteAt = time.Unix(ds0.ExecuteAtSec, 0)
+	}
+
+	return nil
 }
 
 const GetDelayedStatesDefaultLimit = 500
