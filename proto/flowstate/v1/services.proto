@@ -9,8 +9,8 @@ service Driver {
 
   rpc GetStateByID(Command) returns (Command) {}
   rpc GetStateByLabels(Command) returns (Command) {}
-  rpc GetStates(Command) returns (GetStatesResult) {}
-  rpc GetDelayedStates(Command) returns (GetDelayedStatesResult) {}
+  rpc GetStates(Command) returns (Command) {}
+  rpc GetDelayedStates(Command) returns (Command) {}
   rpc Delay(Command) returns (Command) {}
   rpc Commit(Command) returns (Command) {}
   rpc GetData(Command) returns (Command) {}
