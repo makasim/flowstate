@@ -9,12 +9,13 @@ type Watcher struct {
 	e Engine
 
 	cmd      *GetStatesCommand
+	pollDur  time.Duration
 	watchCh  chan State
 	closeCh  chan struct{}
 	closedCh chan struct{}
 }
 
-func NewWatcher(e Engine, cmd *GetStatesCommand) *Watcher {
+func NewWatcher(e Engine, pollDur time.Duration, cmd *GetStatesCommand) *Watcher {
 	copyCmd := &GetStatesCommand{
 		SinceRev:   cmd.SinceRev,
 		SinceTime:  cmd.SinceTime,
@@ -25,8 +26,9 @@ func NewWatcher(e Engine, cmd *GetStatesCommand) *Watcher {
 	copyCmd.Prepare()
 
 	w := &Watcher{
-		e:   e,
-		cmd: copyCmd,
+		e:       e,
+		cmd:     copyCmd,
+		pollDur: pollDur,
 
 		watchCh:  make(chan State, 1),
 		closeCh:  make(chan struct{}),
@@ -50,7 +52,7 @@ func (w *Watcher) Close() {
 func (w *Watcher) listen() {
 	defer close(w.closedCh)
 
-	t := time.NewTicker(time.Millisecond * 100)
+	t := time.NewTicker(w.pollDur)
 	defer t.Stop()
 
 	for {

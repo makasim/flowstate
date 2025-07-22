@@ -51,7 +51,7 @@ func ForkJoin_FirstWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 			}
 		}
 
-		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
+		w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
 			`theForkJoinLabel`: stateCtx.Current.Labels[`theForkJoinLabel`],
 		}))
 		defer w.Close()

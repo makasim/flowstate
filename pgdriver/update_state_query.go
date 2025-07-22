@@ -31,7 +31,7 @@ RETURNING rev
 		pgx.NamedArgs{
 			"id":       s.ID,
 			"curr_rev": s.Rev,
-			"state":    s,
+			"state":    *s,
 			"labels":   s.Labels,
 		},
 	).Scan(&s.Rev); err != nil {

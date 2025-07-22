@@ -35,11 +35,11 @@ func startSrv(t *testing.T, l *slog.Logger) *httptest.Server {
 			rw.WriteHeader(http.StatusOK)
 			return
 		}
-		if HandleAll(rw, r, d) {
+		if HandleAll(rw, r, d, l) {
 			return
 		}
 
-		writeNotFoundError(rw, fmt.Sprintf("path %s not found", r.URL.Path))
+		writeNotFoundError(rw, fmt.Sprintf("path %s not found", r.URL.Path), true)
 	}))
 
 	t.Cleanup(srv.Close)

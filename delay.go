@@ -2,6 +2,7 @@ package flowstate
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -77,9 +78,23 @@ func (cmd *DelayCommand) Prepare() error {
 }
 
 type DelayedState struct {
-	State
+	State     State
 	Offset    int64
 	ExecuteAt time.Time
+}
+
+func (ds DelayedState) MarshalJSON() ([]byte, error) {
+	jsonDS := &jsonDelayedState{}
+	jsonDS.fromDelayedState(&ds)
+	return json.Marshal(jsonDS)
+}
+
+func (ds *DelayedState) UnmarshalJSON(data []byte) error {
+	jsonDS := &jsonDelayedState{}
+	if err := json.Unmarshal(data, jsonDS); err != nil {
+		return err
+	}
+	return jsonDS.toDelayedState(ds)
 }
 
 const GetDelayedStatesDefaultLimit = 500
@@ -293,13 +308,13 @@ func (d *Delayer) updateTail(now time.Time) error {
 			continue
 		}
 
-		stateCtx := delayedState.CopyToCtx(&StateCtx{})
+		stateCtx := delayedState.State.CopyToCtx(&StateCtx{})
 		commit := stateCtx.Current.Transition.Annotations[DelayCommitAnnotation] != `false`
 		if commit {
 			if err := d.e.Do(Commit(CommitStateCtx(stateCtx))); IsErrRevMismatch(err) {
 				continue
 			} else if err != nil {
-				return fmt.Errorf("commit state ctx: id=%s rev=%d: %w", delayedState.ID, delayedState.Rev, err)
+				return fmt.Errorf("commit state ctx: id=%s rev=%d: %w", delayedState.State.ID, delayedState.State.Rev, err)
 			}
 		}
 
@@ -309,7 +324,7 @@ func (d *Delayer) updateTail(now time.Time) error {
 		go func() {
 			if err := d.e.Execute(stateCtx); err != nil && !commit {
 				// delayed state is not so we warn about it, if commit recovery would kick in
-				d.l.Warn(fmt.Sprintf("delayed uncommited state execution has failed; id=%s rev=%d: %s", delayedState.ID, delayedState.Rev, err.Error()))
+				d.l.Warn(fmt.Sprintf("delayed uncommited state execution has failed; id=%s rev=%d: %s", delayedState.State.ID, delayedState.State.Rev, err.Error()))
 			}
 		}()
 

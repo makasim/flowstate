@@ -2,6 +2,7 @@ package flowstate
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
@@ -10,14 +11,14 @@ var _ context.Context = &StateCtx{}
 type StateID string
 
 type State struct {
-	ID          StateID           `json:"id"`
-	Rev         int64             `json:"rev"`
-	Annotations map[string]string `json:"annotations"`
-	Labels      map[string]string `json:"labels"`
+	ID          StateID
+	Rev         int64
+	Annotations map[string]string
+	Labels      map[string]string
 
-	CommittedAtUnixMilli int64 `json:"committed_at_unix_milli"`
+	CommittedAtUnixMilli int64
 
-	Transition Transition `json:"transition"`
+	Transition Transition
 }
 
 func (s *State) SetCommitedAt(at time.Time) {
@@ -66,17 +67,32 @@ func (s *State) SetLabel(name, value string) {
 	s.Labels[name] = value
 }
 
+func (s State) MarshalJSON() ([]byte, error) {
+	jsonS := &jsonState{}
+	jsonS.fromState(s)
+	return json.Marshal(jsonS)
+}
+
+func (s *State) UnmarshalJSON(data []byte) error {
+	jsonS := &jsonState{}
+	if err := json.Unmarshal(data, jsonS); err != nil {
+		return err
+	}
+
+	return jsonS.toState(s)
+}
+
 type StateCtx struct {
 	noCopy noCopy
 
-	Current   State `json:"current"`
-	Committed State `json:"committed"`
+	Current   State
+	Committed State
 
 	// Transitions between committed and current states
-	Transitions []Transition `json:"transitions"`
+	Transitions []Transition
 
-	sessID int64  `json:"-"`
-	e      Engine `json:"-"`
+	sessID int64
+	e      Engine
 	doneCh chan struct{}
 }
 
@@ -143,12 +159,26 @@ func (s *StateCtx) Value(key any) any {
 	return s.Current.Annotations[key1]
 }
 
+func (s *StateCtx) MarshalJSON() ([]byte, error) {
+	jsonStateCtx := &jsonStateCtx{}
+	jsonStateCtx.fromStateCtx(s)
+	return json.Marshal(jsonStateCtx)
+}
+
+func (s *StateCtx) UnmarshalJSON(data []byte) error {
+	jsonStateCtx := &jsonStateCtx{}
+	if err := json.Unmarshal(data, jsonStateCtx); err != nil {
+		return err
+	}
+	return jsonStateCtx.toStateCtx(s)
+}
+
 type TransitionID string
 
 type Transition struct {
-	From        TransitionID      `json:"from"`
-	To          TransitionID      `json:"to"`
-	Annotations map[string]string `json:"annotations"`
+	From        TransitionID
+	To          TransitionID
+	Annotations map[string]string
 }
 
 func (ts *Transition) SetAnnotation(name, value string) {
@@ -175,4 +205,20 @@ func (ts *Transition) CopyTo(to *Transition) {
 
 func (ts *Transition) String() string {
 	return string(ts.From) + `->` + string(ts.To)
+}
+
+func (ts *Transition) MarshalJSON() ([]byte, error) {
+	jsonTs := &jsonTransition{}
+	jsonTs.fromTransition(ts)
+	return json.Marshal(jsonTs)
+}
+
+func (ts *Transition) UnmarshalJSON(data []byte) error {
+	jsonTs := &jsonTransition{}
+	if err := json.Unmarshal(data, jsonTs); err != nil {
+		return err
+	}
+
+	jsonTs.toTransition(ts)
+	return nil
 }

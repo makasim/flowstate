@@ -2,6 +2,7 @@ package testcases
 
 import (
 	"testing"
+	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func WatchSinceRev(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, 
 		flowstate.Pause(stateCtx),
 	)))
 
-	w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
+	w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceRev(sinceRev))
 	defer w.Close()
