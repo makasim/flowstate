@@ -114,6 +114,12 @@ func End(stateCtx *StateCtx) *EndCommand {
 type EndCommand struct {
 	command
 	StateCtx *StateCtx
+	To       TransitionID
+}
+
+func (cmd *EndCommand) WithTransit(to TransitionID) *EndCommand {
+	cmd.To = to
+	return cmd
 }
 
 func (cmd *EndCommand) CommittableStateCtx() *StateCtx {
@@ -123,13 +129,8 @@ func (cmd *EndCommand) CommittableStateCtx() *StateCtx {
 func (cmd *EndCommand) Do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
-	nextTs := Transition{
-		From:        cmd.StateCtx.Current.Transition.To,
-		To:          ``,
-		Annotations: nil,
-	}
+	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
 	nextTs.SetAnnotation(StateAnnotation, `ended`)
-
 	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
@@ -317,13 +318,8 @@ func (cmd *PauseCommand) CommittableStateCtx() *StateCtx {
 func (cmd *PauseCommand) Do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
-	nextTs := Transition{
-		From:        cmd.StateCtx.Current.Transition.To,
-		To:          cmd.To,
-		Annotations: nil,
-	}
+	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
 	nextTs.SetAnnotation(StateAnnotation, `paused`)
-
 	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
@@ -342,6 +338,12 @@ func Resume(stateCtx *StateCtx) *ResumeCommand {
 type ResumeCommand struct {
 	command
 	StateCtx *StateCtx
+	To       TransitionID
+}
+
+func (cmd *ResumeCommand) WithTransit(to TransitionID) *ResumeCommand {
+	cmd.To = to
+	return cmd
 }
 
 func (cmd *ResumeCommand) CommittableStateCtx() *StateCtx {
@@ -351,13 +353,8 @@ func (cmd *ResumeCommand) CommittableStateCtx() *StateCtx {
 func (cmd *ResumeCommand) Do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
-	nextTs := Transition{
-		From:        cmd.StateCtx.Current.Transition.To,
-		To:          cmd.StateCtx.Current.Transition.To,
-		Annotations: nil,
-	}
+	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
 	nextTs.SetAnnotation(StateAnnotation, `resumed`)
-
 	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
@@ -389,13 +386,7 @@ func (cmd *TransitCommand) Do() error {
 
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
-	nextTs := Transition{
-		From:        cmd.StateCtx.Current.Transition.To,
-		To:          cmd.To,
-		Annotations: nil,
-	}
-
-	cmd.StateCtx.Current.Transition = nextTs
+	cmd.StateCtx.Current.Transition = nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
 
 	return nil
 }
@@ -566,4 +557,15 @@ func (cmd *GetDataCommand) Prepare() error {
 
 func dataAnnotation(alias string) string {
 	return "flowstate.data." + string(alias)
+}
+
+func nextTransitionOrCurrent(stateCtx *StateCtx, to TransitionID) Transition {
+	if to == `` {
+		to = stateCtx.Current.Transition.To
+	}
+
+	return Transition{
+		From: stateCtx.Current.Transition.To,
+		To:   to,
+	}
 }
