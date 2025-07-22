@@ -1,6 +1,7 @@
 package flowstate
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -48,19 +49,21 @@ func UnmarshalJSONData(data []byte, d *Data) error {
 }
 
 func MarshalJSONCommand(cmd0 Command) ([]byte, error) {
-	jsonRootCmd, err := toJSONCommand(cmd0)
+	stateCtxs := commandStateCtxs(cmd0)
+	datas := commandDatas(cmd0)
+
+	jsonRootCmd, err := toJSONCommand(cmd0, stateCtxs, datas)
 	if err != nil {
 		return nil, err
 	}
-
-	jsonRootCmd.StateCtxs = commandStateCtxs(cmd0)
-	jsonRootCmd.Datas = commandDatas(cmd0)
+	jsonRootCmd.StateCtxs = stateCtxs
+	jsonRootCmd.Datas = datas
 
 	return json.Marshal(jsonRootCmd)
 }
 
-func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
-	jsonRootCmd := &jsonCommand{}
+func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCommand, error) {
+	jsonRootCmd := &jsonRootCommand{}
 
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
@@ -69,9 +72,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 			jsonCmd.To = &cmd.To
 		}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -82,9 +84,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 			jsonCmd.To = &cmd.To
 		}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -92,9 +93,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *ResumeCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -102,9 +102,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *EndCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -112,9 +111,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *ExecuteCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -122,9 +120,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *DelayCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 		jsonCmd.DelayingState = &cmd.DelayingState
@@ -140,7 +137,7 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *CommitCommand:
 		commitJsonCmd := &jsonGenericCommand{}
 		for _, cmd := range cmd.Commands {
-			jsonCmd, err := toJSONCommand(cmd)
+			jsonCmd, err := toJSONCommand(cmd, stateCtxs, datas)
 			if err != nil {
 				return nil, fmt.Errorf("marshal commit command: %w", err)
 			}
@@ -152,9 +149,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *NoopCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -162,15 +158,13 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *StackCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.CarrierStateCtx != nil {
-			jsonCmd.CarrierStateRef = &jsonStateRef{
-				ID:  cmd.CarrierStateCtx.Current.ID,
-				Rev: cmd.CarrierStateCtx.Current.Rev,
+			jsonCmd.CarrierStateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.CarrierStateCtx),
 			}
 		}
 		if cmd.StackedStateCtx != nil {
-			jsonCmd.StackedStateRef = &jsonStateRef{
-				ID:  cmd.StackedStateCtx.Current.ID,
-				Rev: cmd.StackedStateCtx.Current.Rev,
+			jsonCmd.StackedStateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StackedStateCtx),
 			}
 		}
 		if cmd.Annotation != "" {
@@ -181,15 +175,13 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *UnstackCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.CarrierStateCtx != nil {
-			jsonCmd.CarrierStateRef = &jsonStateRef{
-				ID:  cmd.CarrierStateCtx.Current.ID,
-				Rev: cmd.CarrierStateCtx.Current.Rev,
+			jsonCmd.CarrierStateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.CarrierStateCtx),
 			}
 		}
 		if cmd.UnstackStateCtx != nil {
-			jsonCmd.UnstackStateRef = &jsonStateRef{
-				ID:  cmd.UnstackStateCtx.Current.ID,
-				Rev: cmd.UnstackStateCtx.Current.Rev,
+			jsonCmd.UnstackStateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.UnstackStateCtx),
 			}
 		}
 		if cmd.Annotation != "" {
@@ -200,15 +192,13 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *AttachDataCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 		if cmd.Data != nil {
 			jsonCmd.DataRef = &jsonDataRef{
-				ID:  cmd.Data.ID,
-				Rev: cmd.Data.Rev,
+				Idx: datas.strIdx(cmd.Data),
 			}
 		}
 		if cmd.Alias != "" {
@@ -222,15 +212,13 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *GetDataCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 		if cmd.Data != nil {
 			jsonCmd.DataRef = &jsonDataRef{
-				ID:  cmd.Data.ID,
-				Rev: cmd.Data.Rev,
+				Idx: datas.strIdx(cmd.Data),
 			}
 		}
 		if cmd.Alias != "" {
@@ -248,9 +236,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 			jsonCmd.Rev = &rev
 		}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -261,9 +248,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 			jsonCmd.Labels = &cmd.Labels
 		}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -335,9 +321,8 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 	case *CommitStateCtxCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateRef{
-				ID:  cmd.StateCtx.Current.ID,
-				Rev: cmd.StateCtx.Current.Rev,
+			jsonCmd.StateRef = &jsonStateCtxRef{
+				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
 
@@ -350,7 +335,7 @@ func toJSONCommand(cmd0 Command) (*jsonCommand, error) {
 }
 
 func UnmarshalJSONCommand(data []byte) (Command, error) {
-	jsonRootCmd := &jsonCommand{}
+	jsonRootCmd := &jsonRootCommand{}
 	if err := json.Unmarshal(data, jsonRootCmd); err != nil {
 		return nil, err
 	}
@@ -359,10 +344,9 @@ func UnmarshalJSONCommand(data []byte) (Command, error) {
 	datas := datas(jsonRootCmd.Datas)
 
 	return unmarshalJSONCommand(jsonRootCmd, stateCtxs, datas)
-
 }
 
-func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas datas) (Command, error) {
+func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, datas datas) (Command, error) {
 	switch {
 	case jsonRootCmd.Transit != nil:
 		cmd := &TransitCommand{}
@@ -371,11 +355,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 			cmd.To = *jsonRootCmd.Transit.To
 		}
 		if jsonRootCmd.Transit.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Transit.StateRef.Idx)
 		}
 
 		return cmd, nil
@@ -386,11 +366,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 			cmd.To = *jsonRootCmd.Pause.To
 		}
 		if jsonRootCmd.Pause.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.Pause.StateRef.ID, jsonRootCmd.Pause.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Pause.StateRef.Idx)
 		}
 
 		return cmd, nil
@@ -398,11 +374,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &ResumeCommand{}
 
 		if jsonRootCmd.Resume.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.Resume.StateRef.ID, jsonRootCmd.Resume.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Resume.StateRef.Idx)
 		}
 
 		return cmd, nil
@@ -410,11 +382,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &EndCommand{}
 
 		if jsonRootCmd.End.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.End.StateRef.ID, jsonRootCmd.End.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.End.StateRef.Idx)
 		}
 
 		return cmd, nil
@@ -422,11 +390,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &ExecuteCommand{}
 
 		if jsonRootCmd.Execute.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.Execute.StateRef.ID, jsonRootCmd.Execute.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Execute.StateRef.Idx)
 		}
 
 		return cmd, nil
@@ -434,11 +398,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &DelayCommand{}
 
 		if jsonRootCmd.Delay.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.Delay.StateRef.ID, jsonRootCmd.Delay.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Delay.StateRef.Idx)
 		}
 		if jsonRootCmd.Delay.DelayingState != nil {
 			cmd.DelayingState = *jsonRootCmd.Delay.DelayingState
@@ -471,11 +431,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &NoopCommand{}
 
 		if jsonRootCmd.Noop.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.Noop.StateRef.ID, jsonRootCmd.Noop.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Noop.StateRef.Idx)
 		}
 
 		return cmd, nil
@@ -483,18 +439,10 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &StackCommand{}
 
 		if jsonRootCmd.Stack.CarrierStateRef != nil {
-			cmd.CarrierStateCtx = stateCtxs.find(jsonRootCmd.Stack.CarrierStateRef.ID, jsonRootCmd.Stack.CarrierStateRef.Rev)
-
-			if cmd.CarrierStateCtx == nil {
-				return nil, fmt.Errorf("cannot find CarrierStateCtx for 'CarrierStateRef carrier_state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Stack.CarrierStateRef.ID, jsonRootCmd.Stack.CarrierStateRef.Rev)
-			}
+			cmd.CarrierStateCtx = stateCtxs.findStrIdx(jsonRootCmd.Stack.CarrierStateRef.Idx)
 		}
 		if jsonRootCmd.Stack.StackedStateRef != nil {
-			cmd.StackedStateCtx = stateCtxs.find(jsonRootCmd.Stack.StackedStateRef.ID, jsonRootCmd.Stack.StackedStateRef.Rev)
-
-			if cmd.StackedStateCtx == nil {
-				return nil, fmt.Errorf("cannot find CarrierStateCtx for 'CarrierStateRef carrier_state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Stack.StackedStateRef.ID, jsonRootCmd.Stack.StackedStateRef.Rev)
-			}
+			cmd.StackedStateCtx = stateCtxs.findStrIdx(jsonRootCmd.Stack.StackedStateRef.Idx)
 		}
 		if jsonRootCmd.Stack.Annotation != nil {
 			cmd.Annotation = *jsonRootCmd.Stack.Annotation
@@ -505,18 +453,10 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &UnstackCommand{}
 
 		if jsonRootCmd.Unstack.CarrierStateRef != nil {
-			cmd.CarrierStateCtx = stateCtxs.find(jsonRootCmd.Unstack.CarrierStateRef.ID, jsonRootCmd.Unstack.CarrierStateRef.Rev)
-
-			if cmd.CarrierStateCtx == nil {
-				return nil, fmt.Errorf("cannot find CarrierStateCtx for 'CarrierStateRef carrier_state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Unstack.CarrierStateRef.ID, jsonRootCmd.Unstack.CarrierStateRef.Rev)
-			}
+			cmd.CarrierStateCtx = stateCtxs.findStrIdx(jsonRootCmd.Unstack.CarrierStateRef.Idx)
 		}
 		if jsonRootCmd.Unstack.UnstackStateRef != nil {
-			cmd.UnstackStateCtx = stateCtxs.find(jsonRootCmd.Unstack.UnstackStateRef.ID, jsonRootCmd.Unstack.UnstackStateRef.Rev)
-
-			if cmd.UnstackStateCtx == nil {
-				return nil, fmt.Errorf("cannot find UnstackStateCtx for 'UnstackStateRef unstack_state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Unstack.UnstackStateRef.ID, jsonRootCmd.Unstack.UnstackStateRef.Rev)
-			}
+			cmd.UnstackStateCtx = stateCtxs.findStrIdx(jsonRootCmd.Unstack.UnstackStateRef.Idx)
 		}
 		if jsonRootCmd.Unstack.Annotation != nil {
 			cmd.Annotation = *jsonRootCmd.Unstack.Annotation
@@ -527,18 +467,10 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &AttachDataCommand{}
 
 		if jsonRootCmd.AttachData.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.AttachData.StateRef.ID, jsonRootCmd.AttachData.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.AttachData.StateRef.ID, jsonRootCmd.AttachData.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.AttachData.StateRef.Idx)
 		}
 		if jsonRootCmd.AttachData.DataRef != nil {
-			cmd.Data = datas.find(jsonRootCmd.AttachData.DataRef.ID, jsonRootCmd.AttachData.DataRef.Rev)
-
-			if cmd.Data == nil {
-				return nil, fmt.Errorf("cannot find Data for 'DataRef data_ref = 1;' field with id %q and rev %d", jsonRootCmd.AttachData.DataRef.ID, jsonRootCmd.AttachData.DataRef.Rev)
-			}
+			cmd.Data = datas.findStrIdx(jsonRootCmd.AttachData.DataRef.Idx)
 		}
 		if jsonRootCmd.AttachData.Store != nil {
 			cmd.Store = *jsonRootCmd.AttachData.Store
@@ -552,18 +484,10 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &GetDataCommand{}
 
 		if jsonRootCmd.GetData.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.GetData.StateRef.ID, jsonRootCmd.GetData.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.AttachData.StateRef.ID, jsonRootCmd.AttachData.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.GetData.StateRef.Idx)
 		}
 		if jsonRootCmd.GetData.DataRef != nil {
-			cmd.Data = datas.find(jsonRootCmd.GetData.DataRef.ID, jsonRootCmd.GetData.DataRef.Rev)
-
-			if cmd.Data == nil {
-				return nil, fmt.Errorf("cannot find Data for 'DataRef data_ref = 1;' field with id %q and rev %d", jsonRootCmd.AttachData.DataRef.ID, jsonRootCmd.AttachData.DataRef.Rev)
-			}
+			cmd.Data = datas.findStrIdx(jsonRootCmd.GetData.DataRef.Idx)
 		}
 		if jsonRootCmd.GetData.Alias != nil {
 			cmd.Alias = *jsonRootCmd.GetData.Alias
@@ -574,11 +498,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &GetStateByIDCommand{}
 
 		if jsonRootCmd.GetStateByID.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.GetStateByID.StateRef.ID, jsonRootCmd.GetStateByID.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.AttachData.StateRef.ID, jsonRootCmd.AttachData.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.GetStateByID.StateRef.Idx)
 		}
 		if jsonRootCmd.GetStateByID.ID != nil {
 			cmd.ID = *jsonRootCmd.GetStateByID.ID
@@ -597,11 +517,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &GetStateByLabelsCommand{}
 
 		if jsonRootCmd.GetStateByLabels.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.GetStateByLabels.StateRef.ID, jsonRootCmd.GetStateByLabels.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.AttachData.StateRef.ID, jsonRootCmd.AttachData.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.GetStateByLabels.StateRef.Idx)
 		}
 		if jsonRootCmd.GetStateByLabels.Labels != nil {
 			cmd.Labels = *jsonRootCmd.GetStateByLabels.Labels
@@ -707,11 +623,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 		cmd := &CommitStateCtxCommand{}
 
 		if jsonRootCmd.CommitStateCtx.StateRef != nil {
-			cmd.StateCtx = stateCtxs.find(jsonRootCmd.CommitStateCtx.StateRef.ID, jsonRootCmd.CommitStateCtx.StateRef.Rev)
-
-			if cmd.StateCtx == nil {
-				return nil, fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", jsonRootCmd.Transit.StateRef.ID, jsonRootCmd.Transit.StateRef.Rev)
-			}
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.CommitStateCtx.StateRef.Idx)
 		}
 
 		return cmd, nil
@@ -721,17 +633,15 @@ func unmarshalJSONCommand(jsonRootCmd *jsonCommand, stateCtxs stateCtxs, datas d
 }
 
 type jsonDataRef struct {
-	ID  DataID `json:"id,omitempty"`
-	Rev int64  `json:"rev,omitempty"`
+	Idx string `json:"idx,omitempty"`
 }
 
-type jsonStateRef struct {
-	ID  StateID `json:"id,omitempty"`
-	Rev int64   `json:"rev,omitempty"`
+type jsonStateCtxRef struct {
+	Idx string `json:"idx,omitempty"`
 }
 
-type jsonCommand struct {
-	StateCtxs []*StateCtx `json:"state_ctxs,omitempty"`
+type jsonRootCommand struct {
+	StateCtxs []*StateCtx `json:"stateCtxs,omitempty"`
 	Datas     []*Data     `json:"datas,omitempty"`
 
 	Transit          *jsonGenericCommand          `json:"transit,omitempty"`
@@ -754,20 +664,20 @@ type jsonCommand struct {
 }
 
 type jsonGenericCommand struct {
-	StateRef *jsonStateRef `json:"stateRef,omitempty"`
-	To       *TransitionID `json:"flowId,omitempty"`
+	StateRef *jsonStateCtxRef `json:"stateRef,omitempty"`
+	To       *TransitionID    `json:"flowId,omitempty"`
 
 	DelayingState *State  `json:"delayingState,omitempty"`
 	ExecuteAtSec  *string `json:"executeAtSec,omitempty"`
 	Commit        *bool   `json:"commit,omitempty"`
 
-	Commands []*jsonCommand `json:"commands,omitempty"`
+	Commands []*jsonRootCommand `json:"commands,omitempty"`
 
-	StackedStateRef *jsonStateRef `json:"stackedStateRef,omitempty"`
-	CarrierStateRef *jsonStateRef `json:"carrierStateRef,omitempty"`
-	Annotation      *string       `json:"annotation,omitempty"`
+	StackedStateRef *jsonStateCtxRef `json:"stackedStateRef,omitempty"`
+	CarrierStateRef *jsonStateCtxRef `json:"carrierStateRef,omitempty"`
+	Annotation      *string          `json:"annotation,omitempty"`
 
-	UnstackStateRef *jsonStateRef `json:"unstackStateRef,omitempty"`
+	UnstackStateRef *jsonStateCtxRef `json:"unstackStateRef,omitempty"`
 
 	DataRef *jsonDataRef `json:"dataRef,omitempty"`
 	Alias   *string      `json:"alias,omitempty"`
@@ -806,4 +716,254 @@ type jsonGetDelayedStatesCommand struct {
 type jsonGetDelayedStatesResult struct {
 	DelayedStates *[]DelayedState `json:"delayedStates,omitempty"`
 	More          *bool           `json:"more,omitempty"`
+}
+
+type jsonData struct {
+	ID     *string `json:"id,omitempty"`
+	Rev    *string `json:"rev,omitempty"`
+	Binary *bool   `json:"binary,omitempty"`
+	B      *string `json:"b,omitempty"`
+}
+
+func (jsonData *jsonData) toData(d *Data) error {
+	if jsonData.ID != nil {
+		d.ID = DataID(*jsonData.ID)
+	}
+	if jsonData.Rev != nil && *jsonData.Rev != "" {
+		rev, err := strconv.ParseInt(*jsonData.Rev, 10, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse 'Rev rev = 1;' field: %w", err)
+		}
+		d.Rev = rev
+	}
+	if jsonData.Binary != nil {
+		d.Binary = *jsonData.Binary
+	}
+
+	if jsonData.B != nil {
+		if d.Binary {
+
+			b, err := base64.StdEncoding.DecodeString(*jsonData.B)
+			if err != nil {
+				return err
+			}
+			d.B = b
+		} else {
+			d.B = []byte(*jsonData.B)
+		}
+	}
+	return nil
+}
+
+func (jsonData *jsonData) fromData(d *Data) {
+	if d.ID != "" {
+		id := string(d.ID)
+		jsonData.ID = &id
+	}
+	if d.Rev != 0 {
+		rev := strconv.FormatInt(d.Rev, 10)
+		jsonData.Rev = &rev
+	}
+	if d.Binary {
+		jsonData.Binary = &d.Binary
+	}
+
+	if d.B != nil {
+		var b string
+		if d.Binary {
+			b = base64.StdEncoding.EncodeToString(d.B)
+		} else {
+			b = string(d.B)
+		}
+		jsonData.B = &b
+	}
+	return
+}
+
+type jsonTransition struct {
+	From        *string            `json:"from,omitempty"`
+	To          *string            `json:"to,omitempty"`
+	Annotations *map[string]string `json:"annotations,omitempty"`
+}
+
+func (jsonTs *jsonTransition) fromTransition(ts *Transition) {
+	if ts.From != "" {
+		from := string(ts.From)
+		jsonTs.From = &from
+	}
+	if ts.To != "" {
+		to := string(ts.To)
+		jsonTs.To = &to
+	}
+	if ts.Annotations != nil {
+		jsonTs.Annotations = &ts.Annotations
+	}
+}
+
+func (jsonTs *jsonTransition) toTransition(ts *Transition) {
+	if jsonTs.From != nil {
+		ts.From = TransitionID(*jsonTs.From)
+	}
+	if jsonTs.To != nil {
+		ts.To = TransitionID(*jsonTs.To)
+	}
+	if jsonTs.Annotations != nil {
+		ts.Annotations = *jsonTs.Annotations
+	}
+}
+
+type jsonState struct {
+	ID          *string            `json:"id,omitempty"`
+	Rev         *string            `json:"rev,omitempty"`
+	Annotations *map[string]string `json:"annotations,omitempty"`
+	Labels      *map[string]string `json:"labels,omitempty"`
+
+	CommittedAtUnixMilli *string `json:"committedAtUnixMilli,omitempty"`
+
+	Transition *jsonTransition `json:"transition,omitempty"`
+}
+
+func (jsonS *jsonState) fromState(s State) {
+	if s.ID != "" {
+		id := string(s.ID)
+		jsonS.ID = &id
+	}
+	if s.Rev != 0 {
+		rev := strconv.FormatInt(s.Rev, 10)
+		jsonS.Rev = &rev
+	}
+	if s.Annotations != nil {
+		jsonS.Annotations = &s.Annotations
+	}
+	if s.Labels != nil {
+		jsonS.Labels = &s.Labels
+	}
+	if !s.CommittedAt().IsZero() {
+		committedAt := strconv.FormatInt(s.CommittedAt().UnixMilli(), 10)
+		jsonS.CommittedAtUnixMilli = &committedAt
+	}
+
+	jsonTs := &jsonTransition{}
+	jsonTs.fromTransition(&s.Transition)
+	jsonS.Transition = jsonTs
+}
+
+func (jsonS *jsonState) toState(s *State) error {
+	if jsonS.ID != nil {
+		s.ID = StateID(*jsonS.ID)
+	}
+	if jsonS.Rev != nil && *jsonS.Rev != "" {
+		rev, err := strconv.ParseInt(*jsonS.Rev, 10, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse 'Rev rev = 1;' field: %w", err)
+		}
+		s.Rev = rev
+	}
+	if jsonS.Annotations != nil {
+		s.Annotations = *jsonS.Annotations
+	}
+	if jsonS.Labels != nil {
+		s.Labels = *jsonS.Labels
+	}
+	if jsonS.CommittedAtUnixMilli != nil && *jsonS.CommittedAtUnixMilli != "" {
+		unixMilli, err := strconv.ParseInt(*jsonS.CommittedAtUnixMilli, 10, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse 'CommittedAtUnixMilli committed_at_unix_milli = 1;' field: %w", err)
+		}
+		s.SetCommitedAt(time.UnixMilli(unixMilli))
+	}
+
+	if jsonS.Transition != nil {
+		jsonS.Transition.toTransition(&s.Transition)
+	}
+
+	return nil
+}
+
+type jsonStateCtx struct {
+	Current     *jsonState        `json:"current,omitempty"`
+	Committed   *jsonState        `json:"committed,omitempty"`
+	Transitions []*jsonTransition `json:"transitions,omitempty"`
+}
+
+func (jsonSC *jsonStateCtx) fromStateCtx(s *StateCtx) {
+	jsonSC.Current = &jsonState{}
+	jsonSC.Current.fromState(s.Current)
+
+	if s.Committed.Rev > 0 {
+		jsonSC.Committed = &jsonState{}
+		jsonSC.Committed.fromState(s.Committed)
+	}
+
+	for _, t := range s.Transitions {
+		jsonT := &jsonTransition{}
+		jsonT.fromTransition(&t)
+		jsonSC.Transitions = append(jsonSC.Transitions, jsonT)
+	}
+}
+
+func (jsonSC *jsonStateCtx) toStateCtx(s *StateCtx) error {
+	if jsonSC.Current != nil {
+		if err := jsonSC.Current.toState(&s.Current); err != nil {
+			return fmt.Errorf("cannot convert current state: %w", err)
+		}
+	}
+	if jsonSC.Committed != nil {
+		if err := jsonSC.Committed.toState(&s.Committed); err != nil {
+			return fmt.Errorf("cannot convert committed state: %w", err)
+		}
+	}
+
+	for _, jsonT := range jsonSC.Transitions {
+		t := Transition{}
+		jsonT.toTransition(&t)
+		s.Transitions = append(s.Transitions, t)
+	}
+
+	return nil
+}
+
+type jsonDelayedState struct {
+	State        *jsonState `json:"state,omitempty"`
+	Offset       *string    `json:"offset,omitempty"`
+	ExecuteAtSec *string    `json:"executeAtSec,omitempty"`
+}
+
+func (jsonDS *jsonDelayedState) fromDelayedState(ds *DelayedState) {
+	jsonDS.State = &jsonState{}
+	jsonDS.State.fromState(ds.State)
+	if ds.Offset != 0 {
+		offset := strconv.FormatInt(ds.Offset, 10)
+		jsonDS.Offset = &offset
+	}
+	if !ds.ExecuteAt.IsZero() {
+		execAt := strconv.FormatInt(ds.ExecuteAt.Unix(), 10)
+		jsonDS.ExecuteAtSec = &execAt
+	}
+}
+
+func (jsonDS *jsonDelayedState) toDelayedState(ds *DelayedState) error {
+	if jsonDS.State != nil {
+		if err := jsonDS.State.toState(&ds.State); err != nil {
+			return fmt.Errorf("cannot convert delayed state: %w", err)
+		}
+	}
+
+	if jsonDS.Offset != nil {
+		offset, err := strconv.ParseInt(*jsonDS.Offset, 10, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse 'Offset offset = 1;' field: %w", err)
+		}
+		ds.Offset = offset
+	}
+
+	if jsonDS.ExecuteAtSec != nil && *jsonDS.ExecuteAtSec != "" {
+		execAt, err := strconv.ParseInt(*jsonDS.ExecuteAtSec, 10, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse 'ExecuteAtSec execute_at_sec = 2;' field: %w", err)
+		}
+		ds.ExecuteAt = time.Unix(execAt, 0)
+	}
+
+	return nil
 }

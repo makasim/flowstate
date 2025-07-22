@@ -55,6 +55,11 @@ func HandleGetStateByID(rw http.ResponseWriter, r *http.Request, d flowstate.Dri
 		return true
 	}
 
+	if err := cmd.Prepare(); err != nil {
+		writeInvalidArgumentError(rw, err.Error(), proto)
+		return true
+	}
+
 	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetStateByID(cmd); errors.Is(err, flowstate.ErrNotFound) {
 		writeNotFoundError(rw, err.Error(), proto)
@@ -107,6 +112,8 @@ func HandleGetStates(rw http.ResponseWriter, r *http.Request, d flowstate.Driver
 		return true
 	}
 
+	cmd.Prepare()
+
 	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetStates(cmd); err != nil {
 		writeUnknownError(rw, err.Error(), proto)
@@ -130,6 +137,8 @@ func HandleGetDelayedStates(rw http.ResponseWriter, r *http.Request, d flowstate
 		return true
 	}
 
+	cmd.Prepare()
+
 	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetDelayedStates(cmd); err != nil {
 		writeUnknownError(rw, err.Error(), proto)
@@ -149,6 +158,11 @@ func HandleDelay(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, l 
 
 	cmd, err := readCmd[*flowstate.DelayCommand](r)
 	if err != nil {
+		writeInvalidArgumentError(rw, err.Error(), proto)
+		return true
+	}
+
+	if err := cmd.Prepare(); err != nil {
 		writeInvalidArgumentError(rw, err.Error(), proto)
 		return true
 	}
@@ -205,6 +219,11 @@ func HandleGetData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, 
 		return true
 	}
 
+	if err := cmd.Prepare(); err != nil {
+		writeInvalidArgumentError(rw, err.Error(), proto)
+		return true
+	}
+
 	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetData(cmd); err != nil {
 		writeUnknownError(rw, err.Error(), proto)
@@ -224,6 +243,11 @@ func HandleStoreData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver
 
 	cmd, err := readCmd[*flowstate.AttachDataCommand](r)
 	if err != nil {
+		writeInvalidArgumentError(rw, err.Error(), proto)
+		return true
+	}
+
+	if err := cmd.Prepare(); err != nil {
 		writeInvalidArgumentError(rw, err.Error(), proto)
 		return true
 	}

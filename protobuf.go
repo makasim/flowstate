@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,8 +29,6 @@ func MarshalState(s State, dst []byte) []byte {
 //	 int64 committed_at_unix_milli = 5;
 //	 Transition transition = 6;
 //	}
-//
-// from https://github.com/makasim/flowstatesrv/blob/073eb0c28cbc438104ab700cb89b55c4401d3c19/proto/flowstate/v1/state.proto#L28
 func marshalState(s State, mm *easyproto.MessageMarshaler) {
 	if s.ID != "" {
 		mm.AppendString(1, string(s.ID))
@@ -129,8 +128,6 @@ func MarshalStateCtx(stateCtx *StateCtx, dst []byte) []byte {
 //	 State current = 2;
 //	 repeated Transition transitions = 3;
 //	}
-//
-// from https://github.com/makasim/flowstatesrv/blob/073eb0c28cbc438104ab700cb89b55c4401d3c19/proto/flowstate/v1/state.proto#L22
 func marshalStateCtx(stateCtx *StateCtx, mm *easyproto.MessageMarshaler) {
 	marshalState(stateCtx.Committed, mm.AppendMessage(1))
 	marshalState(stateCtx.Current, mm.AppendMessage(2))
@@ -196,8 +193,6 @@ func MarshalDelayedState(ds DelayedState, dst []byte) []byte {
 //	 int64 offset = 2;
 //	 int64 execute_at_sec = 3;
 //	}
-//
-// from https://github.com/makasim/flowstatesrv/blob/eeac827d8c3a935bb49393bb552091839b9cd438/proto/flowstate/v1/state.proto#L37
 func marshalDelayedState(ds DelayedState, mm *easyproto.MessageMarshaler) {
 	marshalState(ds.State, mm.AppendMessage(1))
 
@@ -260,8 +255,6 @@ func MarshalTransition(ts Transition, dst []byte) []byte {
 //	 string to = 2;
 //	 map<string, string> annotations = 3;
 //	}
-//
-// from https://github.com/makasim/flowstatesrv/blob/main/proto/flowstate/v1/state.proto#L37
 func marshalTransition(ts Transition, mm *easyproto.MessageMarshaler) {
 	if ts.From != "" {
 		mm.AppendString(1, string(ts.From))
@@ -328,8 +321,6 @@ func MarshalData(d *Data, dst []byte) []byte {
 //	 bool binary = 3;
 //	 string b = 4;
 //	}
-//
-// https://github.com/makasim/flowstatesrv/blob/eeac827d8c3a935bb49393bb552091839b9cd438/proto/flowstate/v1/state.proto#L5C1-L10C2
 func marshalData(d *Data, mm *easyproto.MessageMarshaler) {
 	if d.ID != "" {
 		mm.AppendString(1, string(d.ID))
@@ -410,7 +401,22 @@ func MarshalCommand(cmd Command, dst []byte) []byte {
 	m := mp.Get()
 	defer mp.Put(m)
 
-	marshalCommand(cmd, false, m.MessageMarshaler())
+	mm := m.MessageMarshaler()
+
+	stateCtxs := commandStateCtxs(cmd)
+	if len(stateCtxs) > 0 {
+		for _, stateCtx := range stateCtxs {
+			marshalStateCtx(stateCtx, mm.AppendMessage(1))
+		}
+	}
+	datas := commandDatas(cmd)
+	if len(datas) > 0 {
+		for _, data := range datas {
+			marshalData(data, mm.AppendMessage(2))
+		}
+	}
+
+	marshalCommand(cmd, stateCtxs, datas, mm)
 
 	return m.Marshal(dst)
 }
@@ -437,215 +443,193 @@ func MarshalCommand(cmd Command, dst []byte) []byte {
 //	 GetDelayedStatesCommand get_delayed_states = 20;
 //	 CommitStateCtxCommand commit_state = 21;
 //	}
-func marshalCommand(cmd0 Command, sub bool, mm *easyproto.MessageMarshaler) {
-	if !sub {
-		if stateCtxs := commandStateCtxs(cmd0); len(stateCtxs) > 0 {
-			for _, stateCtx := range stateCtxs {
-				marshalStateCtx(stateCtx, mm.AppendMessage(1))
-			}
-		}
-		if datas := commandDatas(cmd0); len(datas) > 0 {
-			for _, data := range datas {
-				marshalData(data, mm.AppendMessage(2))
-			}
-		}
-	}
-
+func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyproto.MessageMarshaler) {
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
 		//	message TransitCommand {
-		//	 StateRef state_ref = 1;
-		//	 string flow_id = 2;
+		//	 StateCtxRef state_ref = 1;
+		//	 string to = 2;
 		//	}
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
+		cmdMM := mm.AppendMessage(3)
 
-			if cmd.To != "" {
-				mm.AppendString(2, string(cmd.To))
-			}
-		}(mm.AppendMessage(3))
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
+
+		if cmd.To != "" {
+			cmdMM.AppendString(2, string(cmd.To))
+		}
 	case *PauseCommand:
 		//	message PauseCommand {
-		//	 StateRef state_ref = 1;
-		//	 string flow_id = 2;
+		//	 StateCtxRef state_ref = 1;
+		//	 string to = 2;
 		//	}
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
+		cmdMM := mm.AppendMessage(4)
 
-			if cmd.To != "" {
-				mm.AppendString(2, string(cmd.To))
-			}
-		}(mm.AppendMessage(4))
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
+
+		if cmd.To != "" {
+			cmdMM.AppendString(2, string(cmd.To))
+		}
 	case *ResumeCommand:
 		//	message ResumeCommand {
-		//	 StateRef state_ref = 1;
+		//	 StateCtxRef state_ref = 1;
 		//	}
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
-		}(mm.AppendMessage(5))
+		cmdMM := mm.AppendMessage(5)
+
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
 	case *EndCommand:
 		//	message EndCommand {
-		//	 StateRef state_ref = 1;
+		//	 StateCtxRef state_ref = 1;
 		//	}
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
-		}(mm.AppendMessage(6))
+		cmdMM := mm.AppendMessage(6)
+
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
 	case *ExecuteCommand:
 		//	message ExecuteCommand {
-		//	 StateRef state_ref = 1;
+		//	 StateCtxRef state_ref = 1;
 		//	}
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
-		}(mm.AppendMessage(7))
+		cmdMM := mm.AppendMessage(7)
+
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
 	case *DelayCommand:
 		//	message DelayCommand {
-		//	 StateRef state_ref = 1;
+		//	 StateCtxRef state_ref = 1;
 		//	 State delaying_state = 2;
 		//	 int64 execute_at_sec = 3;
 		//	 bool commit = 4;
 		//	}
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
-			marshalState(cmd.DelayingState, mm.AppendMessage(2))
-			if !cmd.ExecuteAt.IsZero() {
-				mm.AppendInt64(3, cmd.ExecuteAt.Unix())
-			}
-			if cmd.Commit {
-				mm.AppendBool(4, true)
-			}
-		}(mm.AppendMessage(8))
+		cmdMM := mm.AppendMessage(8)
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
+		marshalState(cmd.DelayingState, cmdMM.AppendMessage(2))
+		if !cmd.ExecuteAt.IsZero() {
+			cmdMM.AppendInt64(3, cmd.ExecuteAt.Unix())
+		}
+		if cmd.Commit {
+			cmdMM.AppendBool(4, true)
+		}
 	case *CommitCommand:
 		// message CommitCommand {
 		//  repeated Command commands = 1;
 		// }
-		func(mm *easyproto.MessageMarshaler) {
-			for _, subCmd := range cmd.Commands {
-				marshalCommand(subCmd, true, mm.AppendMessage(1))
-			}
-		}(mm.AppendMessage(9))
+		cmdMM := mm.AppendMessage(9)
+		for _, subCmd := range cmd.Commands {
+			marshalCommand(subCmd, stateCtxs, datas, cmdMM.AppendMessage(1))
+		}
 	case *NoopCommand:
 		//	message NoopCommand {
-		//	 StateRef state_ref = 1;
+		//	 StateCtxRef state_ref = 1;
 		//	}
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
-		}(mm.AppendMessage(10))
+		cmdMM := mm.AppendMessage(10)
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
 	case *StackCommand:
 		// message StackCommand {
-		//  StateRef carrier_state_ref = 1;
-		//  StateRef stack_state_ref = 2;
+		//  StateCtxRef carrier_state_ref = 1;
+		//  StateCtxRef stack_state_ref = 2;
 		//  string annotation = 3;
 		// }
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.CarrierStateCtx != nil {
-				marshalStateRef(cmd.CarrierStateCtx.Current, mm.AppendMessage(1))
-			}
-			if cmd.StackedStateCtx != nil {
-				marshalStateRef(cmd.StackedStateCtx.Current, mm.AppendMessage(2))
-			}
-			if cmd.Annotation != "" {
-				mm.AppendString(3, cmd.Annotation)
-			}
-		}(mm.AppendMessage(11))
+		cmdMM := mm.AppendMessage(11)
+		if cmd.CarrierStateCtx != nil {
+			marshalStateCtxRef(cmd.CarrierStateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
+		if cmd.StackedStateCtx != nil {
+			marshalStateCtxRef(cmd.StackedStateCtx, stateCtxs, cmdMM.AppendMessage(2))
+		}
+		if cmd.Annotation != "" {
+			cmdMM.AppendString(3, cmd.Annotation)
+		}
 	case *UnstackCommand:
 		// message UnstackCommand {
-		//  StateRef carrier_state_ref = 1;
-		//  StateRef unstack_state_ref = 2;
+		//  StateCtxRef carrier_state_ref = 1;
+		//  StateCtxRef unstack_state_ref = 2;
 		//  string annotation = 3;
 		// }
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.CarrierStateCtx != nil {
-				marshalStateRef(cmd.CarrierStateCtx.Current, mm.AppendMessage(1))
-			}
-			if cmd.UnstackStateCtx != nil {
-				marshalStateRef(cmd.UnstackStateCtx.Current, mm.AppendMessage(2))
-			}
-			if cmd.Annotation != "" {
-				mm.AppendString(3, cmd.Annotation)
-			}
-		}(mm.AppendMessage(12))
+		cmdMM := mm.AppendMessage(12)
+		if cmd.CarrierStateCtx != nil {
+			marshalStateCtxRef(cmd.CarrierStateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
+		if cmd.UnstackStateCtx != nil {
+			marshalStateCtxRef(cmd.UnstackStateCtx, stateCtxs, cmdMM.AppendMessage(2))
+		}
+		if cmd.Annotation != "" {
+			cmdMM.AppendString(3, cmd.Annotation)
+		}
 	case *AttachDataCommand:
 		// message AttachDataCommand {
-		//  StateRef state_ref = 1;
+		//  StateCtxRef state_ref = 1;
 		//  DataRef data_ref = 2;
 		//  string alias = 3;
 		//  bool store = 4;
 		// }
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
-			if cmd.Data != nil {
-				marshalDataRef(cmd.Data, mm.AppendMessage(2))
-			}
-			if cmd.Alias != "" {
-				mm.AppendString(3, cmd.Alias)
-			}
-			if cmd.Store {
-				mm.AppendBool(4, true)
-			}
-		}(mm.AppendMessage(13))
+		cmdMM := mm.AppendMessage(13)
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
+		if cmd.Data != nil {
+			marshalDataRef(cmd.Data, datas, cmdMM.AppendMessage(2))
+		}
+		if cmd.Alias != "" {
+			cmdMM.AppendString(3, cmd.Alias)
+		}
+		if cmd.Store {
+			cmdMM.AppendBool(4, true)
+		}
 	case *GetDataCommand:
 		// message GetDataCommand {
-		//  StateRef state_ref = 1;
+		//  StateCtxRef state_ref = 1;
 		//  DataRef data_ref = 2;
 		//  string alias = 3;
 		//}
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
-			if cmd.Data != nil {
-				marshalDataRef(cmd.Data, mm.AppendMessage(2))
-			}
-			if cmd.Alias != "" {
-				mm.AppendString(3, cmd.Alias)
-			}
-		}(mm.AppendMessage(14))
+		cmdMM := mm.AppendMessage(14)
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
+		if cmd.Data != nil {
+			marshalDataRef(cmd.Data, datas, cmdMM.AppendMessage(2))
+		}
+		if cmd.Alias != "" {
+			cmdMM.AppendString(3, cmd.Alias)
+		}
 	case *GetStateByIDCommand:
 		// message GetStateByIDCommand {
 		//  string id = 1;
 		//  int64 rev = 2;
-		//  StateRef state_ref = 3;
+		//  StateCtxRef state_ref = 3;
 		// }
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.ID != "" {
-				mm.AppendString(1, string(cmd.ID))
-			}
-			if cmd.Rev != 0 {
-				mm.AppendInt64(2, cmd.Rev)
-			}
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(3))
-			}
-		}(mm.AppendMessage(17))
+		cmdMM := mm.AppendMessage(17)
+		if cmd.ID != "" {
+			cmdMM.AppendString(1, string(cmd.ID))
+		}
+		if cmd.Rev != 0 {
+			cmdMM.AppendInt64(2, cmd.Rev)
+		}
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(3))
+		}
 	case *GetStateByLabelsCommand:
 		// message GetStateByLabelsCommand {
 		//  map<string, string> labels = 1;
-		//  StateRef state_ref = 2;
+		//  StateCtxRef state_ref = 2;
 		//}
-		func(mm *easyproto.MessageMarshaler) {
-			if len(cmd.Labels) > 0 {
-				marshalStringMap(cmd.Labels, 1, mm)
-			}
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(2))
-			}
-		}(mm.AppendMessage(18))
+		cmdMM := mm.AppendMessage(18)
+		if len(cmd.Labels) > 0 {
+			marshalStringMap(cmd.Labels, 1, cmdMM)
+		}
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(2))
+		}
 	case *GetStatesCommand:
 		// message GetStatesCommand {
 		//  message Labels {
@@ -665,36 +649,35 @@ func marshalCommand(cmd0 Command, sub bool, mm *easyproto.MessageMarshaler) {
 		//
 		//  Result result = 6;
 		// }
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.SinceRev != 0 {
-				mm.AppendInt64(1, cmd.SinceRev)
+		cmdMM := mm.AppendMessage(19)
+		if cmd.SinceRev != 0 {
+			cmdMM.AppendInt64(1, cmd.SinceRev)
+		}
+		if !cmd.SinceTime.IsZero() {
+			cmdMM.AppendInt64(2, cmd.SinceTime.UnixMilli())
+		}
+		if len(cmd.Labels) > 0 {
+			for _, labels := range cmd.Labels {
+				lMM := cmdMM.AppendMessage(3)
+				marshalStringMap(labels, 1, lMM)
 			}
-			if !cmd.SinceTime.IsZero() {
-				mm.AppendInt64(2, cmd.SinceTime.UnixMilli())
-			}
-			if len(cmd.Labels) > 0 {
-				for _, labels := range cmd.Labels {
-					lMM := mm.AppendMessage(3)
-					marshalStringMap(labels, 1, lMM)
-				}
-			}
-			if cmd.LatestOnly {
-				mm.AppendBool(4, true)
-			}
-			if cmd.Limit != 0 {
-				mm.AppendInt64(5, int64(cmd.Limit))
-			}
+		}
+		if cmd.LatestOnly {
+			cmdMM.AppendBool(4, true)
+		}
+		if cmd.Limit != 0 {
+			cmdMM.AppendInt64(5, int64(cmd.Limit))
+		}
 
-			if cmd.Result != nil {
-				resultMM := mm.AppendMessage(6)
-				for _, state := range cmd.Result.States {
-					marshalState(state, resultMM.AppendMessage(1))
-				}
-				if cmd.Result.More {
-					resultMM.AppendBool(2, true)
-				}
+		if cmd.Result != nil {
+			resultMM := cmdMM.AppendMessage(6)
+			for _, state := range cmd.Result.States {
+				marshalState(state, resultMM.AppendMessage(1))
 			}
-		}(mm.AppendMessage(19))
+			if cmd.Result.More {
+				resultMM.AppendBool(2, true)
+			}
+		}
 	case *GetDelayedStatesCommand:
 		// message GetDelayedStatesCommand {
 		//  message Result {
@@ -709,39 +692,37 @@ func marshalCommand(cmd0 Command, sub bool, mm *easyproto.MessageMarshaler) {
 		//
 		//  Result result = 5;
 		// }
-		func(mm *easyproto.MessageMarshaler) {
-			if !cmd.Since.IsZero() {
-				mm.AppendInt64(1, cmd.Since.Unix())
-			}
-			if !cmd.Until.IsZero() {
-				mm.AppendInt64(2, cmd.Until.Unix())
-			}
-			if cmd.Offset != 0 {
-				mm.AppendInt64(3, cmd.Offset)
-			}
-			if cmd.Limit != 0 {
-				mm.AppendInt64(4, int64(cmd.Limit))
-			}
+		cmdMM := mm.AppendMessage(20)
+		if !cmd.Since.IsZero() {
+			cmdMM.AppendInt64(1, cmd.Since.Unix())
+		}
+		if !cmd.Until.IsZero() {
+			cmdMM.AppendInt64(2, cmd.Until.Unix())
+		}
+		if cmd.Offset != 0 {
+			cmdMM.AppendInt64(3, cmd.Offset)
+		}
+		if cmd.Limit != 0 {
+			cmdMM.AppendInt64(4, int64(cmd.Limit))
+		}
 
-			if cmd.Result != nil {
-				resultMM := mm.AppendMessage(5)
-				for _, delayedState := range cmd.Result.States {
-					marshalDelayedState(delayedState, resultMM.AppendMessage(1))
-				}
-				if cmd.Result.More {
-					resultMM.AppendBool(2, true)
-				}
+		if cmd.Result != nil {
+			resultMM := cmdMM.AppendMessage(5)
+			for _, delayedState := range cmd.Result.States {
+				marshalDelayedState(delayedState, resultMM.AppendMessage(1))
 			}
-		}(mm.AppendMessage(20))
+			if cmd.Result.More {
+				resultMM.AppendBool(2, true)
+			}
+		}
 	case *CommitStateCtxCommand:
 		// message CommitStateCtxCommand {
-		//   StateRef state_ref = 1;
+		//   StateCtxRef state_ref = 1;
 		// }
-		func(mm *easyproto.MessageMarshaler) {
-			if cmd.StateCtx != nil {
-				marshalStateRef(cmd.StateCtx.Current, mm.AppendMessage(1))
-			}
-		}(mm.AppendMessage(21))
+		cmdMM := mm.AppendMessage(21)
+		if cmd.StateCtx != nil {
+			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
+		}
 	default:
 		// TODO: return an error on unknown command ??
 		// TODO: return an error if no command specified ??
@@ -1017,18 +998,14 @@ func unmarshalTransitCommand(src []byte, cmd *TransitCommand, stateCtxs stateCtx
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		case 2:
 			v, ok := fc.String()
 			if !ok {
@@ -1054,18 +1031,14 @@ func unmarshalPauseCommand(src []byte, cmd *PauseCommand, stateCtxs stateCtxs) (
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		case 2:
 			v, ok := fc.String()
 			if !ok {
@@ -1091,18 +1064,14 @@ func unmarshalResumeCommand(src []byte, cmd *ResumeCommand, stateCtxs stateCtxs)
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		}
 	}
 
@@ -1121,18 +1090,14 @@ func unmarshalEndCommand(src []byte, cmd *EndCommand, stateCtxs stateCtxs) (err 
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		}
 	}
 
@@ -1151,18 +1116,14 @@ func unmarshalExecuteCommand(src []byte, cmd *ExecuteCommand, stateCtxs stateCtx
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		}
 	}
 
@@ -1181,18 +1142,14 @@ func unmarshalDelayCommand(src []byte, cmd *DelayCommand, stateCtxs stateCtxs) (
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
@@ -1238,7 +1195,7 @@ func unmarshalCommitCommand(src []byte, cmd *CommitCommand, stateCtxs stateCtxs,
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
 			sumCmd, err := unmarshalCommand(data, stateCtxs, datas)
@@ -1265,18 +1222,14 @@ func unmarshalNoopCommand(src []byte, cmd *NoopCommand, stateCtxs stateCtxs) (er
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		}
 	}
 
@@ -1292,8 +1245,8 @@ func unmarshalStackCommand(src []byte, cmd *StackCommand, stateCtxs stateCtxs) (
 		}
 
 		// message StackCommand {
-		//  StateRef carrier_state_ref = 1;
-		//  StateRef stack_state_ref = 2;
+		//  StateCtxRef carrier_state_ref = 1;
+		//  StateCtxRef stack_state_ref = 2;
 		//  string annotation = 3;
 		// }
 
@@ -1301,33 +1254,25 @@ func unmarshalStackCommand(src []byte, cmd *StackCommand, stateCtxs stateCtxs) (
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef carrier_state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef carrier_state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef carrier_state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef carrier_state_ref = 1;' field: %w", err)
 			}
-
-			cmd.CarrierStateCtx = stateCtxs.find(id, rev)
-			if cmd.CarrierStateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef carrier_state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.CarrierStateCtx = stateCtx
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef stack_state_ref = 2;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef stack_state_ref = 2;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef stack_state_ref = 2;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef stack_state_ref = 2;' field: %w", err)
 			}
-
-			cmd.StackedStateCtx = stateCtxs.find(id, rev)
-			if cmd.StackedStateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef stack_state_ref = 2;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StackedStateCtx = stateCtx
 		case 3:
 			v, ok := fc.String()
 			if !ok {
@@ -1349,8 +1294,8 @@ func unmarshalUnstackCommand(src []byte, cmd *UnstackCommand, stateCtxs stateCtx
 		}
 
 		// message UnstackCommand {
-		//  StateRef carrier_state_ref = 1;
-		//  StateRef unstack_state_ref = 2;
+		//  StateCtxRef carrier_state_ref = 1;
+		//  StateCtxRef unstack_state_ref = 2;
 		//  string annotation = 3;
 		// }
 
@@ -1358,33 +1303,25 @@ func unmarshalUnstackCommand(src []byte, cmd *UnstackCommand, stateCtxs stateCtx
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef carrier_state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef carrier_state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef carrier_state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef carrier_state_ref = 1;' field: %w", err)
 			}
-
-			cmd.CarrierStateCtx = stateCtxs.find(id, rev)
-			if cmd.CarrierStateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef carrier_state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.CarrierStateCtx = stateCtx
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef unstack_state_ref = 2;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef unstack_state_ref = 2;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef unstack_state_ref = 2;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef unstack_state_ref = 2;' field: %w", err)
 			}
-
-			cmd.UnstackStateCtx = stateCtxs.find(id, rev)
-			if cmd.UnstackStateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef unstack_state_ref = 2;' field with id %q and rev %d", id, rev)
-			}
+			cmd.UnstackStateCtx = stateCtx
 		case 3:
 			v, ok := fc.String()
 			if !ok {
@@ -1406,7 +1343,7 @@ func unmarshalAttachDataCommand(src []byte, cmd *AttachDataCommand, stateCtxs st
 		}
 
 		// message AttachDataCommand {
-		//  StateRef state_ref = 1;
+		//  StateCtxRef state_ref = 1;
 		//  DataRef data_ref = 2;
 		//  string alias = 3;
 		//  bool store = 4;
@@ -1416,33 +1353,25 @@ func unmarshalAttachDataCommand(src []byte, cmd *AttachDataCommand, stateCtxs st
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read 'DataRef data_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalDataRef(data)
+			d, err := unmarshalDataRef(data, datas)
 			if err != nil {
 				return fmt.Errorf("cannot read 'DataRef data_ref = 1;' field: %w", err)
 			}
-
-			cmd.Data = datas.find(id, rev)
-			if cmd.Data == nil {
-				return fmt.Errorf("cannot find StateCtx for 'DataRef data_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.Data = d
 		case 3:
 			v, ok := fc.String()
 			if !ok {
@@ -1471,7 +1400,7 @@ func unmarshalGetDataCommand(src []byte, cmd *GetDataCommand, stateCtxs stateCtx
 		}
 
 		// message GetDataCommand {
-		//  StateRef state_ref = 1;
+		//  StateCtxRef state_ref = 1;
 		//  DataRef data_ref = 2;
 		//  string alias = 3;
 		//}
@@ -1480,33 +1409,25 @@ func unmarshalGetDataCommand(src []byte, cmd *GetDataCommand, stateCtxs stateCtx
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read 'DataRef data_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalDataRef(data)
+			d, err := unmarshalDataRef(data, datas)
 			if err != nil {
 				return fmt.Errorf("cannot read 'DataRef data_ref = 1;' field: %w", err)
 			}
-
-			cmd.Data = datas.find(id, rev)
-			if cmd.Data == nil {
-				return fmt.Errorf("cannot find StateCtx for 'DataRef data_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.Data = d
 		case 3:
 			v, ok := fc.String()
 			if !ok {
@@ -1531,7 +1452,7 @@ func unmarshalGetStateByIDCommand(src []byte, cmd *GetStateByIDCommand, stateCtx
 		// message GetStateByIDCommand {
 		//  string id = 1;
 		//  int64 rev = 2;
-		//  StateRef state_ref = 3;
+		//  StateCtxRef state_ref = 3;
 		// }
 
 		switch fc.FieldNum {
@@ -1550,18 +1471,14 @@ func unmarshalGetStateByIDCommand(src []byte, cmd *GetStateByIDCommand, stateCtx
 		case 3:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 3;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 3;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 3;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 3;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 3;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		}
 	}
 
@@ -1578,7 +1495,7 @@ func unmarshalGetStateByLabelsCommand(src []byte, cmd *GetStateByLabelsCommand, 
 
 		// message GetStateByLabelsCommand {
 		//  map<string, string> labels = 1;
-		//  StateRef state_ref = 2;
+		//  StateCtxRef state_ref = 2;
 		//}
 
 		switch fc.FieldNum {
@@ -1597,18 +1514,14 @@ func unmarshalGetStateByLabelsCommand(src []byte, cmd *GetStateByLabelsCommand, 
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 2;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 2;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 2;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 2;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 2;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		}
 	}
 
@@ -1836,112 +1749,80 @@ func unmarshalCommitStateCtxCommand(src []byte, cmd *CommitStateCtxCommand, stat
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			id, rev, err := unmarshalStateRef(data)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'StateRef state_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-
-			cmd.StateCtx = stateCtxs.find(id, rev)
-			if cmd.StateCtx == nil {
-				return fmt.Errorf("cannot find StateCtx for 'StateRef state_ref = 1;' field with id %q and rev %d", id, rev)
-			}
+			cmd.StateCtx = stateCtx
 		}
 	}
 
 	return nil
 }
 
-//	message StateRef {
-//	 string id = 1;
-//	 int64 rev = 2;
+//	message StateCtxRef {
+//	 int64 idx = 1;
 //	}
-//
-// from https://github.com/makasim/flowstatesrv/blob/eeac827d8c3a935bb49393bb552091839b9cd438/proto/flowstate/v1/state.proto#L17
-func marshalStateRef(state State, mm *easyproto.MessageMarshaler) {
-	if state.ID != "" {
-		mm.AppendString(1, string(state.ID))
-	}
-	if state.Rev != 0 {
-		mm.AppendInt64(2, state.Rev)
-	}
+func marshalStateCtxRef(stateCtx *StateCtx, stateCtxs stateCtxs, mm *easyproto.MessageMarshaler) {
+	mm.AppendInt64(1, stateCtxs.idx(stateCtx))
 }
 
-func unmarshalStateRef(src []byte) (StateID, int64, error) {
+func unmarshalStateCtxRef(src []byte, stateCtxs stateCtxs) (*StateCtx, error) {
 	var fc easyproto.FieldContext
 
-	var id StateID
-	var rev int64
 	var err error
+	idx := int64(-1)
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return "", 0, fmt.Errorf("cannot read next field: %w", err)
+			return nil, fmt.Errorf("cannot read next field: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:
-			v, ok := fc.String()
+			v, ok := fc.Int64()
 			if !ok {
-				return "", 0, fmt.Errorf("cannot read 'string id = 1;' field")
+				return nil, fmt.Errorf("cannot read 'int idx = 1;' field")
 			}
-			id = StateID(strings.Clone(v))
-		case 2:
-			value, ok := fc.Int64()
-			if !ok {
-				return "", 0, fmt.Errorf("cannot read 'int64 rev = 2;' field")
-			}
-			rev = value
+			idx = v
+			break
 		}
 	}
 
-	return id, rev, nil
+	return stateCtxs.find(idx), nil
 }
 
 //	message DataRef {
-//	 string id = 1;
-//	 int64 rev = 2;
+//	 int64 idx = 1;
 //	}
-//
-// from https://github.com/makasim/flowstatesrv/blob/eeac827d8c3a935bb49393bb552091839b9cd438/proto/flowstate/v1/state.proto#L12
-func marshalDataRef(data *Data, mm *easyproto.MessageMarshaler) {
-	if data.ID != "" {
-		mm.AppendString(1, string(data.ID))
-	}
-	if data.Rev != 0 {
-		mm.AppendInt64(2, data.Rev)
-	}
+func marshalDataRef(data *Data, datas datas, mm *easyproto.MessageMarshaler) {
+	mm.AppendInt64(1, datas.idx(data))
 }
 
-func unmarshalDataRef(src []byte) (DataID, int64, error) {
+func unmarshalDataRef(src []byte, datas datas) (*Data, error) {
 	var fc easyproto.FieldContext
 
-	var id DataID
-	var rev int64
 	var err error
+	idx := int64(-1)
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return "", 0, fmt.Errorf("cannot read next field: %w", err)
+			return nil, fmt.Errorf("cannot read next field: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:
-			v, ok := fc.String()
+			v, ok := fc.Int64()
 			if !ok {
-				return "", 0, fmt.Errorf("cannot read 'string id = 1;' field")
+				return nil, fmt.Errorf("cannot read 'int64 idx = 1;' field")
 			}
-			id = DataID(strings.Clone(v))
-		case 2:
-			value, ok := fc.Int64()
-			if !ok {
-				return "", 0, fmt.Errorf("cannot read 'int64 rev = 2;' field")
-			}
-			rev = value
+			idx = v
+			break
 		}
 	}
 
-	return id, rev, nil
+	return datas.find(idx), nil
 }
 
 func commandStateCtxs(cmd0 Command) []*StateCtx {
@@ -2019,7 +1900,7 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 	}
 
 	stateCtxs = slices.CompactFunc(stateCtxs, func(l, r *StateCtx) bool {
-		return l.Current.ID == r.Current.ID && l.Current.Rev == r.Current.Rev
+		return l == r
 	})
 
 	return stateCtxs
@@ -2046,7 +1927,7 @@ func commandDatas(cmd0 Command) []*Data {
 	}
 
 	datas = slices.CompactFunc(datas, func(l, r *Data) bool {
-		return l.ID == r.ID && l.Rev == r.Rev
+		return l == r
 	})
 
 	return datas
@@ -2097,22 +1978,64 @@ func marshalStringMap(m map[string]string, fieldNum uint32, mm *easyproto.Messag
 
 type stateCtxs []*StateCtx
 
-func (s stateCtxs) find(id StateID, rev int64) *StateCtx {
-	for _, stateCtx := range s {
-		if stateCtx.Current.ID == id && stateCtx.Current.Rev == rev {
-			return stateCtx
+func (s stateCtxs) find(idx int64) *StateCtx {
+	return s[idx]
+}
+
+func (s stateCtxs) findStrIdx(strIdx string) *StateCtx {
+	if strIdx == "" {
+		return s.find(0)
+	}
+
+	idx, err := strconv.ParseInt(strIdx, 10, 64)
+	if err != nil {
+		idx = -1
+	}
+	return s.find(idx)
+}
+
+func (s stateCtxs) idx(stateCtx *StateCtx) int64 {
+	for i, ctx := range s {
+		if ctx == stateCtx {
+			return int64(i)
 		}
 	}
-	return nil
+
+	panic(fmt.Errorf("cannot find idx for stateCtx %+v", stateCtx))
+}
+
+func (s stateCtxs) strIdx(stateCtx *StateCtx) string {
+	return strconv.FormatInt(s.idx(stateCtx), 10)
 }
 
 type datas []*Data
 
-func (d datas) find(id DataID, rev int64) *Data {
-	for _, data := range d {
-		if data.ID == id && data.Rev == rev {
-			return data
+func (d datas) find(idx int64) *Data {
+	return d[idx]
+}
+
+func (d datas) findStrIdx(strIdx string) *Data {
+	if strIdx == "" {
+		return d.find(0)
+	}
+
+	idx, err := strconv.ParseInt(strIdx, 10, 64)
+	if err != nil {
+		idx = -1
+	}
+	return d.find(idx)
+}
+
+func (d datas) idx(data *Data) int64 {
+	for i, data1 := range d {
+		if data1 == data {
+			return int64(i)
 		}
 	}
-	return nil
+
+	panic(fmt.Errorf("cannot find idx for data %+v", data))
+}
+
+func (d datas) strIdx(data *Data) string {
+	return strconv.FormatInt(d.idx(data), 10)
 }

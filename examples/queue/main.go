@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/examples"
@@ -40,7 +41,7 @@ func main() {
 		examples.HandleError(err)
 	}
 
-	w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
+	w := flowstate.NewWatcher(e, time.Second, flowstate.GetStatesByLabels(map[string]string{
 		"queue": "example",
 	}))
 

@@ -269,8 +269,6 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 			t.Fatalf("cannot marshal flowstate.Command: %v", err)
 		}
 
-		//log.Printf("%T: %s", exp, string(b))
-
 		act, err := flowstate.UnmarshalJSONCommand(b)
 		if err != nil {
 			t.Fatalf("cannot unmarshal flowstate.Command: %v", err)
@@ -610,17 +608,17 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 				{
 					State: flowstate.State{
 						ID:  "theID1",
-						Rev: 123,
+						Rev: 678,
 					},
-					Offset:    456,
+					Offset:    789,
 					ExecuteAt: time.Unix(1234, 0),
 				},
 				{
 					State: flowstate.State{
 						ID:  "theID2",
-						Rev: 234,
+						Rev: 890,
 					},
-					Offset:    567,
+					Offset:    901,
 					ExecuteAt: time.Unix(12345, 0),
 				},
 			},
@@ -638,4 +636,75 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestMarshalUnmarshalJSONCommandPreserveRef(t *testing.T) {
+	stateCtx := &flowstate.StateCtx{
+		Current: flowstate.State{
+			ID:  "theID",
+			Rev: 123,
+		},
+	}
+
+	exp := flowstate.Commit(
+		flowstate.Transit(stateCtx, `foo`),
+		flowstate.Pause(stateCtx),
+		flowstate.Resume(stateCtx),
+		flowstate.End(stateCtx),
+		flowstate.Stack(stateCtx, stateCtx, `foo`),
+		flowstate.Unstack(stateCtx, stateCtx, `foo`),
+
+		// TODO: add more commands to test
+	)
+	b, err := flowstate.MarshalJSONCommand(exp)
+	if err != nil {
+		t.Fatalf("cannot marshal flowstate.Command: %v", err)
+	}
+
+	act, err := flowstate.UnmarshalJSONCommand(b)
+	if err != nil {
+		t.Fatalf("cannot unmarshal flowstate.Command: %v", err)
+	}
+
+	if !reflect.DeepEqual(exp, act) {
+		t.Fatalf("expected: %+v, got: %+v", exp, act)
+	}
+
+	actCommit := act.(*flowstate.CommitCommand)
+	actTransit := actCommit.Commands[0].(*flowstate.TransitCommand)
+	actStateCtx := actTransit.StateCtx
+	if actStateCtx == nil {
+		t.Fatal("expected non-nil StateCtx in TransitCommand")
+	}
+
+	actPause := actCommit.Commands[1].(*flowstate.PauseCommand)
+	if actPause.StateCtx != actStateCtx {
+		t.Fatalf("expected StateCtx in PauseCommand to be the same ref stateCtx")
+	}
+
+	actResume := actCommit.Commands[2].(*flowstate.ResumeCommand)
+	if actResume.StateCtx != actStateCtx {
+		t.Fatalf("expected StateCtx in ResumeCommand to be the same ref stateCtx")
+	}
+
+	actEnd := actCommit.Commands[3].(*flowstate.EndCommand)
+	if actEnd.StateCtx != actStateCtx {
+		t.Fatalf("expected StateCtx in EndCommand to be the same ref stateCtx")
+	}
+
+	actStack := actCommit.Commands[4].(*flowstate.StackCommand)
+	if actStack.CarrierStateCtx != actStateCtx {
+		t.Fatalf("expected StateCtx in StackCommand to be the same ref stateCtx")
+	}
+	if actStack.StackedStateCtx != actStateCtx {
+		t.Fatalf("expected StateCtx in StackCommand to be the same ref stateCtx")
+	}
+
+	actUnstack := actCommit.Commands[5].(*flowstate.UnstackCommand)
+	if actUnstack.CarrierStateCtx != actStateCtx {
+		t.Fatalf("expected StateCtx in UnstackCommand to be the same ref stateCtx")
+	}
+	if actUnstack.UnstackStateCtx != actStateCtx {
+		t.Fatalf("expected StateCtx in UnstackCommand to be the same ref stateCtx")
+	}
 }

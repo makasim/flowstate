@@ -65,7 +65,7 @@ func getStatesByLabelsWithFromStatement(
 		}
 
 		args = append(args, sinceTime.UnixMilli())
-		where += `(states.state->>'committed_at_unix_milli')::bigint >= $` + strconv.Itoa(len(args))
+		where += `(states.state->>'committedAtUnixMilli')::bigint >= $` + strconv.Itoa(len(args))
 	}
 
 	q := fmt.Sprintf(`

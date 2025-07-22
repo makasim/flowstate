@@ -17,9 +17,8 @@ message StateCtx {
   repeated Transition transitions = 3;
 }
 
-message StateRef {
-  string id = 1;
-  int64 rev = 2;
+message StateCtxRef {
+  int64 idx = 1;
 }
 
 message DelayedState {
@@ -42,8 +41,7 @@ message Data {
 }
 
 message DataRef {
-  string id = 1;
-  int64 rev = 2;
+  int64 idx = 1;
 }
 
 message Command {
@@ -70,29 +68,29 @@ message Command {
 }
 
 message TransitCommand {
-  StateRef state_ref = 1;
-  string flow_id = 2;
+  StateCtxRef state_ref = 1;
+  string to = 2;
 }
 
 message PauseCommand {
-  StateRef state_ref = 1;
-  string flow_id = 2;
+  StateCtxRef state_ref = 1;
+  string to = 2;
 }
 
 message ResumeCommand {
-  StateRef state_ref = 1;
+  StateCtxRef state_ref = 1;
 }
 
 message EndCommand {
-  StateRef state_ref = 1;
+  StateCtxRef state_ref = 1;
 }
 
 message ExecuteCommand {
-  StateRef state_ref = 1;
+  StateCtxRef state_ref = 1;
 }
 
 message DelayCommand {
-  StateRef state_ref = 1;
+  StateCtxRef state_ref = 1;
   State delaying_state = 2;
   int64 execute_at_sec = 3;
   bool commit = 4;
@@ -103,30 +101,30 @@ message CommitCommand {
 }
 
 message NoopCommand {
-  StateRef state_ref = 1;
+  StateCtxRef state_ref = 1;
 }
 
 message StackCommand {
-  StateRef carrier_state_ref = 1;
-  StateRef stack_state_ref = 2;
+  StateCtxRef carrier_state_ref = 1;
+  StateCtxRef stack_state_ref = 2;
   string annotation = 3;
 }
 
 message UnstackCommand {
-  StateRef carrier_state_ref = 1;
-  StateRef unstack_state_ref = 2;
+  StateCtxRef carrier_state_ref = 1;
+  StateCtxRef unstack_state_ref = 2;
   string annotation = 3;
 }
 
 message AttachDataCommand {
-  StateRef state_ref = 1;
+  StateCtxRef state_ref = 1;
   DataRef data_ref = 2;
   string alias = 3;
   bool commit = 4;
 }
 
 message GetDataCommand {
-  StateRef state_ref = 1;
+  StateCtxRef state_ref = 1;
   DataRef data_ref = 2;
   string alias = 3;
 }
@@ -134,12 +132,12 @@ message GetDataCommand {
 message GetStateByIDCommand {
   string id = 1;
   int64 rev = 2;
-  StateRef state_ref = 3;
+  StateCtxRef state_ref = 3;
 }
 
 message GetStateByLabelsCommand {
   map<string, string> labels = 1;
-  StateRef state_ref = 2;
+  StateCtxRef state_ref = 2;
 }
 
 message GetStatesCommand {
@@ -176,5 +174,5 @@ message GetDelayedStatesResult {
 }
 
 message CommitStateCtxCommand {
-  StateRef state_ref = 1;
+  StateCtxRef state_ref = 1;
 }
