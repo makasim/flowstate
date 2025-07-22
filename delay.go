@@ -44,6 +44,12 @@ type DelayCommand struct {
 	DelayingState State
 	ExecuteAt     time.Time
 	Commit        bool
+	To            TransitionID
+}
+
+func (cmd *DelayCommand) WithTransit(to TransitionID) *DelayCommand {
+	cmd.To = to
+	return cmd
 }
 
 func (cmd *DelayCommand) WithCommit(commit bool) *DelayCommand {
@@ -58,11 +64,7 @@ func (cmd *DelayCommand) Prepare() error {
 	// TODO: maybe move to Delayer ?
 	// cmd.DelayedStateTransitions = append(stateCtx.Transitions, stateCtx.Current.Transition)
 
-	nextTs := Transition{
-		From:        cmd.DelayingState.Transition.To,
-		To:          cmd.DelayingState.Transition.To,
-		Annotations: nil,
-	}
+	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
 
 	if Paused(cmd.DelayingState) {
 		nextTs.SetAnnotation(StateAnnotation, `resumed`)

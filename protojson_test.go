@@ -312,6 +312,7 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 				Rev: 123,
 			},
 		},
+		To: "theFlowID",
 	})
 
 	f(&flowstate.EndCommand{})
@@ -323,6 +324,7 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 				Rev: 123,
 			},
 		},
+		To: "theFlowID",
 	})
 
 	f(&flowstate.ExecuteCommand{})
@@ -351,6 +353,7 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 		},
 		ExecuteAt: time.Unix(345, 0),
 		Commit:    true,
+		To:        "theFlowID",
 	})
 
 	f(&flowstate.CommitCommand{})

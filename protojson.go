@@ -97,6 +97,9 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
+		if cmd.To != "" {
+			jsonCmd.To = &cmd.To
+		}
 
 		jsonRootCmd.Resume = jsonCmd
 	case *EndCommand:
@@ -105,6 +108,9 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 			jsonCmd.StateRef = &jsonStateCtxRef{
 				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
+		}
+		if cmd.To != "" {
+			jsonCmd.To = &cmd.To
 		}
 
 		jsonRootCmd.End = jsonCmd
@@ -131,6 +137,9 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 		}
 		if cmd.Commit {
 			jsonCmd.Commit = &cmd.Commit
+		}
+		if cmd.To != "" {
+			jsonCmd.To = &cmd.To
 		}
 
 		jsonRootCmd.Delay = jsonCmd
@@ -376,6 +385,9 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		if jsonRootCmd.Resume.StateRef != nil {
 			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Resume.StateRef.Idx)
 		}
+		if jsonRootCmd.Resume.To != nil {
+			cmd.To = *jsonRootCmd.Resume.To
+		}
 
 		return cmd, nil
 	case jsonRootCmd.End != nil:
@@ -383,6 +395,9 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 
 		if jsonRootCmd.End.StateRef != nil {
 			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.End.StateRef.Idx)
+		}
+		if jsonRootCmd.End.To != nil {
+			cmd.To = *jsonRootCmd.End.To
 		}
 
 		return cmd, nil
@@ -413,6 +428,9 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		}
 		if jsonRootCmd.Delay.Commit != nil {
 			cmd.Commit = *jsonRootCmd.Delay.Commit
+		}
+		if jsonRootCmd.Delay.To != nil {
+			cmd.To = *jsonRootCmd.Delay.To
 		}
 
 		return cmd, nil

@@ -79,10 +79,12 @@ message PauseCommand {
 
 message ResumeCommand {
   StateCtxRef state_ref = 1;
+  string to = 2;
 }
 
 message EndCommand {
   StateCtxRef state_ref = 1;
+  string to = 2;
 }
 
 message ExecuteCommand {
@@ -94,6 +96,7 @@ message DelayCommand {
   State delaying_state = 2;
   int64 execute_at_sec = 3;
   bool commit = 4;
+  string to = 5;
 }
 
 message CommitCommand {
