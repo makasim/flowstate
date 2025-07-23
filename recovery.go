@@ -75,7 +75,7 @@ func retryAt(state State) time.Time {
 
 	retryAfter, err := time.ParseDuration(retryAfterStr)
 	if err != nil {
-		return state.CommittedAt().Add(MinRetryAfter)
+		return state.CommittedAt.Add(MinRetryAfter)
 	}
 
 	if retryAfter < MinRetryAfter {
@@ -85,7 +85,7 @@ func retryAt(state State) time.Time {
 		retryAfter = MaxRetryAfter
 	}
 
-	return state.CommittedAt().Add(retryAfter)
+	return state.CommittedAt.Add(retryAfter)
 }
 
 var recoveryStateID = StateID(`flowstate.recovery.meta`)
@@ -296,7 +296,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 			}
 
 			r.headRev = state.Rev
-			r.headTime = state.CommittedAt()
+			r.headTime = state.CommittedAt
 			if len(r.states) == 0 {
 				r.tailRev = r.headRev
 				r.tailTime = r.headTime
@@ -365,7 +365,7 @@ func (r *Recoverer) doUpdateTail() error {
 	defer r.mux.Unlock()
 
 	if !r.active {
-		commitedAt := r.recoveryStateCtx.Committed.CommittedAt()
+		commitedAt := r.recoveryStateCtx.Committed.CommittedAt
 		if (commitedAt.Add(MaxRetryAfter+time.Minute).Before(time.Now()) && r.nextSinceRev() > getRecoverySinceRev(r.recoveryStateCtx)) ||
 			Paused(r.recoveryStateCtx.Current) {
 			nextRecoveryStateCtx := r.recoveryStateCtx.CopyTo(&StateCtx{})
@@ -395,13 +395,13 @@ func (r *Recoverer) doUpdateTail() error {
 	for _, retState := range r.states {
 		if retState.Rev < tailRev {
 			tailRev = retState.Rev
-			tailTime = retState.CommittedAt()
+			tailTime = retState.CommittedAt
 		}
 	}
 	r.tailRev = tailRev
 	r.tailTime = tailTime
 
-	commitedAt := r.recoveryStateCtx.Committed.CommittedAt()
+	commitedAt := r.recoveryStateCtx.Committed.CommittedAt
 	if r.tailRev > getRecoverySinceRev(r.recoveryStateCtx)+1000 ||
 		(commitedAt.Add(MaxRetryAfter).Before(now) && r.nextSinceRev() > getRecoverySinceRev(r.recoveryStateCtx)) {
 		nextStateCtx := r.recoveryStateCtx.CopyTo(&StateCtx{})

@@ -114,7 +114,7 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) error {
 		}
 
 		for _, s := range logStates {
-			if !cmd.SinceTime.IsZero() && s.Committed.CommittedAtUnixMilli < cmd.SinceTime.UnixMilli() {
+			if !cmd.SinceTime.IsZero() && s.Committed.CommittedAt.UnixMilli() < cmd.SinceTime.UnixMilli() {
 				continue
 			}
 			if !matchLabels(s.Committed, cmd.Labels) {
@@ -257,7 +257,7 @@ func (l *stateLog) Append(stateCtx *flowstate.StateCtx) {
 	}
 
 	stateCtx.CopyTo(committedT)
-	committedT.Current.SetCommitedAt(time.Now())
+	committedT.Current.CommittedAt = time.UnixMilli(time.Now().UnixMilli())
 	committedT.Current.CopyTo(&committedT.Committed)
 	committedT.Transitions = committedT.Transitions[:0]
 

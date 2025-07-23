@@ -27,7 +27,7 @@ func New(conn conn, l *slog.Logger) *Driver {
 	return &Driver{
 		conn: conn,
 		l:    l,
-		
+
 		q: &queries{},
 	}
 }
@@ -157,7 +157,7 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 		committableStateCtx := committableCmd.CommittableStateCtx()
 
 		nextState := committableStateCtx.Current.CopyTo(&flowstate.State{})
-		nextState.SetCommitedAt(time.Now())
+		nextState.CommittedAt = time.UnixMilli(time.Now().UnixMilli())
 
 		if committableStateCtx.Committed.Rev > 0 {
 			if err := d.q.UpdateState(context.Background(), tx, &nextState); isRevMismatchErr(err) {

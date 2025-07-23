@@ -119,7 +119,7 @@ func revIndexPrefix() []byte {
 }
 
 func setCommittedAtIndex(txn *badger.Txn, state flowstate.State) error {
-	return txn.Set(committedAtIndexKey(state.CommittedAt(), state.Rev), []byte(state.ID))
+	return txn.Set(committedAtIndexKey(state.CommittedAt, state.Rev), []byte(state.ID))
 }
 
 func committedAtIndexKey(committedAt time.Time, stateRev int64) []byte {

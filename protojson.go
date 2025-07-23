@@ -856,8 +856,8 @@ func (jsonS *jsonState) fromState(s State) {
 	if s.Labels != nil {
 		jsonS.Labels = &s.Labels
 	}
-	if !s.CommittedAt().IsZero() {
-		committedAt := strconv.FormatInt(s.CommittedAt().UnixMilli(), 10)
+	if !s.CommittedAt.IsZero() {
+		committedAt := strconv.FormatInt(s.CommittedAt.UnixMilli(), 10)
 		jsonS.CommittedAtUnixMilli = &committedAt
 	}
 
@@ -888,7 +888,7 @@ func (jsonS *jsonState) toState(s *State) error {
 		if err != nil {
 			return fmt.Errorf("cannot parse 'CommittedAtUnixMilli committed_at_unix_milli = 1;' field: %w", err)
 		}
-		s.SetCommitedAt(time.UnixMilli(unixMilli))
+		s.CommittedAt = time.UnixMilli(unixMilli)
 	}
 
 	if jsonS.Transition != nil {

@@ -38,11 +38,11 @@ func TestMarshalUnmarshalJSONState(t *testing.T) {
 
 	// all fields
 	f(flowstate.State{
-		ID:                   "theID",
-		Rev:                  123,
-		Annotations:          map[string]string{"fooAnnot": "fooVal", "barAnnot": "barVal"},
-		Labels:               map[string]string{"fooLabel": "fooVal", "barLabel": "barVal"},
-		CommittedAtUnixMilli: 567,
+		ID:          "theID",
+		Rev:         123,
+		Annotations: map[string]string{"fooAnnot": "fooVal", "barAnnot": "barVal"},
+		Labels:      map[string]string{"fooLabel": "fooVal", "barLabel": "barVal"},
+		CommittedAt: time.UnixMilli(567),
 		Transition: flowstate.Transition{
 			From: "fromID",
 			To:   "toID",
@@ -90,11 +90,11 @@ func TestMarshalUnmarshalJSONStateCtx(t *testing.T) {
 	// all fields
 	f(&flowstate.StateCtx{
 		Committed: flowstate.State{
-			ID:                   "theID",
-			Rev:                  123,
-			Annotations:          map[string]string{"fooAnnot": "fooVal", "barAnnot": "barVal"},
-			Labels:               map[string]string{"fooLabel": "fooVal", "barLabel": "barVal"},
-			CommittedAtUnixMilli: 567,
+			ID:          "theID",
+			Rev:         123,
+			Annotations: map[string]string{"fooAnnot": "fooVal", "barAnnot": "barVal"},
+			Labels:      map[string]string{"fooLabel": "fooVal", "barLabel": "barVal"},
+			CommittedAt: time.UnixMilli(567),
 			Transition: flowstate.Transition{
 				From: "fromID",
 				To:   "toID",
@@ -104,11 +104,11 @@ func TestMarshalUnmarshalJSONStateCtx(t *testing.T) {
 			},
 		},
 		Current: flowstate.State{
-			ID:                   "theID",
-			Rev:                  234,
-			Annotations:          map[string]string{"fooAnnotCurr": "fooVal", "barAnnotCurr": "barVal"},
-			Labels:               map[string]string{"fooLabelCurr": "fooVal", "barLabelCurr": "barVal"},
-			CommittedAtUnixMilli: 567,
+			ID:          "theID",
+			Rev:         234,
+			Annotations: map[string]string{"fooAnnotCurr": "fooVal", "barAnnotCurr": "barVal"},
+			Labels:      map[string]string{"fooLabelCurr": "fooVal", "barLabelCurr": "barVal"},
+			CommittedAt: time.UnixMilli(567),
 			Transition: flowstate.Transition{
 				From: "fromIDCurr",
 				To:   "toIDCurr",

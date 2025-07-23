@@ -337,7 +337,7 @@ func (d *Driver) Commit(cmd *flowstate.CommitCommand) error {
 
 				commitedState := stateCtx.Current.CopyTo(&flowstate.State{})
 				commitedState.Rev = nextRev
-				commitedState.CommittedAtUnixMilli = time.Now().UnixMilli()
+				commitedState.CommittedAt = time.UnixMilli(time.Now().UnixMilli())
 
 				if err := setState(txn, commitedState); err != nil {
 					return fmt.Errorf("set state: %w", err)

@@ -74,9 +74,9 @@ loop:
 				continue
 			}
 
-			assert.Greater(t, s.CommittedAtUnixMilli, int64(0))
+			assert.Greater(t, s.CommittedAt.UnixMilli(), int64(0))
 			// reset commited time to 0 to make test case deterministic
-			s.CommittedAtUnixMilli = 0
+			s.CommittedAt = time.Time{}
 
 			states = append(states, s)
 			if len(states) >= limit {

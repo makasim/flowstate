@@ -42,8 +42,8 @@ func marshalState(s State, mm *easyproto.MessageMarshaler) {
 	if len(s.Labels) > 0 {
 		marshalStringMap(s.Labels, 4, mm)
 	}
-	if s.CommittedAtUnixMilli != 0 {
-		mm.AppendInt64(5, s.CommittedAtUnixMilli)
+	if !s.CommittedAt.IsZero() {
+		mm.AppendInt64(5, s.CommittedAt.UnixMilli())
 	}
 
 	marshalTransition(s.Transition, mm.AppendMessage(6))
@@ -100,7 +100,7 @@ func UnmarshalState(src []byte, s *State) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read 'int64 committed_at_unix_milli = 5;' field")
 			}
-			s.CommittedAtUnixMilli = timestamp
+			s.CommittedAt = time.UnixMilli(timestamp)
 		case 6:
 			data, ok := fc.MessageData()
 			if !ok {

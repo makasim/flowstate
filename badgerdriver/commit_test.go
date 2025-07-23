@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/makasim/flowstate"
@@ -34,7 +35,7 @@ func TestCommitOK(t *testing.T) {
 	f := func(stateCtx *flowstate.StateCtx) {
 		stateID := stateCtx.Current.ID
 		prevRev := stateCtx.Committed.Rev
-		prevCommitedAtUnixMilli := stateCtx.Committed.CommittedAtUnixMilli
+		prevCommitedAtUnixMilli := stateCtx.Committed.CommittedAt.UnixMilli()
 
 		if err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); err != nil {
 			t.Fatalf("failed to commit: %v", err)
@@ -46,8 +47,8 @@ func TestCommitOK(t *testing.T) {
 		if stateCtx.Committed.Rev <= prevRev {
 			t.Fatalf("expected commited state revision to be greater than previous state revision %d, got: %d", prevRev, stateCtx.Committed.Rev)
 		}
-		if stateCtx.Committed.CommittedAtUnixMilli <= prevCommitedAtUnixMilli {
-			t.Fatalf("expected commited state committed at unix milli to be greater than previous value %d, got: %d", prevCommitedAtUnixMilli, stateCtx.Committed.CommittedAtUnixMilli)
+		if stateCtx.Committed.CommittedAt.UnixMilli() <= prevCommitedAtUnixMilli {
+			t.Fatalf("expected commited state committed at unix milli to be greater than previous value %d, got: %d", prevCommitedAtUnixMilli, stateCtx.Committed.CommittedAt.UnixMilli())
 		}
 
 		if err := db.View(func(txn *badger.Txn) error {
@@ -86,8 +87,8 @@ func TestCommitOK(t *testing.T) {
 
 	//  state updated
 	storedState := storeTestState(t, d, flowstate.State{
-		ID:                   `aStateID1`,
-		CommittedAtUnixMilli: 123456789,
+		ID:          `aStateID1`,
+		CommittedAt: time.UnixMilli(123456789),
 	})
 	f(&flowstate.StateCtx{
 		Committed: storedState,
@@ -160,8 +161,8 @@ func TestCommitRevMismatch(t *testing.T) {
 
 	// stored state has rev different than commited 123
 	storedState1 := storeTestState(t, d, flowstate.State{
-		ID:                   `aStateID1`,
-		CommittedAtUnixMilli: 123456789,
+		ID:          `aStateID1`,
+		CommittedAt: time.UnixMilli(123456789),
 	})
 	f(&flowstate.StateCtx{
 		Committed: flowstate.State{
@@ -179,8 +180,8 @@ func TestCommitRevMismatch(t *testing.T) {
 
 	// create new but there is already stored state
 	storedState2 := storeTestState(t, d, flowstate.State{
-		ID:                   `aStateID2`,
-		CommittedAtUnixMilli: 123456789,
+		ID:          `aStateID2`,
+		CommittedAt: time.UnixMilli(123456789),
 	})
 	f(&flowstate.StateCtx{
 		Current: flowstate.State{
@@ -215,8 +216,8 @@ func TestCommitSeveralStatesOK(t *testing.T) {
 	}()
 
 	state1 := storeTestState(t, d, flowstate.State{
-		ID:                   `aStateID1`,
-		CommittedAtUnixMilli: 123456789,
+		ID:          `aStateID1`,
+		CommittedAt: time.UnixMilli(123456789),
 	})
 	stateCtx1 := &flowstate.StateCtx{
 		Committed: state1,
@@ -224,8 +225,8 @@ func TestCommitSeveralStatesOK(t *testing.T) {
 	}
 
 	state2 := storeTestState(t, d, flowstate.State{
-		ID:                   `aStateID2`,
-		CommittedAtUnixMilli: 123456789,
+		ID:          `aStateID2`,
+		CommittedAt: time.UnixMilli(123456789),
 	})
 	stateCtx2 := &flowstate.StateCtx{
 		Committed: state2,
