@@ -16,23 +16,23 @@ type State struct {
 	Annotations map[string]string
 	Labels      map[string]string
 
-	CommittedAtUnixMilli int64
+	CommittedAt time.Time
 
 	Transition Transition
 }
 
-func (s *State) SetCommitedAt(at time.Time) {
-	s.CommittedAtUnixMilli = at.UnixMilli()
-}
-
-func (s *State) CommittedAt() time.Time {
-	return time.UnixMilli(s.CommittedAtUnixMilli)
-}
+//func (s *State) SetCommitedAt(at time.Time) {
+//	s.CommittedAtUnixMilli = at.UnixMilli()
+//}
+//
+//func (s *State) CommittedAt() time.Time {
+//	return time.UnixMilli(s.CommittedAtUnixMilli)
+//}
 
 func (s *State) CopyTo(to *State) State {
 	to.ID = s.ID
 	to.Rev = s.Rev
-	to.CommittedAtUnixMilli = s.CommittedAtUnixMilli
+	to.CommittedAt = s.CommittedAt
 	s.Transition.CopyTo(&to.Transition)
 
 	for k, v := range s.Annotations {

@@ -248,7 +248,7 @@ func assertEqualStates(t *testing.T, exp, act []flowstate.State) {
 
 	for i := range act {
 		s := act[i]
-		s.CommittedAtUnixMilli = 0
+		s.CommittedAt = time.Time{}
 		act[i] = s
 	}
 

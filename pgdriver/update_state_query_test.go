@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/makasim/flowstate"
@@ -265,7 +266,7 @@ func TestQuery_UpdateState(main *testing.T) {
 				`fooLabelKey`: `fooLabelVal`,
 				`barLabelKey`: `barLabelVal`,
 			},
-			CommittedAtUnixMilli: 123,
+			CommittedAt: time.UnixMilli(123),
 			Transition: flowstate.Transition{
 				From: "fromFlowID",
 				To:   "toFlowID",
@@ -299,7 +300,7 @@ func TestQuery_UpdateState(main *testing.T) {
 						`fooLabelKey`: `fooLabelVal`,
 						`barLabelKey`: `barLabelVal`,
 					},
-					CommittedAtUnixMilli: 123,
+					CommittedAt: time.UnixMilli(123),
 					Transition: flowstate.Transition{
 						From: "fromFlowID",
 						To:   "toFlowID",

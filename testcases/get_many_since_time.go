@@ -20,11 +20,11 @@ func GetManySinceTime(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 	require.NoError(t, e.Do(flowstate.Commit(
 		flowstate.Pause(stateCtx),
 	)))
-	require.Greater(t, stateCtx.Committed.CommittedAtUnixMilli, int64(0))
+	require.Greater(t, stateCtx.Committed.CommittedAt.UnixMilli(), int64(0))
 
 	cmd := flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
-	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAtUnixMilli + 5000))
+	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAt.UnixMilli() + 5000))
 	require.NoError(t, e.Do(cmd))
 
 	res := cmd.MustResult()
@@ -33,7 +33,7 @@ func GetManySinceTime(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 
 	cmd1 := flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
-	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAtUnixMilli - 1000))
+	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAt.UnixMilli() - 1000))
 	require.NoError(t, e.Do(cmd1))
 
 	res1 := cmd1.MustResult()
