@@ -72,6 +72,9 @@ func main() {
 		err = e.Do(flowstate.Commit(
 			flowstate.Park(johnBalanceStateCtx),
 			flowstate.Park(sarahBalanceStateCtx),
+
+			// Use flowstate.Transit and flowstate.Execute instead of flowstate.park
+			// to execute some logic on successful transfer
 		))
 		if flowstate.IsErrRevMismatch(err) {
 			slog.Default().Info("The balances are not up to date, getting the latest states...")
