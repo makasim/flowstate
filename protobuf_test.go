@@ -271,6 +271,14 @@ func TestMarshalUnmarshalCommand(t *testing.T) {
 			},
 		},
 		To: "theFlowID",
+		Transition: flowstate.Transition{
+			From: "fromFlowID",
+			To:   "toFlowID",
+			Annotations: map[string]string{
+				"fooTsAnnot": "fooVal",
+				"barTsAnnot": "barVal",
+			},
+		},
 	})
 
 	f(&flowstate.PauseCommand{})

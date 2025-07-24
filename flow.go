@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+type FlowID string
+
 type Flow interface {
 	Execute(stateCtx *StateCtx, e Engine) (Command, error)
 }
@@ -16,19 +18,19 @@ func (f FlowFunc) Execute(stateCtx *StateCtx, e Engine) (Command, error) {
 }
 
 type FlowRegistry interface {
-	Flow(id TransitionID) (Flow, error)
-	SetFlow(id TransitionID, flow Flow) error
-	UnsetFlow(id TransitionID) error
+	Flow(id FlowID) (Flow, error)
+	SetFlow(id FlowID, flow Flow) error
+	UnsetFlow(id FlowID) error
 }
 
 var _ FlowRegistry = (*DefaultFlowRegistry)(nil)
 
 type DefaultFlowRegistry struct {
 	mux   sync.Mutex
-	flows map[TransitionID]Flow
+	flows map[FlowID]Flow
 }
 
-func (fr *DefaultFlowRegistry) Flow(id TransitionID) (Flow, error) {
+func (fr *DefaultFlowRegistry) Flow(id FlowID) (Flow, error) {
 	if id == "" {
 		return nil, fmt.Errorf("flow id empty")
 	}
@@ -48,7 +50,7 @@ func (fr *DefaultFlowRegistry) Flow(id TransitionID) (Flow, error) {
 	return f, nil
 }
 
-func (fr *DefaultFlowRegistry) SetFlow(id TransitionID, flow Flow) error {
+func (fr *DefaultFlowRegistry) SetFlow(id FlowID, flow Flow) error {
 	if id == "" {
 		return fmt.Errorf("flow id empty")
 	}
@@ -57,14 +59,14 @@ func (fr *DefaultFlowRegistry) SetFlow(id TransitionID, flow Flow) error {
 	defer fr.mux.Unlock()
 
 	if fr.flows == nil {
-		fr.flows = make(map[TransitionID]Flow)
+		fr.flows = make(map[FlowID]Flow)
 	}
 
 	fr.flows[id] = flow
 	return nil
 }
 
-func (fr *DefaultFlowRegistry) UnsetFlow(id TransitionID) error {
+func (fr *DefaultFlowRegistry) UnsetFlow(id FlowID) error {
 	if id == "" {
 		return fmt.Errorf("flow id empty")
 	}

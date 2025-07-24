@@ -13,7 +13,7 @@ func Condition(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d fl
 	mustSetFlow(fr, "first", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		bID := flowstate.TransitionID(`third`)
+		bID := flowstate.FlowID(`third`)
 		if stateCtx.Current.Annotations["condition"] == "true" {
 			bID = `second`
 		}

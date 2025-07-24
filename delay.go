@@ -44,10 +44,10 @@ type DelayCommand struct {
 	DelayingState State
 	ExecuteAt     time.Time
 	Commit        bool
-	To            TransitionID
+	To            FlowID
 }
 
-func (cmd *DelayCommand) WithTransit(to TransitionID) *DelayCommand {
+func (cmd *DelayCommand) WithTransit(to FlowID) *DelayCommand {
 	cmd.To = to
 	return cmd
 }

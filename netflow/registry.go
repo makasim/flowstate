@@ -43,7 +43,7 @@ func NewRegistry(httpHost string, d flowstate.Driver, l *slog.Logger) *Registry 
 	return fr
 }
 
-func (fr *Registry) Flow(id flowstate.TransitionID) (flowstate.Flow, error) {
+func (fr *Registry) Flow(id flowstate.FlowID) (flowstate.Flow, error) {
 	f, err := fr.fr.Flow(id)
 
 	// slow path, flow not found locally, might not synced yet
@@ -60,7 +60,7 @@ func (fr *Registry) Flow(id flowstate.TransitionID) (flowstate.Flow, error) {
 	return f, nil
 }
 
-func (fr *Registry) SetFlow(id flowstate.TransitionID, flow flowstate.Flow) error {
+func (fr *Registry) SetFlow(id flowstate.FlowID, flow flowstate.Flow) error {
 	if err := fr.fr.SetFlow(id, flow); err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (fr *Registry) SetFlow(id flowstate.TransitionID, flow flowstate.Flow) erro
 	return nil
 }
 
-func (fr *Registry) UnsetFlow(id flowstate.TransitionID) error {
+func (fr *Registry) UnsetFlow(id flowstate.FlowID) error {
 	f0, err := fr.fr.Flow(id)
 	if errors.Is(err, flowstate.ErrNotFound) {
 		return nil
@@ -197,7 +197,7 @@ func (fr *Registry) setFlow(state flowstate.State) {
 		fr.l.Warn("flow state has no 'flowstate.flow.transition_id' annotation set, skipping", "state_id", state.ID, "state_rev", state.Rev)
 		return
 	}
-	tsID := flowstate.TransitionID(state.Annotations[`flowstate.flow.transition_id`])
+	tsID := flowstate.FlowID(state.Annotations[`flowstate.flow.transition_id`])
 
 	if flowstate.Ended(state) {
 		if err := fr.fr.UnsetFlow(tsID); err != nil {
@@ -226,6 +226,6 @@ func (fr *Registry) setFlow(state flowstate.State) {
 	}
 }
 
-func flowStateID(tsID flowstate.TransitionID) flowstate.StateID {
+func flowStateID(tsID flowstate.FlowID) flowstate.StateID {
 	return flowstate.StateID(`flowstate.flow.` + string(tsID))
 }
