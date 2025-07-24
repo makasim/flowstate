@@ -22,33 +22,46 @@ func DelayedUntil(state State) time.Time {
 	return until
 }
 
-func Delay(stateCtx *StateCtx, dur time.Duration) *DelayCommand {
+func Delay(stateCtx *StateCtx, to FlowID, dur time.Duration) *DelayCommand {
 	return &DelayCommand{
 		StateCtx:  stateCtx,
 		ExecuteAt: time.Now().Add(dur),
+		To:        to,
 		Commit:    true,
 	}
 }
 
-func DelayUntil(stateCtx *StateCtx, executeAt time.Time) *DelayCommand {
+func DelayUntil(stateCtx *StateCtx, to FlowID, executeAt time.Time) *DelayCommand {
 	return &DelayCommand{
 		StateCtx:  stateCtx,
 		ExecuteAt: executeAt,
+		To:        to,
 		Commit:    true,
 	}
 }
 
 type DelayCommand struct {
 	command
-	StateCtx      *StateCtx
-	DelayingState State
-	ExecuteAt     time.Time
-	Commit        bool
-	To            FlowID
+	StateCtx    *StateCtx
+	ExecuteAt   time.Time
+	Commit      bool
+	To          FlowID
+	Annotations map[string]string
+
+	Result *DelayedState
 }
 
 func (cmd *DelayCommand) WithTransit(to FlowID) *DelayCommand {
 	cmd.To = to
+	return cmd
+}
+
+func (cmd *DelayCommand) WithAnnotation(name, value string) *DelayCommand {
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
+
+	cmd.Annotations[name] = value
 	return cmd
 }
 
@@ -58,15 +71,18 @@ func (cmd *DelayCommand) WithCommit(commit bool) *DelayCommand {
 }
 
 func (cmd *DelayCommand) Prepare() error {
+	if cmd.To == `` {
+		return fmt.Errorf("flow id empty")
+	}
 
-	cmd.DelayingState = cmd.StateCtx.Current.CopyTo(&cmd.DelayingState)
-
-	// TODO: maybe move to Delayer ?
-	// cmd.DelayedStateTransitions = append(stateCtx.Transitions, stateCtx.Current.Transition)
-
+	cmd.Result = &DelayedState{
+		State:     cmd.StateCtx.Current.CopyTo(&State{}),
+		ExecuteAt: cmd.ExecuteAt,
+	}
+	
 	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
 
-	if Paused(cmd.DelayingState) {
+	if Paused(cmd.Result.State) {
 		nextTs.SetAnnotation(StateAnnotation, `resumed`)
 	}
 
@@ -74,9 +90,17 @@ func (cmd *DelayCommand) Prepare() error {
 	if !cmd.Commit {
 		nextTs.SetAnnotation(DelayCommitAnnotation, `false`)
 	}
-	cmd.DelayingState.Transition = nextTs
+	cmd.Result.State.Transition = nextTs
 
 	return nil
+}
+
+func (cmd *DelayCommand) MustResult() DelayedState {
+	if cmd.Result == nil {
+		panic("FATAL: MustResult must be called after successful execution of the command; have you checked for errors?")
+	}
+
+	return *cmd.Result
 }
 
 type DelayedState struct {

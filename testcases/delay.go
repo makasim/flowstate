@@ -17,7 +17,7 @@ func Delay(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 			return flowstate.Transit(stateCtx, `second`), nil
 		}
 
-		return flowstate.Delay(stateCtx, time.Millisecond*200), nil
+		return flowstate.Delay(stateCtx, `first`, time.Millisecond*200), nil
 	}))
 	mustSetFlow(fr, "second", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)

@@ -98,10 +98,14 @@ message ExecuteCommand {
 
 message DelayCommand {
   StateCtxRef state_ref = 1;
-  State delaying_state = 2;
   int64 execute_at_sec = 3;
   bool commit = 4;
   string to = 5;
+  // Transition annotations, optional
+  map<string, string> annotations = 6;
+
+  // Result of successful delay command execution
+  DelayedState result = 2;
 }
 
 message CommitCommand {

@@ -58,7 +58,7 @@ func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 			if err := e.Do(
 				flowstate.Commit(
 					flowstate.Pause(cronStateCtx),
-					flowstate.DelayUntil(cronStateCtx, nextTimes[1]),
+					flowstate.DelayUntil(cronStateCtx, `cron`, nextTimes[1]),
 					flowstate.Transit(taskStateCtx, flowstate.FlowID(taskFlowID)),
 				),
 				flowstate.Execute(taskStateCtx),
@@ -71,7 +71,7 @@ func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 
 		if err := e.Do(flowstate.Commit(
 			flowstate.Pause(cronStateCtx),
-			flowstate.DelayUntil(cronStateCtx, nextTimes[0]),
+			flowstate.DelayUntil(cronStateCtx, `cron`, nextTimes[0]),
 		)); err != nil {
 			return nil, err
 		}
