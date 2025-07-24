@@ -79,8 +79,11 @@ func (cmd *DelayCommand) Prepare() error {
 		State:     cmd.StateCtx.Current.CopyTo(&State{}),
 		ExecuteAt: cmd.ExecuteAt,
 	}
-	
+
 	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
+	for k, v := range cmd.Annotations {
+		nextTs.SetAnnotation(k, v)
+	}
 
 	if Paused(cmd.Result.State) {
 		nextTs.SetAnnotation(StateAnnotation, `resumed`)
