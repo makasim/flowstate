@@ -57,7 +57,7 @@ func CallFlow(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flo
 				flowstate.Unstack(stateCtx, callStateCtx, `caller_state`),
 				flowstate.Resume(callStateCtx),
 				flowstate.Execute(callStateCtx),
-				flowstate.End(stateCtx),
+				flowstate.Park(stateCtx),
 			); err != nil {
 				return nil, err
 			}
@@ -65,7 +65,7 @@ func CallFlow(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flo
 			return flowstate.Noop(stateCtx), nil
 		}
 
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	mustSetFlow(fr, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
@@ -73,7 +73,7 @@ func CallFlow(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flo
 
 		close(endedCh)
 
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `call`)))

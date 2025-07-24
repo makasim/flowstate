@@ -57,7 +57,7 @@ func CallFlowWithWatch(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 			case nextState := <-w.Next():
 				nextStateCtx := nextState.CopyToCtx(&flowstate.StateCtx{})
 
-				if !flowstate.Ended(nextStateCtx.Current) {
+				if !flowstate.Parked(nextStateCtx.Current) {
 					continue
 				}
 
@@ -78,7 +78,7 @@ func CallFlowWithWatch(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 		Track(stateCtx, trkr)
 
 		return flowstate.Commit(
-			flowstate.End(stateCtx),
+			flowstate.Park(stateCtx),
 		), nil
 	}))
 	mustSetFlow(fr, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
@@ -87,7 +87,7 @@ func CallFlowWithWatch(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 		close(endedCh)
 
 		return flowstate.Commit(
-			flowstate.End(stateCtx),
+			flowstate.Park(stateCtx),
 		), nil
 	}))
 

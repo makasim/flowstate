@@ -80,7 +80,7 @@ func ForkJoin_FirstWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 				}
 
 				return flowstate.Commit(
-					flowstate.End(stateCtx),
+					flowstate.Park(stateCtx),
 				), nil
 
 			}
@@ -94,7 +94,7 @@ func ForkJoin_FirstWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 
 	mustSetFlow(fr, "joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))

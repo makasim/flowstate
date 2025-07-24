@@ -68,22 +68,16 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
 		jsonCmd := &jsonGenericCommand{}
-		if cmd.To != "" {
-			jsonCmd.To = &cmd.To
-		}
 		if cmd.StateCtx != nil {
 			jsonCmd.StateRef = &jsonStateCtxRef{
 				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
-		if cmd.Transition.To != "" {
-			to := string(cmd.Transition.To)
-			from := string(cmd.Transition.From)
-			jsonCmd.Transition = &jsonTransition{
-				To:          &to,
-				From:        &from,
-				Annotations: &cmd.Transition.Annotations,
-			}
+		if cmd.To != "" {
+			jsonCmd.To = &cmd.To
+		}
+		if cmd.Annotations != nil {
+			jsonCmd.Annotations = &cmd.Annotations
 		}
 
 		jsonRootCmd.Transit = jsonCmd
@@ -111,18 +105,18 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 		}
 
 		jsonRootCmd.Resume = jsonCmd
-	case *EndCommand:
+	case *ParkCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
 			jsonCmd.StateRef = &jsonStateCtxRef{
 				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
-		if cmd.To != "" {
-			jsonCmd.To = &cmd.To
+		if cmd.Annotations != nil {
+			jsonCmd.Annotations = &cmd.Annotations
 		}
 
-		jsonRootCmd.End = jsonCmd
+		jsonRootCmd.Park = jsonCmd
 	case *ExecuteCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
@@ -369,25 +363,14 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 	case jsonRootCmd.Transit != nil:
 		cmd := &TransitCommand{}
 
-		if jsonRootCmd.Transit.To != nil {
-			cmd.To = *jsonRootCmd.Transit.To
-		}
 		if jsonRootCmd.Transit.StateRef != nil {
 			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Transit.StateRef.Idx)
 		}
-		if jsonRootCmd.Transit.Transition != nil {
-			if jsonRootCmd.Transit.Transition.To != nil {
-				cmd.Transition.To = FlowID(*jsonRootCmd.Transit.Transition.To)
-			}
-			if jsonRootCmd.Transit.Transition.From != nil {
-				cmd.Transition.From = FlowID(*jsonRootCmd.Transit.Transition.From)
-			}
-			if jsonRootCmd.Transit.Transition.Annotations != nil {
-				cmd.Transition.Annotations = make(map[string]string, len(*jsonRootCmd.Transit.Transition.Annotations))
-				for k, v := range *jsonRootCmd.Transit.Transition.Annotations {
-					cmd.Transition.Annotations[k] = v
-				}
-			}
+		if jsonRootCmd.Transit.To != nil {
+			cmd.To = *jsonRootCmd.Transit.To
+		}
+		if jsonRootCmd.Transit.Annotations != nil {
+			cmd.Annotations = *jsonRootCmd.Transit.Annotations
 		}
 
 		return cmd, nil
@@ -413,14 +396,14 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		}
 
 		return cmd, nil
-	case jsonRootCmd.End != nil:
-		cmd := &EndCommand{}
+	case jsonRootCmd.Park != nil:
+		cmd := &ParkCommand{}
 
-		if jsonRootCmd.End.StateRef != nil {
-			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.End.StateRef.Idx)
+		if jsonRootCmd.Park.StateRef != nil {
+			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Park.StateRef.Idx)
 		}
-		if jsonRootCmd.End.To != nil {
-			cmd.To = *jsonRootCmd.End.To
+		if jsonRootCmd.Park.Annotations != nil {
+			cmd.Annotations = *jsonRootCmd.Park.Annotations
 		}
 
 		return cmd, nil
@@ -688,7 +671,7 @@ type jsonRootCommand struct {
 	Transit          *jsonGenericCommand          `json:"transit,omitempty"`
 	Pause            *jsonGenericCommand          `json:"pause,omitempty"`
 	Resume           *jsonGenericCommand          `json:"resume,omitempty"`
-	End              *jsonGenericCommand          `json:"end,omitempty"`
+	Park             *jsonGenericCommand          `json:"park,omitempty"`
 	Execute          *jsonGenericCommand          `json:"execute,omitempty"`
 	Delay            *jsonGenericCommand          `json:"delay,omitempty"`
 	Commit           *jsonGenericCommand          `json:"commit,omitempty"`
@@ -728,7 +711,8 @@ type jsonGenericCommand struct {
 	ID  *StateID `json:"id,omitempty"`
 	Rev *string  `json:"rev,omitempty"`
 
-	Labels *map[string]string `json:"labels,omitempty"`
+	Labels      *map[string]string `json:"labels,omitempty"`
+	Annotations *map[string]string `json:"annotations,omitempty"`
 }
 
 type jsonGetStatesCommand struct {

@@ -59,7 +59,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 				flowstate.Commit(
 					flowstate.Unstack(stateCtx, callStateCtx, `caller_state`),
 					flowstate.Resume(callStateCtx),
-					flowstate.End(stateCtx),
+					flowstate.Park(stateCtx),
 				),
 				flowstate.Execute(callStateCtx),
 			); err != nil {
@@ -69,14 +69,14 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 			return flowstate.Noop(stateCtx), nil
 		}
 
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 	mustSetFlow(fr, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		close(endedCh)
 
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	stateCtx := &flowstate.StateCtx{

@@ -55,7 +55,7 @@ func DataStoreGet(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d
 	}))
 	mustSetFlow(fr, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `store`)))

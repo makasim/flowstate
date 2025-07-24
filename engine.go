@@ -188,7 +188,7 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		return cmd.Do()
 	case *ResumeCommand:
 		return cmd.Do()
-	case *EndCommand:
+	case *ParkCommand:
 		return cmd.Do()
 	case *NoopCommand:
 		return nil
@@ -312,7 +312,7 @@ func (e *engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 		return nil, nil
 	case *DelayCommand:
 		return nil, nil
-	case *EndCommand:
+	case *ParkCommand:
 		return nil, nil
 	case *NoopCommand:
 		return nil, nil

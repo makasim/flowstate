@@ -51,7 +51,7 @@ message Command {
   TransitCommand transit = 3;
   PauseCommand pause = 4;
   ResumeCommand resume = 5;
-  EndCommand end = 6;
+  ParkCommand park = 6;
   ExecuteCommand execute = 7;
   DelayCommand delay = 8;
   CommitCommand commit = 9;
@@ -68,9 +68,18 @@ message Command {
 }
 
 message TransitCommand {
+  // State to transit, required
   StateCtxRef state_ref = 1;
   string to = 2;
-  Transition transition = 3;
+  // Transition annotations, optional
+  map<string, string> annotations = 3;
+}
+
+message ParkCommand {
+  // State to park, required
+  StateCtxRef state_rexf = 1;
+  // Transition annotations, optional
+  map<string, string> annotations = 3;
 }
 
 message PauseCommand {
@@ -79,11 +88,6 @@ message PauseCommand {
 }
 
 message ResumeCommand {
-  StateCtxRef state_ref = 1;
-  string to = 2;
-}
-
-message EndCommand {
   StateCtxRef state_ref = 1;
   string to = 2;
 }

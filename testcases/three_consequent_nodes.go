@@ -20,7 +20,7 @@ func ThreeConsequentNodes(t *testing.T, e flowstate.Engine, fr flowstate.FlowReg
 	}))
 	mustSetFlow(fr, "third", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	stateCtx := &flowstate.StateCtx{

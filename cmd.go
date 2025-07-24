@@ -16,7 +16,7 @@ var _ Command = &PauseCommand{}
 
 var _ Command = &ResumeCommand{}
 
-var _ Command = &EndCommand{}
+var _ Command = &ParkCommand{}
 
 var _ Command = &DelayCommand{}
 
@@ -101,35 +101,42 @@ func (cmd *CommitStateCtxCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-func Ended(state State) bool {
+func Parked(state State) bool {
 	return state.Transition.Annotations[StateAnnotation] == `ended`
 }
 
-func End(stateCtx *StateCtx) *EndCommand {
-	return &EndCommand{
+func Park(stateCtx *StateCtx) *ParkCommand {
+	return &ParkCommand{
 		StateCtx: stateCtx,
 	}
 }
 
-type EndCommand struct {
+type ParkCommand struct {
 	command
-	StateCtx *StateCtx
-	To       FlowID
+	StateCtx    *StateCtx
+	Annotations map[string]string
 }
 
-func (cmd *EndCommand) WithTransit(to FlowID) *EndCommand {
-	cmd.To = to
-	return cmd
-}
-
-func (cmd *EndCommand) CommittableStateCtx() *StateCtx {
+func (cmd *ParkCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
-func (cmd *EndCommand) Do() error {
+func (cmd *ParkCommand) WithAnnotation(name, value string) *ParkCommand {
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
+
+	cmd.Annotations[name] = value
+	return cmd
+}
+
+func (cmd *ParkCommand) Do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
-	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
+	nextTs := nextTransitionOrCurrent(cmd.StateCtx, ``)
+	for k, v := range cmd.Annotations {
+		nextTs.SetAnnotation(k, v)
+	}
 	nextTs.SetAnnotation(StateAnnotation, `ended`)
 	cmd.StateCtx.Current.Transition = nextTs
 
@@ -366,19 +373,14 @@ func Transit(stateCtx *StateCtx, to FlowID) *TransitCommand {
 	return &TransitCommand{
 		StateCtx: stateCtx,
 		To:       to,
-		Transition: Transition{
-			To: to,
-		},
 	}
 }
 
 type TransitCommand struct {
 	command
-	StateCtx   *StateCtx
-	Transition Transition
-
-	// deprecated
-	To FlowID
+	StateCtx    *StateCtx
+	Annotations map[string]string
+	To          FlowID
 }
 
 func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
@@ -386,34 +388,26 @@ func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
 }
 
 func (cmd *TransitCommand) WithAnnotation(name, value string) *TransitCommand {
-	if cmd.Transition.Annotations == nil {
-		cmd.Transition.Annotations = make(map[string]string)
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
 	}
 
-	cmd.Transition.Annotations[name] = value
+	cmd.Annotations[name] = value
 	return cmd
 }
 
 func (cmd *TransitCommand) Do() error {
-	if cmd.Transition.To != `` {
-		if cmd.Transition.To == "" {
-			return fmt.Errorf("flow id empty")
-		}
-
-		cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.Transition)
-		cmd.StateCtx.Current.Transition = cmd.Transition
-		return nil
-	}
-
-	// deprecated stuff
-
 	if cmd.To == "" {
 		return fmt.Errorf("flow id empty")
 	}
 
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
-	cmd.StateCtx.Current.Transition = nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
+	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
+	for k, v := range cmd.Annotations {
+		nextTs.SetAnnotation(k, v)
+	}
+	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
 }

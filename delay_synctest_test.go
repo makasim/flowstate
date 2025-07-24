@@ -41,7 +41,7 @@ func TestDelayer(t *testing.T) {
 					At:      time.Now().UTC().Truncate(time.Second * 10),
 				})
 
-				return flowstate.Commit(flowstate.End(stateCtx)), nil
+				return flowstate.Commit(flowstate.Park(stateCtx)), nil
 			}))
 
 			e, err := flowstate.NewEngine(d, fr, l)
@@ -256,7 +256,7 @@ func TestDelayer_Concurrency(t *testing.T) {
 				delayedPastCnt.Add(1)
 			}
 
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		}))
 
 		e, err := flowstate.NewEngine(d, fr, l)

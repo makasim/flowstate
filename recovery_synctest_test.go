@@ -106,7 +106,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			}
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Commited: 1,
@@ -124,7 +124,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 						},
 					}
 
-					if err := e.Do(flowstate.Commit(flowstate.End(stateCtx))); err != nil {
+					if err := e.Do(flowstate.Commit(flowstate.Park(stateCtx))); err != nil {
 						t.Fatalf("failed to commit state %s: %v", stateCtx.Current.ID, err)
 					}
 				}()
@@ -183,7 +183,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			// just commit, do not execute, recovery should kick in
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Added:     2,
@@ -219,7 +219,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			}
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Added:     120,
@@ -308,7 +308,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			}
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Added:     60,
@@ -350,7 +350,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			wg.Wait()
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Added:     1500,
@@ -383,7 +383,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			}
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Added:     10,
@@ -416,7 +416,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			}
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Added:     20,
@@ -451,7 +451,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			}
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Added:     10,
@@ -485,7 +485,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 			}
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
 			Added:     20,
@@ -508,7 +508,7 @@ func TestRecovererActiveStandby(t *testing.T) {
 		d := memdriver.New(l)
 		fr := &flowstate.DefaultFlowRegistry{}
 		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		}))
 
 		e, err := flowstate.NewEngine(d, fr, l)
@@ -596,7 +596,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 		d := memdriver.New(l)
 		fr := &flowstate.DefaultFlowRegistry{}
 		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		}))
 
 		e, err := flowstate.NewEngine(d, fr, l)
@@ -693,7 +693,7 @@ func TestRecovererOnlyOneActive(t *testing.T) {
 		d := memdriver.New(l)
 		fr := &flowstate.DefaultFlowRegistry{}
 		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		}))
 
 		e, err := flowstate.NewEngine(d, fr, l)
