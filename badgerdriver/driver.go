@@ -213,7 +213,7 @@ func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
 		}
 
 		delayedState := flowstate.DelayedState{
-			State:     cmd.DelayingState,
+			State:     cmd.Result.State,
 			ExecuteAt: cmd.ExecuteAt,
 			Offset:    nextOffset,
 		}

@@ -512,18 +512,25 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
 		}
 	case *DelayCommand:
-		//	message DelayCommand {
-		//	 StateCtxRef state_ref = 1;
-		//	 State delaying_state = 2;
-		//	 int64 execute_at_sec = 3;
-		//	 bool commit = 4;
-		//	 string to = 5;
-		//	}
+		// message DelayCommand {
+		//  StateCtxRef state_ref = 1;
+		//  int64 execute_at_sec = 3;
+		//  bool commit = 4;
+		//  string to = 5;
+		//  // Transition annotations, optional
+		//  map<string, string> annotations = 6;
+		//
+		//  // Result of successful delay command execution
+		//  DelayedState result = 2;
+		// }
+
 		cmdMM := mm.AppendMessage(8)
 		if cmd.StateCtx != nil {
 			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
 		}
-		marshalState(cmd.DelayingState, cmdMM.AppendMessage(2))
+		if cmd.Result != nil {
+			marshalDelayedState(*cmd.Result, cmdMM.AppendMessage(2))
+		}
 		if !cmd.ExecuteAt.IsZero() {
 			cmdMM.AppendInt64(3, cmd.ExecuteAt.Unix())
 		}
@@ -532,6 +539,9 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 		}
 		if cmd.To != "" {
 			cmdMM.AppendString(5, string(cmd.To))
+		}
+		if cmd.Annotations != nil {
+			marshalStringMap(cmd.Annotations, 6, cmdMM)
 		}
 	case *CommitCommand:
 		// message CommitCommand {
@@ -1201,12 +1211,15 @@ func unmarshalDelayCommand(src []byte, cmd *DelayCommand, stateCtxs stateCtxs) (
 		case 2:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'State delaying_state = 2;' field")
+				return fmt.Errorf("cannot read 'DelayedState result = 2;' field")
 			}
 
-			if err := UnmarshalState(data, &cmd.DelayingState); err != nil {
-				return fmt.Errorf("cannot read 'State delaying_state = 2;' field: %w", err)
+			res := &DelayedState{}
+			if err := UnmarshalDelayedState(data, res); err != nil {
+				return fmt.Errorf("cannot read 'DelayedState result = 2;' field: %w", err)
 			}
+
+			cmd.Result = res
 		case 3:
 			v, ok := fc.Int64()
 			if !ok {
@@ -1228,6 +1241,19 @@ func unmarshalDelayCommand(src []byte, cmd *DelayCommand, stateCtxs stateCtxs) (
 			}
 
 			cmd.To = FlowID(strings.Clone(v))
+		case 6:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read 'map<string, string> annotations = 6;' field")
+			}
+
+			if cmd.Annotations == nil {
+				cmd.Annotations = make(map[string]string)
+			}
+
+			if err := unmarshalStringMapItem(data, cmd.Annotations); err != nil {
+				return fmt.Errorf("cannot read 'map<string, string> annotations = 6;' field: %w", err)
+			}
 		}
 	}
 

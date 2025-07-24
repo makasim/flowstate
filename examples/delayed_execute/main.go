@@ -36,8 +36,7 @@ func main() {
 	// Delay the execution of the state for 1 minute
 	// Delay works like a commit, so it is guaranteed that the state will be executed.
 	err = e.Do(
-		flowstate.Transit(stateCtx, `example`),
-		flowstate.Delay(stateCtx, time.Second*10),
+		flowstate.Delay(stateCtx, `example`, time.Second*10),
 	)
 	examples.HandleError(err)
 

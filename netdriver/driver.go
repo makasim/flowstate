@@ -169,7 +169,7 @@ func syncResult(inCmd0, resCmd0 flowstate.Command) error {
 		}
 
 		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
-		resCmd.DelayingState.CopyTo(&inCmd.DelayingState)
+		resCmd.Result = inCmd.Result
 		return nil
 	case *flowstate.CommitCommand:
 		resCmd, ok := resCmd0.(*flowstate.CommitCommand)

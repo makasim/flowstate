@@ -110,7 +110,7 @@ func (d *Driver) GetStates(cmd *flowstate.GetStatesCommand) error {
 }
 
 func (d *Driver) Delay(cmd *flowstate.DelayCommand) error {
-	if err := d.q.InsertDelayedState(context.Background(), d.conn, cmd.DelayingState, cmd.ExecuteAt); err != nil {
+	if err := d.q.InsertDelayedState(context.Background(), d.conn, cmd.Result.State, cmd.ExecuteAt); err != nil {
 		return fmt.Errorf("insert delayed state query: %w", err)
 	}
 

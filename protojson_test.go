@@ -354,13 +354,21 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 				Rev: 123,
 			},
 		},
-		DelayingState: flowstate.State{
-			ID:  "theDelayingID",
-			Rev: 234,
+		Result: &flowstate.DelayedState{
+			State: flowstate.State{
+				ID:  "theDelayingID",
+				Rev: 234,
+			},
+			Offset:    678,
+			ExecuteAt: time.Unix(345, 0),
 		},
 		ExecuteAt: time.Unix(345, 0),
 		Commit:    true,
 		To:        "theFlowID",
+		Annotations: map[string]string{
+			"fooTsAnnot": "fooVal",
+			"barTsAnnot": "barVal",
+		},
 	})
 
 	f(&flowstate.CommitCommand{})

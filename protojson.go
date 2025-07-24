@@ -127,13 +127,17 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 
 		jsonRootCmd.Execute = jsonCmd
 	case *DelayCommand:
-		jsonCmd := &jsonGenericCommand{}
+		jsonCmd := &jsonDelayCommand{}
 		if cmd.StateCtx != nil {
 			jsonCmd.StateRef = &jsonStateCtxRef{
 				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
-		jsonCmd.DelayingState = &cmd.DelayingState
+		if cmd.Result != nil {
+			jsonResult := &jsonDelayedState{}
+			jsonResult.fromDelayedState(cmd.Result)
+			jsonCmd.Result = jsonResult
+		}
 		if !cmd.ExecuteAt.IsZero() {
 			sec := strconv.FormatInt(cmd.ExecuteAt.Unix(), 10)
 			jsonCmd.ExecuteAtSec = &sec
@@ -143,6 +147,9 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 		}
 		if cmd.To != "" {
 			jsonCmd.To = &cmd.To
+		}
+		if cmd.Annotations != nil {
+			jsonCmd.Annotations = &cmd.Annotations
 		}
 
 		jsonRootCmd.Delay = jsonCmd
@@ -421,8 +428,12 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		if jsonRootCmd.Delay.StateRef != nil {
 			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Delay.StateRef.Idx)
 		}
-		if jsonRootCmd.Delay.DelayingState != nil {
-			cmd.DelayingState = *jsonRootCmd.Delay.DelayingState
+		if jsonRootCmd.Delay.Result != nil {
+			result := &DelayedState{}
+			if err := jsonRootCmd.Delay.Result.toDelayedState(result); err != nil {
+				return nil, fmt.Errorf("unmarshal delayed state result: %w", err)
+			}
+			cmd.Result = result
 		}
 		if jsonRootCmd.Delay.ExecuteAtSec != nil {
 			execAt, err := strconv.ParseInt(*jsonRootCmd.Delay.ExecuteAtSec, 10, 64)
@@ -437,6 +448,9 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		}
 		if jsonRootCmd.Delay.To != nil {
 			cmd.To = *jsonRootCmd.Delay.To
+		}
+		if jsonRootCmd.Delay.Annotations != nil {
+			cmd.Annotations = *jsonRootCmd.Delay.Annotations
 		}
 
 		return cmd, nil
@@ -673,7 +687,7 @@ type jsonRootCommand struct {
 	Resume           *jsonGenericCommand          `json:"resume,omitempty"`
 	Park             *jsonGenericCommand          `json:"park,omitempty"`
 	Execute          *jsonGenericCommand          `json:"execute,omitempty"`
-	Delay            *jsonGenericCommand          `json:"delay,omitempty"`
+	Delay            *jsonDelayCommand            `json:"delay,omitempty"`
 	Commit           *jsonGenericCommand          `json:"commit,omitempty"`
 	Noop             *jsonGenericCommand          `json:"noop,omitempty"`
 	Stack            *jsonGenericCommand          `json:"stack,omitempty"`
@@ -713,6 +727,16 @@ type jsonGenericCommand struct {
 
 	Labels      *map[string]string `json:"labels,omitempty"`
 	Annotations *map[string]string `json:"annotations,omitempty"`
+}
+
+type jsonDelayCommand struct {
+	StateRef     *jsonStateCtxRef   `json:"stateRef,omitempty"`
+	ExecuteAtSec *string            `json:"executeAtSec,omitempty"`
+	Commit       *bool              `json:"commit,omitempty"`
+	To           *FlowID            `json:"to,omitempty"`
+	Annotations  *map[string]string `json:"annotations,omitempty"`
+
+	Result *jsonDelayedState `json:"result,omitempty"`
 }
 
 type jsonGetStatesCommand struct {
