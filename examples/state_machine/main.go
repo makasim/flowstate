@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	slog.Default().Info("Example of state machine - money transfer")
+	slog.Default().Info("State machine, aka money transfer example")
 
 	e, _, _, tearDown := examples.SetUp()
 	defer tearDown()
@@ -41,11 +41,8 @@ func main() {
 	))
 	examples.HandleError(err)
 
-	// simulate John updated his balance with 50, but we are not aware of it yet.
-	doneCh := make(chan struct{})
-	go func() {
-		defer close(doneCh)
-
+	// simulate someone has updated John's balance with 50, but we are not yet aware of it.
+	{
 		// get the latest state of John's balance
 		johnBalanceStateCtx := &flowstate.StateCtx{}
 		err := e.Do(flowstate.GetStateByID(johnBalanceStateCtx, `john_balance`, 0))
@@ -58,9 +55,9 @@ func main() {
 		examples.HandleError(err)
 
 		slog.Default().Info(fmt.Sprintf("John's balance has been updated to %s", johnBalanceStateCtx.Current.Annotations[`balance`]))
-	}()
+	}
 
-	<-doneCh
+	slog.Default().Info("Let's try to transfer 30 from John to Sarah. This should fail because John's balance has been updated.")
 
 	for {
 		// now the balance has been updated, let's try transfer 30 from John to Sarah
