@@ -23,13 +23,13 @@ func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 		if err != nil {
 			cronStateCtx.Current.SetAnnotation(`error`, err.Error())
 			return flowstate.Commit(
-				flowstate.End(cronStateCtx),
+				flowstate.Park(cronStateCtx),
 			), nil
 		}
 		if cron.Next(now).IsZero() {
 			cronStateCtx.Current.SetAnnotation(`error`, `next time is zero`)
 			return flowstate.Commit(
-				flowstate.End(cronStateCtx),
+				flowstate.Park(cronStateCtx),
 			), nil
 		}
 
@@ -37,7 +37,7 @@ func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 		if taskFlowID == "" {
 			cronStateCtx.Current.SetAnnotation(`error`, `taskFlowID is empty`)
 			return flowstate.Commit(
-				flowstate.End(cronStateCtx),
+				flowstate.Park(cronStateCtx),
 			), nil
 		}
 
@@ -81,7 +81,7 @@ func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 	mustSetFlow(fr, "task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
-			flowstate.End(stateCtx),
+			flowstate.Park(stateCtx),
 		), nil
 	}))
 

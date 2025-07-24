@@ -59,7 +59,7 @@ func RateLimit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d fl
 
 		if flowstate.Resumed(stateCtx.Current) {
 			return flowstate.Commit(
-				flowstate.End(stateCtx),
+				flowstate.Park(stateCtx),
 			), nil
 		}
 

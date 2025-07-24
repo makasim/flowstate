@@ -42,12 +42,12 @@ func Fork_WithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry
 	}))
 	mustSetFlow(fr, "forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	mustSetFlow(fr, "origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `fork`)))

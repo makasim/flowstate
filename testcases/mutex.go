@@ -78,7 +78,7 @@ func Mutex(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 		if err := e.Do(flowstate.Commit(
 			flowstate.Unstack(stateCtx, mutexStateCtx, `mutex_state`),
 			flowstate.Pause(mutexStateCtx).WithTransit(`unlocked`),
-			flowstate.End(stateCtx),
+			flowstate.Park(stateCtx),
 		)); err != nil {
 			return nil, err
 		}

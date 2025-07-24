@@ -23,7 +23,7 @@ func TestFlowExecute(t *testing.T) {
 	executedCh := make(chan struct{})
 	if err := fr.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
 		close(executedCh)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	})); err != nil {
 		t.Fatalf("failed to set flow: %v", err)
 	}

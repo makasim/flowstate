@@ -146,10 +146,10 @@ func syncResult(inCmd0, resCmd0 flowstate.Command) error {
 
 		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
 		return nil
-	case *flowstate.EndCommand:
-		resCmd, ok := resCmd0.(*flowstate.EndCommand)
+	case *flowstate.ParkCommand:
+		resCmd, ok := resCmd0.(*flowstate.ParkCommand)
 		if !ok {
-			return fmt.Errorf("resCmd is not a EndCommand")
+			return fmt.Errorf("resCmd is not a ParkCommand")
 		}
 
 		resCmd.StateCtx.CopyTo(inCmd.StateCtx)

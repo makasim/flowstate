@@ -305,7 +305,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 			if !r.active {
 				continue
 			}
-			if Ended(state) || Paused(state) {
+			if Parked(state) || Paused(state) {
 				delete(r.states, state.ID)
 				r.completed++
 
@@ -444,7 +444,7 @@ func (r *Recoverer) doRetry() error {
 
 		setRecoveryAttempt(stateCtx, attempt)
 		if attempt > maxAttempts {
-			if err := r.e.Do(Commit(End(stateCtx))); IsErrRevMismatch(err) {
+			if err := r.e.Do(Commit(Park(stateCtx))); IsErrRevMismatch(err) {
 				continue
 			} else if err != nil {
 				return fmt.Errorf("commit state %s:%d reached max retry attempts %d and forcfully ended: %s", state.ID, state.Rev, maxAttempts, err)

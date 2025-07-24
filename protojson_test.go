@@ -289,13 +289,9 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 			},
 		},
 		To: "theFlowID",
-		Transition: flowstate.Transition{
-			From: "fromID",
-			To:   "toID",
-			Annotations: map[string]string{
-				"fooTsAnnot": "fooVal",
-				"barTsAnnot": "barVal",
-			},
+		Annotations: map[string]string{
+			"fooTsAnnot": "fooVal",
+			"barTsAnnot": "barVal",
 		},
 	})
 
@@ -323,16 +319,19 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 		To: "theFlowID",
 	})
 
-	f(&flowstate.EndCommand{})
+	f(&flowstate.ParkCommand{})
 
-	f(&flowstate.EndCommand{
+	f(&flowstate.ParkCommand{
 		StateCtx: &flowstate.StateCtx{
 			Current: flowstate.State{
 				ID:  "theID",
 				Rev: 123,
 			},
 		},
-		To: "theFlowID",
+		Annotations: map[string]string{
+			"fooTsAnnot": "fooVal",
+			"barTsAnnot": "barVal",
+		},
 	})
 
 	f(&flowstate.ExecuteCommand{})
@@ -661,7 +660,7 @@ func TestMarshalUnmarshalJSONCommandPreserveRef(t *testing.T) {
 		flowstate.Transit(stateCtx, `foo`),
 		flowstate.Pause(stateCtx),
 		flowstate.Resume(stateCtx),
-		flowstate.End(stateCtx),
+		flowstate.Park(stateCtx),
 		flowstate.Stack(stateCtx, stateCtx, `foo`),
 		flowstate.Unstack(stateCtx, stateCtx, `foo`),
 
@@ -698,9 +697,9 @@ func TestMarshalUnmarshalJSONCommandPreserveRef(t *testing.T) {
 		t.Fatalf("expected StateCtx in ResumeCommand to be the same ref stateCtx")
 	}
 
-	actEnd := actCommit.Commands[3].(*flowstate.EndCommand)
-	if actEnd.StateCtx != actStateCtx {
-		t.Fatalf("expected StateCtx in EndCommand to be the same ref stateCtx")
+	actPark := actCommit.Commands[3].(*flowstate.ParkCommand)
+	if actPark.StateCtx != actStateCtx {
+		t.Fatalf("expected StateCtx in ParkCommand to be the same ref stateCtx")
 	}
 
 	actStack := actCommit.Commands[4].(*flowstate.StackCommand)

@@ -28,7 +28,7 @@ func DoCommitSubCommand(d Driver, subCmd0 Command) error {
 		return subCmd.Do()
 	case *ResumeCommand:
 		return subCmd.Do()
-	case *EndCommand:
+	case *ParkCommand:
 		return subCmd.Do()
 	case *StackCommand:
 		return subCmd.Do()

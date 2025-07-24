@@ -78,7 +78,7 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 		if len(cmd.StateCtx.Current.Labels) > 0 {
 			args = append(args, "labels", cmd.StateCtx.Current.Labels)
 		}
-	case *EndCommand:
+	case *ParkCommand:
 		args = append(args,
 			"cmd", "end",
 			"id", cmd.StateCtx.Current.ID,

@@ -45,7 +45,7 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 				if err := e.Do(
 					flowstate.Commit(
 						flowstate.Resume(queuedStateCtx),
-						flowstate.End(stateCtx),
+						flowstate.Park(stateCtx),
 					),
 					flowstate.Execute(queuedStateCtx),
 				); err != nil {
@@ -59,7 +59,7 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 	mustSetFlow(fr, "dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
-			flowstate.End(stateCtx),
+			flowstate.Park(stateCtx),
 		), nil
 	}))
 

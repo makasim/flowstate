@@ -23,7 +23,7 @@ func main() {
 			slog.Default().Info(fmt.Sprintf("executing timeout logic: %s", stateCtx.Current.ID))
 
 			// Put your timeout handling logic here
-			return flowstate.Commit(flowstate.End(stateCtx)), nil
+			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		}
 
 		slog.Default().Info(fmt.Sprintf("executing business logic: %s", stateCtx.Current.ID))
@@ -33,7 +33,7 @@ func main() {
 		time.Sleep(time.Second * time.Duration(8+rand.Intn(6)))
 
 		// Tell the engine that the state is completed
-		return flowstate.Commit(flowstate.End(stateCtx)), nil
+		return flowstate.Commit(flowstate.Park(stateCtx)), nil
 	}))
 	examples.HandleError(err)
 

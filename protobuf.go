@@ -428,7 +428,7 @@ func MarshalCommand(cmd Command, dst []byte) []byte {
 //	 TransitCommand transit = 3;
 //	 PauseCommand pause = 4;
 //	 ResumeCommand resume = 5;
-//	 EndCommand end = 6;
+//	 ParkCommand park = 6;
 //	 ExecuteCommand execute = 7;
 //	 DelayCommand delay = 8;
 //	 CommitCommand commit = 9;
@@ -460,8 +460,8 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 		if cmd.To != "" {
 			cmdMM.AppendString(2, string(cmd.To))
 		}
-		if cmd.Transition.To != "" {
-			marshalTransition(cmd.Transition, cmdMM.AppendMessage(3))
+		if cmd.Annotations != nil {
+			marshalStringMap(cmd.Annotations, 3, cmdMM)
 		}
 	case *PauseCommand:
 		//	message PauseCommand {
@@ -490,18 +490,17 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 		if cmd.To != "" {
 			cmdMM.AppendString(2, string(cmd.To))
 		}
-	case *EndCommand:
-		//	message EndCommand {
+	case *ParkCommand:
+		//	message ParkCommand {
 		//	 StateCtxRef state_ref = 1;
-		//	 string to = 2;
 		//	}
 		cmdMM := mm.AppendMessage(6)
 
 		if cmd.StateCtx != nil {
 			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
 		}
-		if cmd.To != "" {
-			cmdMM.AppendString(2, string(cmd.To))
+		if cmd.Annotations != nil {
+			marshalStringMap(cmd.Annotations, 3, cmdMM)
 		}
 	case *ExecuteCommand:
 		//	message ExecuteCommand {
@@ -834,15 +833,15 @@ func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, er
 				return nil, fmt.Errorf("cannot read 'ResumeCommand resume = 5;' field: %w", err)
 			}
 			return cmd, nil
-		case 6: // EndCommand end = 6;
+		case 6: // ParkCommand end = 6;
 			data, ok := fc.MessageData()
 			if !ok {
-				return nil, fmt.Errorf("cannot read 'EndCommand end = 6;' field")
+				return nil, fmt.Errorf("cannot read 'ParkCommand park = 6;' field")
 			}
 
-			cmd := &EndCommand{}
-			if err := unmarshalEndCommand(data, cmd, stateCtxs); err != nil {
-				return nil, fmt.Errorf("cannot read 'EndCommand end = 6;' field: %w", err)
+			cmd := &ParkCommand{}
+			if err := unmarshalParkCommand(data, cmd, stateCtxs); err != nil {
+				return nil, fmt.Errorf("cannot read 'ParkCommand park = 6;' field: %w", err)
 			}
 			return cmd, nil
 		case 7: // ExecuteCommand execute = 7;
@@ -1032,11 +1031,15 @@ func unmarshalTransitCommand(src []byte, cmd *TransitCommand, stateCtxs stateCtx
 		case 3:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'Transition transition = 3;' field")
+				return fmt.Errorf("cannot read 'map<string, string> annotations = 3;' field")
 			}
 
-			if err := UnmarshalTransition(data, &cmd.Transition); err != nil {
-				return fmt.Errorf("cannot read 'Transition transition = 3;' field: %w", err)
+			if cmd.Annotations == nil {
+				cmd.Annotations = make(map[string]string)
+			}
+
+			if err := unmarshalStringMapItem(data, cmd.Annotations); err != nil {
+				return fmt.Errorf("cannot read 'map<string, string> annotations = 3;' field: %w", err)
 			}
 		}
 	}
@@ -1110,7 +1113,7 @@ func unmarshalResumeCommand(src []byte, cmd *ResumeCommand, stateCtxs stateCtxs)
 	return nil
 }
 
-func unmarshalEndCommand(src []byte, cmd *EndCommand, stateCtxs stateCtxs) (err error) {
+func unmarshalParkCommand(src []byte, cmd *ParkCommand, stateCtxs stateCtxs) (err error) {
 	fc := easyproto.FieldContext{}
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -1130,13 +1133,19 @@ func unmarshalEndCommand(src []byte, cmd *EndCommand, stateCtxs stateCtxs) (err 
 				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
 			cmd.StateCtx = stateCtx
-		case 2:
-			v, ok := fc.String()
+		case 3:
+			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'string to = 2;' field")
+				return fmt.Errorf("cannot read 'map<string, string> annotations = 3;' field")
 			}
 
-			cmd.To = FlowID(strings.Clone(v))
+			if cmd.Annotations == nil {
+				cmd.Annotations = make(map[string]string)
+			}
+
+			if err := unmarshalStringMapItem(data, cmd.Annotations); err != nil {
+				return fmt.Errorf("cannot read 'map<string, string> annotations = 3;' field: %w", err)
+			}
 		}
 	}
 
@@ -1887,7 +1896,7 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 		if cmd.StateCtx != nil {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}
-	case *EndCommand:
+	case *ParkCommand:
 		if cmd.StateCtx != nil {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}

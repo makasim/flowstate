@@ -20,7 +20,7 @@ func main() {
 		// Put your business logic here
 
 		// Tell the engine that the state is completed
-		return flowstate.Commit(flowstate.End(stateCtx)), nil
+		return flowstate.Commit(flowstate.Park(stateCtx)), nil
 	}))
 	examples.HandleError(err)
 

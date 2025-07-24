@@ -123,7 +123,7 @@ func (fr *Registry) UnsetFlow(id flowstate.FlowID) error {
 		return fmt.Errorf("get state by id: %w", err)
 	}
 
-	if err := fr.d.Commit(flowstate.Commit(flowstate.End(stateCtx))); flowstate.IsErrRevMismatch(err) {
+	if err := fr.d.Commit(flowstate.Commit(flowstate.Park(stateCtx))); flowstate.IsErrRevMismatch(err) {
 		// ok
 		return nil
 	} else if err != nil {
@@ -199,7 +199,7 @@ func (fr *Registry) setFlow(state flowstate.State) {
 	}
 	tsID := flowstate.FlowID(state.Annotations[`flowstate.flow.transition_id`])
 
-	if flowstate.Ended(state) {
+	if flowstate.Parked(state) {
 		if err := fr.fr.UnsetFlow(tsID); err != nil {
 			fr.l.Warn("flow registry: unset flow failed", "error", err, "transition_id", tsID, "state_id", state.ID, "state_rev", state.Rev)
 		}

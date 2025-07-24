@@ -113,7 +113,7 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 	}))
 	mustSetFlow(fr, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		return flowstate.End(stateCtx), nil
+		return flowstate.Park(stateCtx), nil
 	}))
 
 	stateCtx := &flowstate.StateCtx{
