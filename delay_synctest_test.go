@@ -390,7 +390,7 @@ type delayedState struct {
 	At      time.Time
 }
 
-func mustSetFlow(fr flowstate.FlowRegistry, id flowstate.TransitionID, f flowstate.Flow) {
+func mustSetFlow(fr flowstate.FlowRegistry, id flowstate.FlowID, f flowstate.Flow) {
 	if err := fr.SetFlow(id, f); err != nil {
 		panic(fmt.Sprintf("set flow %s: %s", id, err))
 	}

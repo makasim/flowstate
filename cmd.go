@@ -114,10 +114,10 @@ func End(stateCtx *StateCtx) *EndCommand {
 type EndCommand struct {
 	command
 	StateCtx *StateCtx
-	To       TransitionID
+	To       FlowID
 }
 
-func (cmd *EndCommand) WithTransit(to TransitionID) *EndCommand {
+func (cmd *EndCommand) WithTransit(to FlowID) *EndCommand {
 	cmd.To = to
 	return cmd
 }
@@ -303,10 +303,10 @@ type PauseCommand struct {
 	command
 
 	StateCtx *StateCtx
-	To       TransitionID
+	To       FlowID
 }
 
-func (cmd *PauseCommand) WithTransit(to TransitionID) *PauseCommand {
+func (cmd *PauseCommand) WithTransit(to FlowID) *PauseCommand {
 	cmd.To = to
 	return cmd
 }
@@ -338,10 +338,10 @@ func Resume(stateCtx *StateCtx) *ResumeCommand {
 type ResumeCommand struct {
 	command
 	StateCtx *StateCtx
-	To       TransitionID
+	To       FlowID
 }
 
-func (cmd *ResumeCommand) WithTransit(to TransitionID) *ResumeCommand {
+func (cmd *ResumeCommand) WithTransit(to FlowID) *ResumeCommand {
 	cmd.To = to
 	return cmd
 }
@@ -362,24 +362,51 @@ func (cmd *ResumeCommand) Do() error {
 
 var StateAnnotation = `flowstate.state`
 
-func Transit(stateCtx *StateCtx, to TransitionID) *TransitCommand {
+func Transit(stateCtx *StateCtx, to FlowID) *TransitCommand {
 	return &TransitCommand{
 		StateCtx: stateCtx,
 		To:       to,
+		Transition: Transition{
+			To: to,
+		},
 	}
 }
 
 type TransitCommand struct {
 	command
-	StateCtx *StateCtx
-	To       TransitionID
+	StateCtx   *StateCtx
+	Transition Transition
+
+	// deprecated
+	To FlowID
 }
 
 func (cmd *TransitCommand) CommittableStateCtx() *StateCtx {
 	return cmd.StateCtx
 }
 
+func (cmd *TransitCommand) WithAnnotation(name, value string) *TransitCommand {
+	if cmd.Transition.Annotations == nil {
+		cmd.Transition.Annotations = make(map[string]string)
+	}
+
+	cmd.Transition.Annotations[name] = value
+	return cmd
+}
+
 func (cmd *TransitCommand) Do() error {
+	if cmd.Transition.To != `` {
+		if cmd.Transition.To == "" {
+			return fmt.Errorf("flow id empty")
+		}
+
+		cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.Transition)
+		cmd.StateCtx.Current.Transition = cmd.Transition
+		return nil
+	}
+
+	// deprecated stuff
+
 	if cmd.To == "" {
 		return fmt.Errorf("flow id empty")
 	}
@@ -559,7 +586,7 @@ func dataAnnotation(alias string) string {
 	return "flowstate.data." + string(alias)
 }
 
-func nextTransitionOrCurrent(stateCtx *StateCtx, to TransitionID) Transition {
+func nextTransitionOrCurrent(stateCtx *StateCtx, to FlowID) Transition {
 	if to == `` {
 		to = stateCtx.Current.Transition.To
 	}

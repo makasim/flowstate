@@ -1,7 +1,6 @@
 package testcases
 
 import (
-	"log"
 	"testing"
 
 	"github.com/makasim/flowstate"
@@ -36,8 +35,6 @@ func GetOneLatestByLabel(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegi
 	require.NoError(t, e.Do(flowstate.GetStateByLabels(foundStateCtx, map[string]string{
 		"foo": "fooVal",
 	})))
-	log.Println(stateCtx.Committed.CommittedAt)
-	log.Println(foundStateCtx.Committed.CommittedAt)
 
 	require.Equal(t, stateCtx, foundStateCtx)
 }

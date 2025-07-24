@@ -263,7 +263,7 @@ func marshalTransition(ts Transition, mm *easyproto.MessageMarshaler) {
 		mm.AppendString(2, string(ts.To))
 	}
 
-	if len(ts.Annotations) > 0 {
+	if ts.Annotations != nil {
 		marshalStringMap(ts.Annotations, 3, mm)
 	}
 }
@@ -281,13 +281,13 @@ func UnmarshalTransition(src []byte, ts *Transition) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read 'string from = 1;' field")
 			}
-			ts.From = TransitionID(strings.Clone(from))
+			ts.From = FlowID(strings.Clone(from))
 		case 2:
 			to, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read 'string to = 2;' field")
 			}
-			ts.To = TransitionID(strings.Clone(to))
+			ts.To = FlowID(strings.Clone(to))
 		case 3:
 			data, ok := fc.MessageData()
 			if !ok {
@@ -449,6 +449,7 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 		//	message TransitCommand {
 		//	 StateCtxRef state_ref = 1;
 		//	 string to = 2;
+		//	 Transition transition = 3;
 		//	}
 		cmdMM := mm.AppendMessage(3)
 
@@ -458,6 +459,9 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 
 		if cmd.To != "" {
 			cmdMM.AppendString(2, string(cmd.To))
+		}
+		if cmd.Transition.To != "" {
+			marshalTransition(cmd.Transition, cmdMM.AppendMessage(3))
 		}
 	case *PauseCommand:
 		//	message PauseCommand {
@@ -1024,7 +1028,16 @@ func unmarshalTransitCommand(src []byte, cmd *TransitCommand, stateCtxs stateCtx
 				return fmt.Errorf("cannot read 'string to = 2;' field")
 			}
 
-			cmd.To = TransitionID(strings.Clone(v))
+			cmd.To = FlowID(strings.Clone(v))
+		case 3:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read 'Transition transition = 3;' field")
+			}
+
+			if err := UnmarshalTransition(data, &cmd.Transition); err != nil {
+				return fmt.Errorf("cannot read 'Transition transition = 3;' field: %w", err)
+			}
 		}
 	}
 
@@ -1057,7 +1070,7 @@ func unmarshalPauseCommand(src []byte, cmd *PauseCommand, stateCtxs stateCtxs) (
 				return fmt.Errorf("cannot read 'string to = 2;' field")
 			}
 
-			cmd.To = TransitionID(strings.Clone(v))
+			cmd.To = FlowID(strings.Clone(v))
 		}
 	}
 
@@ -1090,7 +1103,7 @@ func unmarshalResumeCommand(src []byte, cmd *ResumeCommand, stateCtxs stateCtxs)
 				return fmt.Errorf("cannot read 'string to = 2;' field")
 			}
 
-			cmd.To = TransitionID(strings.Clone(v))
+			cmd.To = FlowID(strings.Clone(v))
 		}
 	}
 
@@ -1123,7 +1136,7 @@ func unmarshalEndCommand(src []byte, cmd *EndCommand, stateCtxs stateCtxs) (err 
 				return fmt.Errorf("cannot read 'string to = 2;' field")
 			}
 
-			cmd.To = TransitionID(strings.Clone(v))
+			cmd.To = FlowID(strings.Clone(v))
 		}
 	}
 
@@ -1205,7 +1218,7 @@ func unmarshalDelayCommand(src []byte, cmd *DelayCommand, stateCtxs stateCtxs) (
 				return fmt.Errorf("cannot read 'string to = 5;' field")
 			}
 
-			cmd.To = TransitionID(strings.Clone(v))
+			cmd.To = FlowID(strings.Clone(v))
 		}
 	}
 

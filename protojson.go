@@ -76,6 +76,15 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 				Idx: stateCtxs.strIdx(cmd.StateCtx),
 			}
 		}
+		if cmd.Transition.To != "" {
+			to := string(cmd.Transition.To)
+			from := string(cmd.Transition.From)
+			jsonCmd.Transition = &jsonTransition{
+				To:          &to,
+				From:        &from,
+				Annotations: &cmd.Transition.Annotations,
+			}
+		}
 
 		jsonRootCmd.Transit = jsonCmd
 	case *PauseCommand:
@@ -365,6 +374,20 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		}
 		if jsonRootCmd.Transit.StateRef != nil {
 			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Transit.StateRef.Idx)
+		}
+		if jsonRootCmd.Transit.Transition != nil {
+			if jsonRootCmd.Transit.Transition.To != nil {
+				cmd.Transition.To = FlowID(*jsonRootCmd.Transit.Transition.To)
+			}
+			if jsonRootCmd.Transit.Transition.From != nil {
+				cmd.Transition.From = FlowID(*jsonRootCmd.Transit.Transition.From)
+			}
+			if jsonRootCmd.Transit.Transition.Annotations != nil {
+				cmd.Transition.Annotations = make(map[string]string, len(*jsonRootCmd.Transit.Transition.Annotations))
+				for k, v := range *jsonRootCmd.Transit.Transition.Annotations {
+					cmd.Transition.Annotations[k] = v
+				}
+			}
 		}
 
 		return cmd, nil
@@ -682,8 +705,9 @@ type jsonRootCommand struct {
 }
 
 type jsonGenericCommand struct {
-	StateRef *jsonStateCtxRef `json:"stateRef,omitempty"`
-	To       *TransitionID    `json:"flowId,omitempty"`
+	StateRef   *jsonStateCtxRef `json:"stateRef,omitempty"`
+	To         *FlowID          `json:"flowId,omitempty"`
+	Transition *jsonTransition  `json:"transition,omitempty"`
 
 	DelayingState *State  `json:"delayingState,omitempty"`
 	ExecuteAtSec  *string `json:"executeAtSec,omitempty"`
@@ -820,10 +844,10 @@ func (jsonTs *jsonTransition) fromTransition(ts *Transition) {
 
 func (jsonTs *jsonTransition) toTransition(ts *Transition) {
 	if jsonTs.From != nil {
-		ts.From = TransitionID(*jsonTs.From)
+		ts.From = FlowID(*jsonTs.From)
 	}
 	if jsonTs.To != nil {
-		ts.To = TransitionID(*jsonTs.To)
+		ts.To = FlowID(*jsonTs.To)
 	}
 	if jsonTs.Annotations != nil {
 		ts.Annotations = *jsonTs.Annotations

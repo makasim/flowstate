@@ -173,12 +173,12 @@ func (s *StateCtx) UnmarshalJSON(data []byte) error {
 	return jsonStateCtx.toStateCtx(s)
 }
 
-type TransitionID string
-
 type Transition struct {
-	From        TransitionID
-	To          TransitionID
+	To          FlowID
 	Annotations map[string]string
+
+	// deprecated
+	From FlowID
 }
 
 func (ts *Transition) SetAnnotation(name, value string) {
