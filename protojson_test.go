@@ -44,8 +44,7 @@ func TestMarshalUnmarshalJSONState(t *testing.T) {
 		Labels:      map[string]string{"fooLabel": "fooVal", "barLabel": "barVal"},
 		CommittedAt: time.UnixMilli(567),
 		Transition: flowstate.Transition{
-			From: "fromID",
-			To:   "toID",
+			To: "toID",
 			Annotations: map[string]string{
 				"fooTsAnnot": "fooVal",
 			},
@@ -96,8 +95,7 @@ func TestMarshalUnmarshalJSONStateCtx(t *testing.T) {
 			Labels:      map[string]string{"fooLabel": "fooVal", "barLabel": "barVal"},
 			CommittedAt: time.UnixMilli(567),
 			Transition: flowstate.Transition{
-				From: "fromID",
-				To:   "toID",
+				To: "toID",
 				Annotations: map[string]string{
 					"fooTsAnnot": "fooVal",
 				},
@@ -110,8 +108,7 @@ func TestMarshalUnmarshalJSONStateCtx(t *testing.T) {
 			Labels:      map[string]string{"fooLabelCurr": "fooVal", "barLabelCurr": "barVal"},
 			CommittedAt: time.UnixMilli(567),
 			Transition: flowstate.Transition{
-				From: "fromIDCurr",
-				To:   "toIDCurr",
+				To: "toIDCurr",
 				Annotations: map[string]string{
 					"fooTsAnnotCurr": "fooVal",
 				},
@@ -119,12 +116,10 @@ func TestMarshalUnmarshalJSONStateCtx(t *testing.T) {
 		},
 		Transitions: []flowstate.Transition{
 			{
-				From: "fromID1",
-				To:   "toID1",
+				To: "toID1",
 			},
 			{
-				From: "fromID2",
-				To:   "toID2",
+				To: "toID2",
 			},
 		},
 	})
@@ -204,13 +199,11 @@ func TestMarshalUnmarshalJSONTransition(t *testing.T) {
 
 	// id rev
 	f(flowstate.Transition{
-		From: "fromID",
-		To:   "toID",
+		To: "toID",
 	})
 
 	// all fields
 	f(flowstate.Transition{
-		From:        "fromID",
 		To:          "toID",
 		Annotations: map[string]string{"fooAnnot": "fooVal", "barAnnot": "barVal"},
 	})

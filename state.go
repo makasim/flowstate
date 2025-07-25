@@ -176,9 +176,6 @@ func (s *StateCtx) UnmarshalJSON(data []byte) error {
 type Transition struct {
 	To          FlowID
 	Annotations map[string]string
-
-	// deprecated
-	From FlowID
 }
 
 func (ts *Transition) SetAnnotation(name, value string) {
@@ -189,7 +186,6 @@ func (ts *Transition) SetAnnotation(name, value string) {
 }
 
 func (ts *Transition) CopyTo(to *Transition) {
-	to.From = ts.From
 	to.To = ts.To
 
 	if len(ts.Annotations) > 0 {
@@ -204,7 +200,7 @@ func (ts *Transition) CopyTo(to *Transition) {
 }
 
 func (ts *Transition) String() string {
-	return string(ts.From) + `->` + string(ts.To)
+	return string(ts.To)
 }
 
 func (ts *Transition) MarshalJSON() ([]byte, error) {

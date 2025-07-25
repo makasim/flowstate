@@ -586,7 +586,6 @@ func nextTransitionOrCurrent(stateCtx *StateCtx, to FlowID) Transition {
 	}
 
 	return Transition{
-		From: stateCtx.Current.Transition.To,
-		To:   to,
+		To: to,
 	}
 }

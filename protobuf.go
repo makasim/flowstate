@@ -251,14 +251,10 @@ func MarshalTransition(ts Transition, dst []byte) []byte {
 }
 
 //	message Transition {
-//	 string from = 1;
 //	 string to = 2;
 //	 map<string, string> annotations = 3;
 //	}
 func marshalTransition(ts Transition, mm *easyproto.MessageMarshaler) {
-	if ts.From != "" {
-		mm.AppendString(1, string(ts.From))
-	}
 	if ts.To != "" {
 		mm.AppendString(2, string(ts.To))
 	}
@@ -276,12 +272,6 @@ func UnmarshalTransition(src []byte, ts *Transition) (err error) {
 			return fmt.Errorf("cannot read next field")
 		}
 		switch fc.FieldNum {
-		case 1:
-			from, ok := fc.String()
-			if !ok {
-				return fmt.Errorf("cannot read 'string from = 1;' field")
-			}
-			ts.From = FlowID(strings.Clone(from))
 		case 2:
 			to, ok := fc.String()
 			if !ok {

@@ -268,8 +268,7 @@ func TestQuery_UpdateState(main *testing.T) {
 			},
 			CommittedAt: time.UnixMilli(123),
 			Transition: flowstate.Transition{
-				From: "fromFlowID",
-				To:   "toFlowID",
+				To: "toFlowID",
 				Annotations: map[string]string{
 					`fooTsAnnotKey`: `fooTsAnnotVal`,
 					`barTsAnnotKey`: `barTsAnnotVal`,
@@ -302,8 +301,7 @@ func TestQuery_UpdateState(main *testing.T) {
 					},
 					CommittedAt: time.UnixMilli(123),
 					Transition: flowstate.Transition{
-						From: "fromFlowID",
-						To:   "toFlowID",
+						To: "toFlowID",
 						Annotations: map[string]string{
 							`fooTsAnnotKey`: `fooTsAnnotVal`,
 							`barTsAnnotKey`: `barTsAnnotVal`,

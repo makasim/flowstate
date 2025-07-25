@@ -831,16 +831,11 @@ func (jsonData *jsonData) fromData(d *Data) {
 }
 
 type jsonTransition struct {
-	From        *string            `json:"from,omitempty"`
 	To          *string            `json:"to,omitempty"`
 	Annotations *map[string]string `json:"annotations,omitempty"`
 }
 
 func (jsonTs *jsonTransition) fromTransition(ts *Transition) {
-	if ts.From != "" {
-		from := string(ts.From)
-		jsonTs.From = &from
-	}
 	if ts.To != "" {
 		to := string(ts.To)
 		jsonTs.To = &to
@@ -851,9 +846,6 @@ func (jsonTs *jsonTransition) fromTransition(ts *Transition) {
 }
 
 func (jsonTs *jsonTransition) toTransition(ts *Transition) {
-	if jsonTs.From != nil {
-		ts.From = FlowID(*jsonTs.From)
-	}
 	if jsonTs.To != nil {
 		ts.To = FlowID(*jsonTs.To)
 	}
