@@ -57,7 +57,7 @@ func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 
 			if err := e.Do(
 				flowstate.Commit(
-					flowstate.Pause(cronStateCtx),
+					flowstate.Park(cronStateCtx),
 					flowstate.DelayUntil(cronStateCtx, `cron`, nextTimes[1]),
 					flowstate.Transit(taskStateCtx, flowstate.FlowID(taskFlowID)),
 				),
@@ -66,17 +66,17 @@ func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 				return nil, err
 			}
 
-			return flowstate.Noop(cronStateCtx), nil
+			return flowstate.Noop(), nil
 		}
 
 		if err := e.Do(flowstate.Commit(
-			flowstate.Pause(cronStateCtx),
+			flowstate.Park(cronStateCtx),
 			flowstate.DelayUntil(cronStateCtx, `cron`, nextTimes[0]),
 		)); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Noop(cronStateCtx), nil
+		return flowstate.Noop(), nil
 	}))
 	mustSetFlow(fr, "task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)

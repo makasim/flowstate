@@ -184,10 +184,6 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
 		return cmd.Do()
-	case *PauseCommand:
-		return cmd.Do()
-	case *ResumeCommand:
-		return cmd.Do()
 	case *ParkCommand:
 		return cmd.Do()
 	case *NoopCommand:
@@ -266,8 +262,6 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		}
 
 		return nil
-	case *CommitStateCtxCommand:
-		return fmt.Errorf("commit state ctx should be passed inside CommitCommand, not as a separate command")
 	case *CommitCommand:
 		if len(cmd.Commands) == 0 {
 			return fmt.Errorf("no commands to commit")
@@ -306,10 +300,6 @@ func (e *engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 		return cmd.StateCtx, nil
 	case *TransitCommand:
 		return cmd.StateCtx, nil
-	case *ResumeCommand:
-		return cmd.StateCtx, nil
-	case *PauseCommand:
-		return nil, nil
 	case *DelayCommand:
 		return nil, nil
 	case *ParkCommand:

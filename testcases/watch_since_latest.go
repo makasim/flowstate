@@ -18,13 +18,13 @@ func WatchSinceLatest(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 		},
 	}
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 
 	expRev := stateCtx.Committed.Rev
@@ -39,6 +39,5 @@ func WatchSinceLatest(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 	require.Len(t, actStates, 1)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
 	require.Equal(t, expRev, actStates[0].Rev)
-	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 }

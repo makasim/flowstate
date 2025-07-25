@@ -92,6 +92,9 @@ func TestRecovererRetryLogic(t *testing.T) {
 					stateCtx := &flowstate.StateCtx{
 						Current: flowstate.State{
 							ID: flowstate.StateID("aTID" + strconv.Itoa(i)),
+							Transition: flowstate.Transition{
+								To: `aFlow`,
+							},
 						},
 					}
 					flowstate.DisableRecovery(stateCtx)
@@ -113,7 +116,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		},
 	)
 
-	// states paused marked completed
+	// parked states marked completed
 	f(
 		func(e flowstate.Engine) {
 			for i := 0; i < 100; i++ {
@@ -125,33 +128,6 @@ func TestRecovererRetryLogic(t *testing.T) {
 					}
 
 					if err := e.Do(flowstate.Commit(flowstate.Park(stateCtx))); err != nil {
-						t.Fatalf("failed to commit state %s: %v", stateCtx.Current.ID, err)
-					}
-				}()
-			}
-		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
-			t.Fatalf("unexpected call to flow function")
-			return nil, nil
-		},
-		flowstate.RecovererStats{
-			Completed: 100,
-			Commited:  2,
-		},
-	)
-
-	// states ended marked completed
-	f(
-		func(e flowstate.Engine) {
-			for i := 0; i < 100; i++ {
-				go func() {
-					stateCtx := &flowstate.StateCtx{
-						Current: flowstate.State{
-							ID: flowstate.StateID("aTID" + strconv.Itoa(i)),
-						},
-					}
-
-					if err := e.Do(flowstate.Commit(flowstate.Pause(stateCtx))); err != nil {
 						t.Fatalf("failed to commit state %s: %v", stateCtx.Current.ID, err)
 					}
 				}()
@@ -246,7 +222,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			// do nothing to see how many times the state will be retried
-			return flowstate.Noop(stateCtx), nil
+			return flowstate.Noop(), nil
 		},
 		flowstate.RecovererStats{
 			Added:     4,
@@ -275,7 +251,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 		},
 		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 			// do nothing to see how many times the state will be retried
-			return flowstate.Noop(stateCtx), nil
+			return flowstate.Noop(), nil
 		},
 		flowstate.RecovererStats{
 			Added:     5,
@@ -613,7 +589,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 		}
 		flowstate.DisableRecovery(recoverStateCtx)
 		if err := e.Do(flowstate.Commit(
-			flowstate.Transit(recoverStateCtx, `na`),
+			flowstate.Park(recoverStateCtx).WithAnnotation(`state`, `active`),
 		)); err != nil {
 			t.Fatalf("failed to commit recovery state: %v", err)
 		}

@@ -37,7 +37,7 @@ func Fork(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 			return nil, err
 		}
 
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Noop(), nil
 	}))
 	mustSetFlow(fr, "origin", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)

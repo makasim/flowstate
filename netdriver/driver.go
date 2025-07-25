@@ -130,22 +130,6 @@ func syncResult(inCmd0, resCmd0 flowstate.Command) error {
 
 		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
 		return nil
-	case *flowstate.PauseCommand:
-		resCmd, ok := resCmd0.(*flowstate.PauseCommand)
-		if !ok {
-			return fmt.Errorf("resCmd is not a PauseCommand")
-		}
-
-		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
-		return nil
-	case *flowstate.ResumeCommand:
-		resCmd, ok := resCmd0.(*flowstate.ResumeCommand)
-		if !ok {
-			return fmt.Errorf("resCmd is not a ResumeCommand")
-		}
-
-		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
-		return nil
 	case *flowstate.ParkCommand:
 		resCmd, ok := resCmd0.(*flowstate.ParkCommand)
 		if !ok {
@@ -188,12 +172,9 @@ func syncResult(inCmd0, resCmd0 flowstate.Command) error {
 
 		return nil
 	case *flowstate.NoopCommand:
-		resCmd, ok := resCmd0.(*flowstate.ExecuteCommand)
-		if !ok {
-			return fmt.Errorf("resCmd is not a ExecuteCommand")
+		if _, ok := resCmd0.(*flowstate.NoopCommand); !ok {
+			return fmt.Errorf("resCmd is not a NoopCommand")
 		}
-
-		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
 		return nil
 	case *flowstate.StackCommand:
 		resCmd, ok := resCmd0.(*flowstate.StackCommand)
@@ -266,14 +247,6 @@ func syncResult(inCmd0, resCmd0 flowstate.Command) error {
 		}
 
 		inCmd.Result = resCmd.Result
-		return nil
-	case *flowstate.CommitStateCtxCommand:
-		resCmd, ok := resCmd0.(*flowstate.CommitStateCtxCommand)
-		if !ok {
-			return fmt.Errorf("resCmd is not a CommitStateCtxCommand")
-		}
-
-		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
 		return nil
 	default:
 		return fmt.Errorf("unknown inCmd: %T", inCmd0)

@@ -1,6 +1,8 @@
 package flowstate
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Driver interface {
 	// Init must be called by NewEngine only.
@@ -20,13 +22,7 @@ func DoCommitSubCommand(d Driver, subCmd0 Command) error {
 	switch subCmd := subCmd0.(type) {
 	case *NoopCommand:
 		return nil
-	case *CommitStateCtxCommand:
-		return nil
 	case *TransitCommand:
-		return subCmd.Do()
-	case *PauseCommand:
-		return subCmd.Do()
-	case *ResumeCommand:
 		return subCmd.Do()
 	case *ParkCommand:
 		return subCmd.Do()

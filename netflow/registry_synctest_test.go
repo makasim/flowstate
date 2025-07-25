@@ -44,7 +44,7 @@ func TestRegistry(t *testing.T) {
 		})); err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		
+
 		time.Sleep(time.Second * 7)
 
 		// now we should be able to get all flows
@@ -152,7 +152,7 @@ func TestRegistry_Flow_SlowPath(t *testing.T) {
 		stateCtx.Current.SetLabel(`flow.type`, `remote`)
 		stateCtx.Current.SetAnnotation(`flowstate.flow.transition_id`, `aFlowID`)
 		stateCtx.Current.SetAnnotation(`flowstate.flow.http_host`, `http://anotherHost:8080`)
-		if err := d.Commit(flowstate.Commit(flowstate.Pause(stateCtx))); err != nil {
+		if err := d.Commit(flowstate.Commit(flowstate.Park(stateCtx))); err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 

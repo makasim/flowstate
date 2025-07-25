@@ -21,10 +21,10 @@ func GetManyLatestOnly(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 
 	for i := 0; i < 3; i++ {
 		require.NoError(t, e.Do(flowstate.Commit(
-			flowstate.Pause(stateCtx),
+			flowstate.Park(stateCtx),
 		)))
 		require.NoError(t, e.Do(flowstate.Commit(
-			flowstate.Pause(stateCtx1),
+			flowstate.Park(stateCtx1),
 		)))
 	}
 

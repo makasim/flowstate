@@ -36,28 +36,28 @@ func RateLimit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d fl
 					return nil, err
 				}
 
-				if !flowstate.Paused(limitedStateCtx.Current) {
+				if !flowstate.Parked(limitedStateCtx.Current) {
 					continue
 				}
 
 				delete(limitedStateCtx.Current.Labels, "limiter")
 				if err := e.Do(
 					flowstate.Commit(
-						flowstate.Resume(limitedStateCtx),
+						flowstate.Transit(limitedStateCtx, `limited`).WithAnnotation(`state`, `resumed`),
 					),
 					flowstate.Execute(limitedStateCtx),
 				); err != nil {
 					return nil, err
 				}
 			case <-stateCtx.Done():
-				return flowstate.Noop(stateCtx), nil
+				return flowstate.Noop(), nil
 			}
 		}
 	}))
 	mustSetFlow(fr, "limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		if flowstate.Resumed(stateCtx.Current) {
+		if stateCtx.Current.Annotation(`state`) == `resumed` {
 			return flowstate.Commit(
 				flowstate.Park(stateCtx),
 			), nil
@@ -65,7 +65,7 @@ func RateLimit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d fl
 
 		stateCtx.Current.SetLabel("limiter", "theName")
 		return flowstate.Commit(
-			flowstate.Pause(stateCtx),
+			flowstate.Park(stateCtx),
 		), nil
 	}))
 

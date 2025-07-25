@@ -16,18 +16,19 @@ func GetOneByIDAndRev(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 
 	stateCtx.Current.SetAnnotation("v", "1")
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.CommitStateCtx(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	expectedStateCtx := stateCtx.CopyTo(&flowstate.StateCtx{})
+	expectedStateCtx.Transitions = nil
 
 	stateCtx.Current.SetAnnotation("v", "2")
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.CommitStateCtx(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 
 	stateCtx.Current.SetAnnotation("v", "3")
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.CommitStateCtx(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 
 	foundStateCtx := &flowstate.StateCtx{}

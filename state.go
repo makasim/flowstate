@@ -21,13 +21,13 @@ type State struct {
 	Transition Transition
 }
 
-//func (s *State) SetCommitedAt(at time.Time) {
-//	s.CommittedAtUnixMilli = at.UnixMilli()
-//}
-//
-//func (s *State) CommittedAt() time.Time {
-//	return time.UnixMilli(s.CommittedAtUnixMilli)
-//}
+func (s State) Annotation(name string) string {
+	if value := s.Transition.Annotations[name]; value != "" {
+		return value
+	}
+
+	return s.Annotations[name]
+}
 
 func (s *State) CopyTo(to *State) State {
 	to.ID = s.ID

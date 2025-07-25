@@ -18,15 +18,15 @@ func WatchSinceRev(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, 
 		},
 	}
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	sinceRev := stateCtx.Committed.Rev
 
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 
 	w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
@@ -39,12 +39,10 @@ func WatchSinceRev(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, 
 	require.Len(t, actStates, 2)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
 	require.Greater(t, actStates[0].Rev, sinceRev)
-	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[1].ID)
 	require.Greater(t, actStates[1].Rev, sinceRev)
-	require.Equal(t, `paused`, actStates[1].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[1].Labels[`foo`])
 
 	require.Greater(t, actStates[1].Rev, actStates[0].Rev)

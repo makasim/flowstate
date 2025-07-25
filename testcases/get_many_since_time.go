@@ -18,7 +18,7 @@ func GetManySinceTime(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 		},
 	}
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	require.Greater(t, stateCtx.Committed.CommittedAt.UnixMilli(), int64(0))
 
@@ -44,6 +44,5 @@ func GetManySinceTime(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
 	require.NotEmpty(t, actStates[0].Rev)
-	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 }

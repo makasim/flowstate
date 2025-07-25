@@ -17,13 +17,13 @@ func GetManySinceLatest(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 		},
 	}
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 
 	cmd := flowstate.GetStatesByLabels(map[string]string{
@@ -40,6 +40,5 @@ func GetManySinceLatest(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 	require.Len(t, actStates, 1)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
 	require.NotEmpty(t, actStates[0].Rev)
-	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 }

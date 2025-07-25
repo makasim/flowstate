@@ -16,17 +16,18 @@ func GetOneLatestByID(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 
 	stateCtx.Current.SetAnnotation("v", "1")
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.CommitStateCtx(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	stateCtx.Current.SetAnnotation("v", "2")
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.CommitStateCtx(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	stateCtx.Current.SetAnnotation("v", "3")
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.CommitStateCtx(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 	expStateCtx := stateCtx.CopyTo(&flowstate.StateCtx{})
+	expStateCtx.Transitions = nil
 
 	foundStateCtx := &flowstate.StateCtx{}
 

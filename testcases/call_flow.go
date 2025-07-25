@@ -22,7 +22,7 @@ func CallFlow(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flo
 	mustSetFlow(fr, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		if flowstate.Resumed(stateCtx.Current) {
+		if stateCtx.Current.Annotation(`state`) == `resumed` {
 			return flowstate.Transit(stateCtx, `callEnd`), nil
 		}
 
@@ -33,7 +33,7 @@ func CallFlow(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flo
 		}
 
 		if err := e.Do(
-			flowstate.Pause(stateCtx),
+			flowstate.Park(stateCtx),
 			flowstate.Stack(nextStateCtx, stateCtx, `caller_state`),
 			flowstate.Transit(nextStateCtx, `called`),
 			flowstate.Execute(nextStateCtx),
@@ -41,7 +41,7 @@ func CallFlow(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flo
 			return nil, err
 		}
 
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Noop(), nil
 	}))
 	mustSetFlow(fr, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
@@ -55,14 +55,14 @@ func CallFlow(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flo
 
 			if err := e.Do(
 				flowstate.Unstack(stateCtx, callStateCtx, `caller_state`),
-				flowstate.Resume(callStateCtx),
+				flowstate.Transit(callStateCtx, `call`).WithAnnotation(`state`, `resumed`),
 				flowstate.Execute(callStateCtx),
 				flowstate.Park(stateCtx),
 			); err != nil {
 				return nil, err
 			}
 
-			return flowstate.Noop(stateCtx), nil
+			return flowstate.Noop(), nil
 		}
 
 		return flowstate.Park(stateCtx), nil

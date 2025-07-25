@@ -53,7 +53,7 @@ func CallFlowWithWatch(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 		for {
 			select {
 			case <-stateCtx.Done():
-				return flowstate.Noop(stateCtx), nil
+				return flowstate.Noop(), nil
 			case nextState := <-w.Next():
 				nextStateCtx := nextState.CopyToCtx(&flowstate.StateCtx{})
 

@@ -26,7 +26,7 @@ func Mutex(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 		var mutexStateCtx *flowstate.StateCtx
 
 		for {
-			if mutexStateCtx != nil && mutexStateCtx.Current.Transition.To == "unlocked" {
+			if mutexStateCtx != nil && mutexStateCtx.Current.Annotation(`state`) == "unlocked" {
 				copyStateCtx := &flowstate.StateCtx{}
 				stateCtx.CopyTo(copyStateCtx)
 
@@ -34,7 +34,7 @@ func Mutex(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 				mutexStateCtx.CopyTo(copyMutexStateCtx)
 
 				if err := e.Do(flowstate.Commit(
-					flowstate.Pause(copyMutexStateCtx).WithTransit(`locked`),
+					flowstate.Park(copyMutexStateCtx).WithAnnotation(`state`, `locked`),
 					flowstate.Stack(copyStateCtx, copyMutexStateCtx, `mutex_state`),
 					flowstate.Transit(copyStateCtx, `protected`),
 				)); flowstate.IsErrRevMismatchContains(err, mutexStateCtx.Current.ID) {
@@ -59,7 +59,7 @@ func Mutex(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 
 				continue
 			case <-stateCtx.Done():
-				return flowstate.Noop(stateCtx), nil
+				return flowstate.Noop(), nil
 			}
 
 		}
@@ -77,13 +77,13 @@ func Mutex(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 		mutexStateCtx := &flowstate.StateCtx{}
 		if err := e.Do(flowstate.Commit(
 			flowstate.Unstack(stateCtx, mutexStateCtx, `mutex_state`),
-			flowstate.Pause(mutexStateCtx).WithTransit(`unlocked`),
+			flowstate.Park(mutexStateCtx).WithAnnotation(`state`, `unlocked`),
 			flowstate.Park(stateCtx),
 		)); err != nil {
 			return nil, err
 		}
 
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Noop(), nil
 	}))
 
 	mutexStateCtx := &flowstate.StateCtx{
@@ -106,7 +106,7 @@ func Mutex(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 	}
 
 	err := e.Do(flowstate.Commit(
-		flowstate.Pause(mutexStateCtx).WithTransit(`unlocked`),
+		flowstate.Park(mutexStateCtx).WithAnnotation(`state`, `unlocked`),
 	))
 	require.NoError(t, err)
 

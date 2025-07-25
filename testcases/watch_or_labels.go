@@ -10,7 +10,7 @@ import (
 
 func WatchORLabels(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(&flowstate.StateCtx{
+		flowstate.Park(&flowstate.StateCtx{
 			Current: flowstate.State{
 				ID: "aTID",
 				Labels: map[string]string{
@@ -21,7 +21,7 @@ func WatchORLabels(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, 
 	)))
 
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(&flowstate.StateCtx{
+		flowstate.Park(&flowstate.StateCtx{
 			Current: flowstate.State{
 				ID: "anotherTID",
 				Labels: map[string]string{
@@ -43,13 +43,11 @@ func WatchORLabels(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, 
 	require.Len(t, actStates, 2)
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
 	require.NotEmpty(t, actStates[0].Rev)
-	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 	require.Equal(t, ``, actStates[0].Labels[`bar`])
 
 	require.Equal(t, flowstate.StateID(`anotherTID`), actStates[1].ID)
 	require.NotEmpty(t, actStates[1].Rev)
-	require.Equal(t, `paused`, actStates[1].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, ``, actStates[1].Labels[`foo`])
 	require.Equal(t, `barVal`, actStates[1].Labels[`bar`])
 

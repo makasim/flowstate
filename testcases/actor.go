@@ -34,7 +34,7 @@ func Actor(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 				}
 			case <-stateCtx.Done():
 				return flowstate.Commit(
-					flowstate.Pause(stateCtx),
+					flowstate.Park(stateCtx),
 				), nil
 			}
 		}
@@ -67,7 +67,7 @@ func Actor(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 
 	require.NoError(t, e.Do(
 		flowstate.Commit(
-			flowstate.Pause(msg0StateCtx).WithTransit(`inbox`),
+			flowstate.Park(msg0StateCtx),
 		),
 	))
 
@@ -82,13 +82,13 @@ func Actor(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 
 	require.NoError(t, e.Do(
 		flowstate.Commit(
-			flowstate.Pause(msg1StateCtx).WithTransit(`inbox`),
+			flowstate.Park(msg1StateCtx),
 		),
 	))
 
 	require.Equal(t, []string{
 		"actor:actorTID",
-		"inbox:msg0TID",
-		"inbox:msg1TID",
-	}, trkr.WaitVisitedEqual(t, []string{`actor:actorTID`, `inbox:msg0TID`, `inbox:msg1TID`}, time.Millisecond*600))
+		":msg0TID",
+		":msg1TID",
+	}, trkr.WaitVisitedEqual(t, []string{`actor:actorTID`, `:msg0TID`, `:msg1TID`}, time.Millisecond*600))
 }

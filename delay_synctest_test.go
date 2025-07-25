@@ -191,12 +191,12 @@ func TestDelayer(t *testing.T) {
 					Current: flowstate.State{ID: `s1`},
 				}
 
-				if err := e.Do(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); err != nil {
+				if err := e.Do(flowstate.Commit(flowstate.Park(stateCtx))); err != nil {
 					t.Fatalf("failed to commit state: %v", err)
 				}
 
 				stateCtx1 := stateCtx.CopyTo(&flowstate.StateCtx{})
-				if err := e.Do(flowstate.Commit(flowstate.CommitStateCtx(stateCtx1))); err != nil {
+				if err := e.Do(flowstate.Commit(flowstate.Park(stateCtx1))); err != nil {
 					t.Fatalf("failed to commit state: %v", err)
 				}
 
@@ -216,12 +216,12 @@ func TestDelayer(t *testing.T) {
 					Current: flowstate.State{ID: `s1`},
 				}
 
-				if err := e.Do(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); err != nil {
+				if err := e.Do(flowstate.Commit(flowstate.Park(stateCtx))); err != nil {
 					t.Fatalf("failed to commit state: %v", err)
 				}
 
 				stateCtx1 := stateCtx.CopyTo(&flowstate.StateCtx{})
-				if err := e.Do(flowstate.Commit(flowstate.CommitStateCtx(stateCtx1))); err != nil {
+				if err := e.Do(flowstate.Commit(flowstate.Park(stateCtx1))); err != nil {
 					t.Fatalf("failed to commit state: %v", err)
 				}
 

@@ -54,12 +54,8 @@ func TestFlowExecute(t *testing.T) {
 		t.Fatal("expected command, got nil")
 	}
 
-	cmd, ok := cmd0.(*flowstate.NoopCommand)
-	if !ok {
+	if _, ok := cmd0.(*flowstate.NoopCommand); !ok {
 		t.Fatalf("expected NoopCommand, got %T", cmd0)
-	}
-	if cmd.StateCtx.Current.ID != `anID` {
-		t.Fatalf("expected state ID to be 'anID', got '%s'", cmd.StateCtx.Current.ID)
 	}
 
 	select {

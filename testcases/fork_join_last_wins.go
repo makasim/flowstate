@@ -39,7 +39,7 @@ func ForkJoin_LastWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 			return nil, err
 		}
 
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Noop(), nil
 	}))
 	mustSetFlow(fr, "join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
@@ -62,7 +62,7 @@ func ForkJoin_LastWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 
 			select {
 			case <-stateCtx.Done():
-				return flowstate.Noop(stateCtx), nil
+				return flowstate.Noop(), nil
 			case changedState := <-w.Next():
 				changedStateCtx := changedState.CopyToCtx(&flowstate.StateCtx{})
 
