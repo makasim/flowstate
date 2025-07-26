@@ -47,7 +47,7 @@ jobs:
       - name: build
         run: |
           rm -rf examples/
-          go build -v ./...
+          go build -v ./app/flowstate.go
 
   test:
     runs-on: ubuntu-latest

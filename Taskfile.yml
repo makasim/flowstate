@@ -1,0 +1,57 @@
+version: '3'
+
+tasks:
+  test:
+    cmds:
+      - GOEXPERIMENT=synctest GODEBUG=asynctimerchan=0 TEST_OUTPUT_LOG=false gotest  ./...
+
+  examples:
+    cmds:
+      - |
+        for file in examples/*/main.go; do
+          echo "Running $file"
+          go run "$file"
+          echo "----------------------"
+          echo
+        done
+
+  build:
+    cmds:
+      - |
+        cd ui
+        
+        buf lint
+        rm -rf src/gen/*
+        buf generate
+        
+        pnpm i
+        pnpm build
+
+      - |
+        go mod tidy && go mod vendor
+        GOOS=linux GOARCH=arm64 go build -o flowstate ./app/
+        
+        VERSION="$(git rev-list -1 HEAD | cut -c1-8)"
+        if [ -n "$(git diff)" ]; then
+          VERSION="${VERSION}-$(git diff | sha1sum | awk '{print $1}' | cut -c1-8)"
+        fi
+        if [ -n "$(git diff --cached)" ]; then
+          VERSION="${VERSION}-$(git diff --cached | sha1sum | awk '{print $1}' | cut -c1-8)"
+        fi
+        echo "Building flowstate:$VERSION"
+        docker build --platform="linux/arm64" -t "flowstate:$VERSION" .
+
+  push:
+    cmds:
+      - |
+        VERSION="$(git rev-list -1 HEAD | cut -c1-8)"
+        if [ -n "$(git diff)" ]; then
+          VERSION="${VERSION}-$(git diff | sha1sum | awk '{print $1}' | cut -c1-8)"
+        fi
+        if [ -n "$(git diff --cached)" ]; then
+          VERSION="${VERSION}-$(git diff --cached | sha1sum | awk '{print $1}' | cut -c1-8)"
+        fi
+        
+        docker tag "flowstate:$VERSION" "docker.io/makasim/flowstate:$VERSION"
+        echo "Pushing docker.io/makasim/flowstate:$VERSION"
+        docker push "docker.io/makasim/flowstate:$VERSION"
