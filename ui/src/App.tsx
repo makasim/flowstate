@@ -6,17 +6,25 @@ import { useLocalStorage } from "./hooks/useLocalStorage";
 import { StatesPage } from "./StatesPage";
 import { ApiContext } from "./ApiContext";
 import { createDriverClient } from "./api";
+import { ServerIndicator } from "./components/ServerIndicator";
 
 export default function App() {
-  const [apiURL, setApiURL] = useState("");
   const [servers, setServers] = useLocalStorage<string[]>("servers", []);
-  const [choosenServer, setChoosenServer] = useState(servers[0] || "");
+  const [selectedServer, setSelectedServer] = useLocalStorage<string>("selectedServer", "");
+  const [apiURL, setApiURL] = useState(selectedServer);
+  const [choosenServer, setChoosenServer] = useState(selectedServer || servers[0] || "");
 
   const client = useMemo(() => apiURL ? createDriverClient(apiURL) : null, [apiURL]);
+
+  const handleDisconnect = () => {
+    setSelectedServer("");
+    setApiURL("");
+  };
 
   if (client) {
     return (
       <ApiContext.Provider value={client}>
+        <ServerIndicator serverUrl={apiURL} onDisconnect={handleDisconnect} />
         <StatesPage />
       </ApiContext.Provider>
     );
@@ -31,6 +39,7 @@ export default function App() {
           if (!servers.includes(choosenServer)) {
             setServers([choosenServer, ...servers]);
           }
+          setSelectedServer(choosenServer);
           setApiURL(choosenServer);
         }}
       >
@@ -61,6 +70,8 @@ export default function App() {
                 onClick={(e) => {
                   e.preventDefault();
                   setChoosenServer(server);
+                  setSelectedServer(server);
+                  setApiURL(server);
                 }}
               >
                 {server}
