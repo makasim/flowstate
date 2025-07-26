@@ -1,6 +1,20 @@
 version: '3'
 
 tasks:
+  test:
+    cmds:
+      - GOEXPERIMENT=synctest GODEBUG=asynctimerchan=0 TEST_OUTPUT_LOG=false gotest  ./...
+
+  examples:
+    cmds:
+      - |
+        for file in examples/*/main.go; do
+          echo "Running $file"
+          go run "$file"
+          echo "----------------------"
+          echo
+        done
+
   build:
     cmds:
       - |
