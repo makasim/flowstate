@@ -2,10 +2,12 @@ import "./App.css";
 import { DataTable } from "./components/data-table";
 import React, { useEffect, useState } from "react";
 import { State } from "./gen/flowstate/v1/messages_pb";
+import { Select } from "./components/ui/select";
 
 import { ColumnDef } from "@tanstack/react-table";
 import { createDriverClient } from "./api";
 import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -127,10 +129,42 @@ type DriverClient = ReturnType<typeof createDriverClient>;
 
 export const StatesPage = () => {
   const [states, setStates] = useState<State[]>([]);
+  const [refreshInterval, setRefreshInterval] = useState<number>(5000);
   const client = React.useContext(ApiContext);
+
+  const manualRefresh = async () => {
+    if (!client) return;
+
+    const getStatesCommand = new GetStatesCommand({
+      limit: BigInt(100),
+      latestOnly: false,
+      sinceRev: BigInt(0),
+    });
+
+    const anyCommand = new Command({
+      getStates: getStatesCommand
+    });
+
+    try {
+      const anyCommandResp = await client.getStates(anyCommand);
+      const getStatesCommand = anyCommandResp.getStates
+      if (getStatesCommand && getStatesCommand.result) {
+        const getStatesResult = getStatesCommand.result;
+        if (getStatesResult.states.length > 0) {
+          const sortedStates = getStatesResult.states.sort((a, b) => Number(b.rev - a.rev));
+          setStates(sortedStates);
+        }
+      }
+    } catch (error) {
+      console.log("Manual refresh error", error);
+    }
+  };
 
   useEffect(() => {
     if (!client) return;
+
+    // Clear existing states when refresh interval changes
+    setStates([]);
 
     const abortController = new AbortController();
 
@@ -141,7 +175,7 @@ export const StatesPage = () => {
     return () => {
       abortController.abort();
     };
-  }, [client]);
+  }, [client, refreshInterval]);
 
   const listenToStates = async (client: DriverClient, signal: AbortSignal) => {
     let sinceRev = BigInt(0);
@@ -185,10 +219,14 @@ export const StatesPage = () => {
 
     await pollStates();
     
-    intervalId = setInterval(pollStates, 1000);
+    if (refreshInterval > 0) {
+      intervalId = setInterval(pollStates, refreshInterval);
+    }
     
     signal.addEventListener('abort', () => {
-      clearInterval(intervalId);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     });
   };
 
@@ -208,6 +246,34 @@ export const StatesPage = () => {
 
   return (
     <div className="container mx-auto py-10">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-semibold">States</h1>
+        <div className="flex items-center gap-2">
+          <label htmlFor="refresh-interval" className="text-sm font-medium">
+            Refresh:
+          </label>
+          <Select
+            id="refresh-interval"
+            value={refreshInterval.toString()}
+            onChange={(e) => setRefreshInterval(Number(e.target.value))}
+            className="w-24"
+          >
+            <option value="1000">1s</option>
+            <option value="5000">5s</option>
+            <option value="10000">10s</option>
+            <option value="20000">20s</option>
+            <option value="30000">30s</option>
+            <option value="0">Off</option>
+          </Select>
+          <Button
+            onClick={manualRefresh}
+            variant="outline"
+            size="sm"
+          >
+            Refresh
+          </Button>
+        </div>
+      </div>
       <DataTable columns={columns} data={data} />
     </div>
   );
