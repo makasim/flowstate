@@ -22,7 +22,7 @@ type State struct {
 }
 
 func (s State) Annotation(name string) string {
-	if value := s.Transition.Annotations[name]; value != "" {
+	if value, ok := s.Transition.Annotations[name]; ok {
 		return value
 	}
 
