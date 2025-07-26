@@ -55,7 +55,7 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 		}
 	case *ParkCommand:
 		args = append(args,
-			"cmd", "end",
+			"cmd", "park",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
 		)
