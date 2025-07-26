@@ -25,6 +25,7 @@ Flowstate is a great fit when you need:
 * [Queue](examples/queue/main.go)
 * [Money transfer, aka state machine](examples/state_machine/main.go)
 * Real-time Two-Player Game – GoGame: [Live Demo](https://gogame.makasim.com/) | [Video](https://x.com/maksim_ka2/status/1825587227163795478) | [Source Code](https://github.com/makasim/gogame).
+* [UI Demo](https://flowstate-gogame.makasim.com/)
 * [Testcases](testcases)
 
 ## Install
