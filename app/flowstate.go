@@ -37,17 +37,17 @@ func main() {
 			Path: "badgerdb",
 		},
 	}
-	if os.Getenv("FLOWSTATESRV_DRIVER") != "" {
-		cfg.Driver = os.Getenv("FLOWSTATESRV_DRIVER")
+	if os.Getenv("FLOWSTATE_DRIVER") != "" {
+		cfg.Driver = os.Getenv("FLOWSTATE_DRIVER")
 	}
-	if os.Getenv("FLOWSTATESRV_BADGERDRIVER_PATH") != "" {
-		cfg.BadgerDriver.Path = os.Getenv("FLOWSTATESRV_BADGERDRIVER_PATH")
+	if os.Getenv("FLOWSTATE_BADGERDRIVER_PATH") != "" {
+		cfg.BadgerDriver.Path = os.Getenv("FLOWSTATE_BADGERDRIVER_PATH")
 	}
-	if os.Getenv("FLOWSTATESRV_BADGERDRIVER_IN_MEMORY") != "" {
-		cfg.BadgerDriver.InMemory = os.Getenv("FLOWSTATESRV_BADGERDRIVER_IN_MEMORY") == `true`
+	if os.Getenv("FLOWSTATE_BADGERDRIVER_IN_MEMORY") != "" {
+		cfg.BadgerDriver.InMemory = os.Getenv("FLOWSTATE_BADGERDRIVER_IN_MEMORY") == `true`
 	}
-	if os.Getenv("FLOWSTATESRV_PGDRIVER_CONN_STRING") != "" {
-		cfg.PostgresDriver.ConnString = os.Getenv("FLOWSTATESRV_PGDRIVER_CONN_STRING")
+	if os.Getenv("FLOWSTATE_PGDRIVER_CONN_STRING") != "" {
+		cfg.PostgresDriver.ConnString = os.Getenv("FLOWSTATE_PGDRIVER_CONN_STRING")
 	}
 
 	if err := newApp(cfg).Run(ctx); err != nil {
@@ -135,8 +135,8 @@ func (a *app) Run(ctx context.Context) error {
 	}
 
 	httpHost := `http://localhost:8080`
-	if os.Getenv(`FLOWSTATESRV_HTTP_HOST`) != `` {
-		httpHost = os.Getenv(`FLOWSTATESRV_HTTP_HOST`)
+	if os.Getenv(`FLOWSTATE_HTTP_HOST`) != `` {
+		httpHost = os.Getenv(`FLOWSTATE_HTTP_HOST`)
 	}
 	fr := netflow.NewRegistry(httpHost, d, a.l)
 	defer fr.Close()
@@ -157,8 +157,8 @@ func (a *app) Run(ctx context.Context) error {
 	}
 
 	addr := `0:8080`
-	if os.Getenv(`FLOWSTATESRV_ADDR`) != `` {
-		addr = os.Getenv(`FLOWSTATESRV_ADDR`)
+	if os.Getenv(`FLOWSTATE_ADDR`) != `` {
+		addr = os.Getenv(`FLOWSTATE_ADDR`)
 	}
 
 	uiH := http.FileServerFS(ui.PublicFS())
