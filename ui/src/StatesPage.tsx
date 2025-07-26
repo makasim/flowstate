@@ -129,7 +129,7 @@ type DriverClient = ReturnType<typeof createDriverClient>;
 
 export const StatesPage = () => {
   const [states, setStates] = useState<State[]>([]);
-  const [refreshInterval, setRefreshInterval] = useState<number>(1000);
+  const [refreshInterval, setRefreshInterval] = useState<number>(5000);
   const client = React.useContext(ApiContext);
 
   const manualRefresh = async () => {
