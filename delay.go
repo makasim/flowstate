@@ -85,10 +85,6 @@ func (cmd *DelayCommand) Prepare() error {
 		nextTs.SetAnnotation(k, v)
 	}
 
-	if Paused(cmd.Result.State) {
-		nextTs.SetAnnotation(StateAnnotation, `resumed`)
-	}
-
 	nextTs.SetAnnotation(DelayUntilAnnotation, cmd.ExecuteAt.Format(time.RFC3339))
 	if !cmd.Commit {
 		nextTs.SetAnnotation(DelayCommitAnnotation, `false`)
@@ -340,7 +336,10 @@ func (d *Delayer) updateTail(now time.Time) error {
 		stateCtx := delayedState.State.CopyToCtx(&StateCtx{})
 		commit := stateCtx.Current.Transition.Annotations[DelayCommitAnnotation] != `false`
 		if commit {
-			if err := d.e.Do(Commit(CommitStateCtx(stateCtx))); IsErrRevMismatch(err) {
+			transitCmd := Transit(stateCtx, stateCtx.Current.Transition.To).
+				WithAnnotations(stateCtx.Current.Transition.Annotations)
+
+			if err := d.e.Do(Commit(transitCmd)); IsErrRevMismatch(err) {
 				continue
 			} else if err != nil {
 				return fmt.Errorf("commit state ctx: id=%s rev=%d: %w", delayedState.State.ID, delayedState.State.Rev, err)

@@ -12,10 +12,6 @@ import (
 
 var _ Command = &TransitCommand{}
 
-var _ Command = &PauseCommand{}
-
-var _ Command = &ResumeCommand{}
-
 var _ Command = &ParkCommand{}
 
 var _ Command = &DelayCommand{}
@@ -39,8 +35,6 @@ var _ Command = &AttachDataCommand{}
 var _ Command = &GetDataCommand{}
 
 var _ Command = &CommitCommand{}
-
-var _ Command = &CommitStateCtxCommand{}
 
 var _ Command = &ExecuteCommand{}
 
@@ -86,23 +80,8 @@ func (cmd *CommitCommand) setSessID(id int64) {
 	}
 }
 
-func CommitStateCtx(stateCtx *StateCtx) *CommitStateCtxCommand {
-	return &CommitStateCtxCommand{
-		StateCtx: stateCtx,
-	}
-}
-
-type CommitStateCtxCommand struct {
-	command
-	StateCtx *StateCtx
-}
-
-func (cmd *CommitStateCtxCommand) CommittableStateCtx() *StateCtx {
-	return cmd.StateCtx
-}
-
 func Parked(state State) bool {
-	return state.Transition.Annotations[StateAnnotation] == `ended`
+	return state.Transition.To == ``
 }
 
 func Park(stateCtx *StateCtx) *ParkCommand {
@@ -130,14 +109,20 @@ func (cmd *ParkCommand) WithAnnotation(name, value string) *ParkCommand {
 	return cmd
 }
 
+func (cmd *ParkCommand) WithAnnotations(annotations map[string]string) *ParkCommand {
+	for k, v := range annotations {
+		cmd.WithAnnotation(k, v)
+	}
+	return cmd
+}
+
 func (cmd *ParkCommand) Do() error {
 	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
 
-	nextTs := nextTransitionOrCurrent(cmd.StateCtx, ``)
+	nextTs := Transition{}
 	for k, v := range cmd.Annotations {
 		nextTs.SetAnnotation(k, v)
 	}
-	nextTs.SetAnnotation(StateAnnotation, `ended`)
 	cmd.StateCtx.Current.Transition = nextTs
 
 	return nil
@@ -284,90 +269,13 @@ func (cmd *GetStatesCommand) WithLimit(limit int) *GetStatesCommand {
 func (cmd *GetStatesCommand) Prepare() {
 }
 
-func Noop(stateCtx *StateCtx) *NoopCommand {
-	return &NoopCommand{
-		StateCtx: stateCtx,
-	}
+func Noop() *NoopCommand {
+	return &NoopCommand{}
 }
 
 type NoopCommand struct {
 	command
-	StateCtx *StateCtx
 }
-
-func Paused(state State) bool {
-	return state.Transition.Annotations[StateAnnotation] == `paused`
-}
-
-func Pause(stateCtx *StateCtx) *PauseCommand {
-	return &PauseCommand{
-		StateCtx: stateCtx,
-		To:       stateCtx.Current.Transition.To,
-	}
-}
-
-type PauseCommand struct {
-	command
-
-	StateCtx *StateCtx
-	To       FlowID
-}
-
-func (cmd *PauseCommand) WithTransit(to FlowID) *PauseCommand {
-	cmd.To = to
-	return cmd
-}
-
-func (cmd *PauseCommand) CommittableStateCtx() *StateCtx {
-	return cmd.StateCtx
-}
-
-func (cmd *PauseCommand) Do() error {
-	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
-
-	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
-	nextTs.SetAnnotation(StateAnnotation, `paused`)
-	cmd.StateCtx.Current.Transition = nextTs
-
-	return nil
-}
-
-func Resumed(state State) bool {
-	return state.Transition.Annotations[StateAnnotation] == `resumed`
-}
-
-func Resume(stateCtx *StateCtx) *ResumeCommand {
-	return &ResumeCommand{
-		StateCtx: stateCtx,
-	}
-}
-
-type ResumeCommand struct {
-	command
-	StateCtx *StateCtx
-	To       FlowID
-}
-
-func (cmd *ResumeCommand) WithTransit(to FlowID) *ResumeCommand {
-	cmd.To = to
-	return cmd
-}
-
-func (cmd *ResumeCommand) CommittableStateCtx() *StateCtx {
-	return cmd.StateCtx
-}
-
-func (cmd *ResumeCommand) Do() error {
-	cmd.StateCtx.Transitions = append(cmd.StateCtx.Transitions, cmd.StateCtx.Current.Transition)
-
-	nextTs := nextTransitionOrCurrent(cmd.StateCtx, cmd.To)
-	nextTs.SetAnnotation(StateAnnotation, `resumed`)
-	cmd.StateCtx.Current.Transition = nextTs
-
-	return nil
-}
-
-var StateAnnotation = `flowstate.state`
 
 func Transit(stateCtx *StateCtx, to FlowID) *TransitCommand {
 	return &TransitCommand{
@@ -393,6 +301,13 @@ func (cmd *TransitCommand) WithAnnotation(name, value string) *TransitCommand {
 	}
 
 	cmd.Annotations[name] = value
+	return cmd
+}
+
+func (cmd *TransitCommand) WithAnnotations(annotations map[string]string) *TransitCommand {
+	for k, v := range annotations {
+		cmd.WithAnnotation(k, v)
+	}
 	return cmd
 }
 

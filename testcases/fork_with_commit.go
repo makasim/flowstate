@@ -38,7 +38,7 @@ func Fork_WithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry
 			return nil, err
 		}
 
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Noop(), nil
 	}))
 	mustSetFlow(fr, "forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)

@@ -12,22 +12,18 @@ import (
 func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	trkr := &Tracker{
 		IncludeTaskID: true,
-		IncludeState:  true,
 	}
 
-	mustSetFlow(fr, "queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		if flowstate.Resumed(stateCtx.Current) {
-			return flowstate.Transit(stateCtx, `dequeued`), nil
-		}
 
 		stateCtx.Current.SetLabel("queue", "theName")
 
 		return flowstate.Commit(
-			flowstate.Pause(stateCtx),
+			flowstate.Park(stateCtx),
 		), nil
 	}))
-	mustSetFlow(fr, "enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
@@ -44,7 +40,7 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 
 				if err := e.Do(
 					flowstate.Commit(
-						flowstate.Resume(queuedStateCtx),
+						flowstate.Transit(queuedStateCtx, `dequeued`),
 						flowstate.Park(stateCtx),
 					),
 					flowstate.Execute(queuedStateCtx),
@@ -52,7 +48,7 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 					return nil, err
 				}
 
-				return flowstate.Noop(stateCtx), nil
+				return flowstate.Noop(), nil
 			}
 		}
 	}))
@@ -71,7 +67,7 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 		}
 
 		err := e.Do(flowstate.Commit(
-			flowstate.Transit(stateCtx, `queue`),
+			flowstate.Transit(stateCtx, `enqueue`),
 		))
 		require.NoError(t, err)
 
@@ -81,11 +77,11 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 
 	enqueueStateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
-			ID: "enqueueTID",
+			ID: "workerTID",
 		},
 	}
 	err := e.Do(flowstate.Commit(
-		flowstate.Transit(enqueueStateCtx, `enqueue`),
+		flowstate.Transit(enqueueStateCtx, `queue`),
 	))
 	require.NoError(t, err)
 
@@ -93,11 +89,10 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 	require.NoError(t, err)
 
 	trkr.WaitVisitedEqual(t, []string{
-		"queue:aTID0",
-		"queue:aTID1",
-		"queue:aTID2",
-		"enqueue:enqueueTID",
-		"queue:resumed:aTID0",
+		"enqueue:aTID0",
+		"enqueue:aTID1",
+		"enqueue:aTID2",
+		"queue:workerTID",
 		"dequeued:aTID0",
 	}, time.Second)
 }

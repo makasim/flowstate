@@ -84,8 +84,9 @@ func (fr *Registry) SetFlow(id flowstate.FlowID, flow flowstate.Flow) error {
 	stateCtx.Current.SetLabel(`flow.type`, `remote`)
 	stateCtx.Current.SetAnnotation(`flowstate.flow.transition_id`, string(id))
 	stateCtx.Current.SetAnnotation(`flowstate.flow.http_host`, fr.httpHost)
+	stateCtx.Current.SetAnnotation(`flowstate.flow.action`, `set`)
 
-	if err := fr.d.Commit(flowstate.Commit(flowstate.Pause(stateCtx))); flowstate.IsErrRevMismatch(err) {
+	if err := fr.d.Commit(flowstate.Commit(flowstate.Park(stateCtx))); flowstate.IsErrRevMismatch(err) {
 		// ok
 		return nil
 	} else if err != nil {
@@ -122,6 +123,8 @@ func (fr *Registry) UnsetFlow(id flowstate.FlowID) error {
 	if err = fr.d.GetStateByID(flowstate.GetStateByID(stateCtx, stateCtx.Current.ID, 0)); err != nil {
 		return fmt.Errorf("get state by id: %w", err)
 	}
+
+	stateCtx.Current.SetAnnotation(`flowstate.flow.action`, `unset`)
 
 	if err := fr.d.Commit(flowstate.Commit(flowstate.Park(stateCtx))); flowstate.IsErrRevMismatch(err) {
 		// ok
@@ -198,8 +201,8 @@ func (fr *Registry) setFlow(state flowstate.State) {
 		return
 	}
 	tsID := flowstate.FlowID(state.Annotations[`flowstate.flow.transition_id`])
-
-	if flowstate.Parked(state) {
+	
+	if state.Annotation(`flowstate.flow.action`) == `unset` {
 		if err := fr.fr.UnsetFlow(tsID); err != nil {
 			fr.l.Warn("flow registry: unset flow failed", "error", err, "transition_id", tsID, "state_id", state.ID, "state_rev", state.Rev)
 		}

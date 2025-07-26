@@ -28,9 +28,9 @@ func Track(stateCtx *flowstate.StateCtx, trkr *Tracker) {
 
 	if trkr.IncludeState {
 		switch {
-		case flowstate.Resumed(stateCtx.Current):
+		case stateCtx.Current.Annotation(`state`) == `resumed`:
 			postfix += `:resumed`
-		case flowstate.Paused(stateCtx.Current):
+		case stateCtx.Current.Annotation(`state`) == `paused`:
 			postfix += `:paused`
 		}
 	}

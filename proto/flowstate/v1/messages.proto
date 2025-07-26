@@ -49,8 +49,6 @@ message Command {
   repeated Data datas = 2;
 
   TransitCommand transit = 3;
-  PauseCommand pause = 4;
-  ResumeCommand resume = 5;
   ParkCommand park = 6;
   ExecuteCommand execute = 7;
   DelayCommand delay = 8;
@@ -64,7 +62,6 @@ message Command {
   GetStateByLabelsCommand get_state_by_labels = 18;
   GetStatesCommand get_states = 19;
   GetDelayedStatesCommand get_delayed_states = 20;
-  CommitStateCtxCommand commit_state = 21;
 }
 
 message TransitCommand {
@@ -80,16 +77,6 @@ message ParkCommand {
   StateCtxRef state_rexf = 1;
   // Transition annotations, optional
   map<string, string> annotations = 3;
-}
-
-message PauseCommand {
-  StateCtxRef state_ref = 1;
-  string to = 2;
-}
-
-message ResumeCommand {
-  StateCtxRef state_ref = 1;
-  string to = 2;
 }
 
 message ExecuteCommand {
@@ -113,7 +100,6 @@ message CommitCommand {
 }
 
 message NoopCommand {
-  StateCtxRef state_ref = 1;
 }
 
 message StackCommand {
@@ -183,8 +169,4 @@ message GetDelayedStatesCommand {
 message GetDelayedStatesResult {
   repeated DelayedState delayed_states = 1;
   bool more = 2;
-}
-
-message CommitStateCtxCommand {
-  StateCtxRef state_ref = 1;
 }

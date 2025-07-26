@@ -37,7 +37,7 @@ func TestCommitOK(t *testing.T) {
 		prevRev := stateCtx.Committed.Rev
 		prevCommitedAtUnixMilli := stateCtx.Committed.CommittedAt.UnixMilli()
 
-		if err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); err != nil {
+		if err := d.Commit(flowstate.Commit(flowstate.Park(stateCtx))); err != nil {
 			t.Fatalf("failed to commit: %v", err)
 		}
 
@@ -124,7 +124,11 @@ func TestCommitRevMismatch(t *testing.T) {
 	}()
 
 	f := func(stateCtx *flowstate.StateCtx) {
+		t.Helper()
+
 		expStateCtx := stateCtx.CopyTo(&flowstate.StateCtx{})
+		// park command adds a transition to the state context
+		expStateCtx.Transitions = append(expStateCtx.Transitions, flowstate.Transition{})
 
 		if err := db.Update(func(txn *badger.Txn) error {
 			if err := setLatestRevIndex(txn, flowstate.State{ID: `aStateID`, Rev: 123}); err != nil {
@@ -135,12 +139,12 @@ func TestCommitRevMismatch(t *testing.T) {
 			t.Fatalf("failed to update db: %v", err)
 		}
 
-		if err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx))); !flowstate.IsErrRevMismatch(err) {
+		if err := d.Commit(flowstate.Commit(flowstate.Park(stateCtx))); !flowstate.IsErrRevMismatch(err) {
 			t.Fatalf("expected rev mismatch error, got: %v", err)
 		}
 
 		if !reflect.DeepEqual(stateCtx, expStateCtx) {
-			t.Fatal("stateCtx should not be modified on rev mismatch error")
+			t.Fatalf("stateCtx should not be modified on rev mismatch error; expected: %+v, got: %+v", expStateCtx, stateCtx)
 		}
 	}
 
@@ -244,9 +248,9 @@ func TestCommitSeveralStatesOK(t *testing.T) {
 	rev2 := state2.Rev
 
 	if err := d.Commit(flowstate.Commit(
-		flowstate.CommitStateCtx(stateCtx1),
-		flowstate.CommitStateCtx(stateCtx2),
-		flowstate.CommitStateCtx(stateCtx3),
+		flowstate.Park(stateCtx1),
+		flowstate.Park(stateCtx2),
+		flowstate.Park(stateCtx3),
 	)); err != nil {
 		t.Fatalf("failed to commit: %v", err)
 	}
@@ -307,7 +311,7 @@ func TestCommitConcurrently(t *testing.T) {
 					t.Fatalf("failed to view db: %v", err)
 				}
 
-				err := d.Commit(flowstate.Commit(flowstate.CommitStateCtx(stateCtx)))
+				err := d.Commit(flowstate.Commit(flowstate.Park(stateCtx)))
 				if !flowstate.IsErrRevMismatch(err) && err != nil {
 					t.Fatalf("failed to commit state: %v", err)
 				}

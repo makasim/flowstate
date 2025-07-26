@@ -36,14 +36,12 @@ func HandleExecute(rw http.ResponseWriter, r *http.Request, e flowstate.Engine) 
 		}
 	}
 
-	resStateCtx := stateCtx.CopyTo(&flowstate.StateCtx{})
-
 	if err := e.Do(flowstate.Execute(stateCtx)); err != nil {
 		writeUnknownError(rw, fmt.Sprintf("failed to execute command: %s", err.Error()), proto)
 		return true
 	}
 
-	writeCmd(rw, flowstate.Noop(resStateCtx), proto)
+	writeCmd(rw, flowstate.Noop(), proto)
 	return true
 }
 

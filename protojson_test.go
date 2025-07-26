@@ -288,30 +288,6 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 		},
 	})
 
-	f(&flowstate.PauseCommand{})
-
-	f(&flowstate.PauseCommand{
-		StateCtx: &flowstate.StateCtx{
-			Current: flowstate.State{
-				ID:  "theID",
-				Rev: 123,
-			},
-		},
-		To: "theFlowID",
-	})
-
-	f(&flowstate.ResumeCommand{})
-
-	f(&flowstate.ResumeCommand{
-		StateCtx: &flowstate.StateCtx{
-			Current: flowstate.State{
-				ID:  "theID",
-				Rev: 123,
-			},
-		},
-		To: "theFlowID",
-	})
-
 	f(&flowstate.ParkCommand{})
 
 	f(&flowstate.ParkCommand{
@@ -377,7 +353,7 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 			&flowstate.TransitCommand{
 				StateCtx: stateCtx,
 			},
-			&flowstate.PauseCommand{
+			&flowstate.ParkCommand{
 				StateCtx: stateCtx,
 			},
 		},
@@ -394,7 +370,7 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 				},
 				To: "theFlowID",
 			},
-			&flowstate.PauseCommand{
+			&flowstate.ParkCommand{
 				StateCtx: &flowstate.StateCtx{
 					Current: flowstate.State{
 						ID:  "thePauseID",
@@ -432,15 +408,6 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 	})
 
 	f(&flowstate.NoopCommand{})
-
-	f(&flowstate.NoopCommand{
-		StateCtx: &flowstate.StateCtx{
-			Current: flowstate.State{
-				ID:  "theID",
-				Rev: 123,
-			},
-		},
-	})
 
 	f(&flowstate.StackCommand{})
 
@@ -636,17 +603,6 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 			More: true,
 		},
 	})
-
-	f(&flowstate.CommitStateCtxCommand{})
-
-	f(&flowstate.CommitStateCtxCommand{
-		StateCtx: &flowstate.StateCtx{
-			Current: flowstate.State{
-				ID:  "theID",
-				Rev: 123,
-			},
-		},
-	})
 }
 
 func TestMarshalUnmarshalJSONCommandPreserveRef(t *testing.T) {
@@ -659,8 +615,6 @@ func TestMarshalUnmarshalJSONCommandPreserveRef(t *testing.T) {
 
 	exp := flowstate.Commit(
 		flowstate.Transit(stateCtx, `foo`),
-		flowstate.Pause(stateCtx),
-		flowstate.Resume(stateCtx),
 		flowstate.Park(stateCtx),
 		flowstate.Stack(stateCtx, stateCtx, `foo`),
 		flowstate.Unstack(stateCtx, stateCtx, `foo`),
@@ -688,22 +642,12 @@ func TestMarshalUnmarshalJSONCommandPreserveRef(t *testing.T) {
 		t.Fatal("expected non-nil StateCtx in TransitCommand")
 	}
 
-	actPause := actCommit.Commands[1].(*flowstate.PauseCommand)
-	if actPause.StateCtx != actStateCtx {
-		t.Fatalf("expected StateCtx in PauseCommand to be the same ref stateCtx")
-	}
-
-	actResume := actCommit.Commands[2].(*flowstate.ResumeCommand)
-	if actResume.StateCtx != actStateCtx {
-		t.Fatalf("expected StateCtx in ResumeCommand to be the same ref stateCtx")
-	}
-
-	actPark := actCommit.Commands[3].(*flowstate.ParkCommand)
+	actPark := actCommit.Commands[1].(*flowstate.ParkCommand)
 	if actPark.StateCtx != actStateCtx {
 		t.Fatalf("expected StateCtx in ParkCommand to be the same ref stateCtx")
 	}
 
-	actStack := actCommit.Commands[4].(*flowstate.StackCommand)
+	actStack := actCommit.Commands[2].(*flowstate.StackCommand)
 	if actStack.CarrierStateCtx != actStateCtx {
 		t.Fatalf("expected StateCtx in StackCommand to be the same ref stateCtx")
 	}
@@ -711,7 +655,7 @@ func TestMarshalUnmarshalJSONCommandPreserveRef(t *testing.T) {
 		t.Fatalf("expected StateCtx in StackCommand to be the same ref stateCtx")
 	}
 
-	actUnstack := actCommit.Commands[5].(*flowstate.UnstackCommand)
+	actUnstack := actCommit.Commands[3].(*flowstate.UnstackCommand)
 	if actUnstack.CarrierStateCtx != actStateCtx {
 		t.Fatalf("expected StateCtx in UnstackCommand to be the same ref stateCtx")
 	}

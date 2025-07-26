@@ -37,7 +37,7 @@ func main() {
 		}
 
 		// Queue the states
-		err = e.Do(flowstate.Commit(flowstate.Pause(stateCtx)))
+		err = e.Do(flowstate.Commit(flowstate.Park(stateCtx)))
 		examples.HandleError(err)
 	}
 
@@ -53,7 +53,7 @@ func main() {
 		// you store the progress in another state
 
 		err = e.Do(
-			flowstate.Commit(flowstate.Resume(stateCtx)),
+			flowstate.Commit(flowstate.Transit(stateCtx, `example`)),
 			// Uncomment to execute states in parallel
 			// flowstate.Execute(stateCtx)
 		)

@@ -416,8 +416,6 @@ func MarshalCommand(cmd Command, dst []byte) []byte {
 //	 repeated Data datas = 2;
 //
 //	 TransitCommand transit = 3;
-//	 PauseCommand pause = 4;
-//	 ResumeCommand resume = 5;
 //	 ParkCommand park = 6;
 //	 ExecuteCommand execute = 7;
 //	 DelayCommand delay = 8;
@@ -431,7 +429,6 @@ func MarshalCommand(cmd Command, dst []byte) []byte {
 //	 GetStateByLabelsCommand get_state_by_labels = 18;
 //	 GetStatesCommand get_states = 19;
 //	 GetDelayedStatesCommand get_delayed_states = 20;
-//	 CommitStateCtxCommand commit_state = 21;
 //	}
 func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyproto.MessageMarshaler) {
 	switch cmd := cmd0.(type) {
@@ -452,33 +449,6 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 		}
 		if cmd.Annotations != nil {
 			marshalStringMap(cmd.Annotations, 3, cmdMM)
-		}
-	case *PauseCommand:
-		//	message PauseCommand {
-		//	 StateCtxRef state_ref = 1;
-		//	 string to = 2;
-		//	}
-		cmdMM := mm.AppendMessage(4)
-
-		if cmd.StateCtx != nil {
-			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
-		}
-
-		if cmd.To != "" {
-			cmdMM.AppendString(2, string(cmd.To))
-		}
-	case *ResumeCommand:
-		//	message ResumeCommand {
-		//	 StateCtxRef state_ref = 1;
-		//	 string to = 2;
-		//	}
-		cmdMM := mm.AppendMessage(5)
-
-		if cmd.StateCtx != nil {
-			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
-		}
-		if cmd.To != "" {
-			cmdMM.AppendString(2, string(cmd.To))
 		}
 	case *ParkCommand:
 		//	message ParkCommand {
@@ -543,12 +513,8 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 		}
 	case *NoopCommand:
 		//	message NoopCommand {
-		//	 StateCtxRef state_ref = 1;
 		//	}
-		cmdMM := mm.AppendMessage(10)
-		if cmd.StateCtx != nil {
-			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
-		}
+		mm.AppendMessage(10)
 	case *StackCommand:
 		// message StackCommand {
 		//  StateCtxRef carrier_state_ref = 1;
@@ -730,14 +696,6 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 				resultMM.AppendBool(2, true)
 			}
 		}
-	case *CommitStateCtxCommand:
-		// message CommitStateCtxCommand {
-		//   StateCtxRef state_ref = 1;
-		// }
-		cmdMM := mm.AppendMessage(21)
-		if cmd.StateCtx != nil {
-			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
-		}
 	default:
 		// TODO: return an error on unknown command ??
 		// TODO: return an error if no command specified ??
@@ -811,28 +769,6 @@ func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, er
 				return nil, fmt.Errorf("cannot read 'TransitCommand transit = 3;' field: %w", err)
 			}
 			return cmd, nil
-		case 4: //	 PauseCommand pause = 4;
-			data, ok := fc.MessageData()
-			if !ok {
-				return nil, fmt.Errorf("cannot read 'PauseCommand pause = 4;' field")
-			}
-
-			cmd := &PauseCommand{}
-			if err := unmarshalPauseCommand(data, cmd, stateCtxs); err != nil {
-				return nil, fmt.Errorf("cannot read 'PauseCommand pause = 4;' field: %w", err)
-			}
-			return cmd, nil
-		case 5: //	 ResumeCommand resume = 5;
-			data, ok := fc.MessageData()
-			if !ok {
-				return nil, fmt.Errorf("cannot read 'ResumeCommand resume = 5;' field")
-			}
-
-			cmd := &ResumeCommand{}
-			if err := unmarshalResumeCommand(data, cmd, stateCtxs); err != nil {
-				return nil, fmt.Errorf("cannot read 'ResumeCommand resume = 5;' field: %w", err)
-			}
-			return cmd, nil
 		case 6: // ParkCommand end = 6;
 			data, ok := fc.MessageData()
 			if !ok {
@@ -881,17 +817,7 @@ func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, er
 
 			return cmd, nil
 		case 10: // NoopCommand noop = 10;
-			data, ok := fc.MessageData()
-			if !ok {
-				return nil, fmt.Errorf("cannot read 'NoopCommand noop = 10;' field")
-			}
-
-			cmd := &NoopCommand{}
-			if err := unmarshalNoopCommand(data, cmd, stateCtxs); err != nil {
-				return nil, fmt.Errorf("cannot read 'NoopCommand noop = 10;' field: %w", err)
-			}
-
-			return cmd, nil
+			return &NoopCommand{}, nil
 		case 11: // StackCommand stack = 11;
 			data, ok := fc.MessageData()
 			if !ok {
@@ -984,17 +910,6 @@ func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, er
 				return nil, fmt.Errorf("cannot read 'GetDelayedStatesCommand get_delayed_states = 20;' field: %w", err)
 			}
 			return cmd, nil
-		case 21: // CommitStateCtxCommand commit_state = 21;
-			data, ok := fc.MessageData()
-			if !ok {
-				return nil, fmt.Errorf("cannot read ' CommitStateCtxCommand commit_state = 21;' field")
-			}
-
-			cmd := &CommitStateCtxCommand{}
-			if err := unmarshalCommitStateCtxCommand(data, cmd, stateCtxs); err != nil {
-				return nil, fmt.Errorf("cannot read ' CommitStateCtxCommand commit_state = 21;' field: %w", err)
-			}
-			return cmd, nil
 		}
 	}
 
@@ -1041,72 +956,6 @@ func unmarshalTransitCommand(src []byte, cmd *TransitCommand, stateCtxs stateCtx
 			if err := unmarshalStringMapItem(data, cmd.Annotations); err != nil {
 				return fmt.Errorf("cannot read 'map<string, string> annotations = 3;' field: %w", err)
 			}
-		}
-	}
-
-	return nil
-}
-
-func unmarshalPauseCommand(src []byte, cmd *PauseCommand, stateCtxs stateCtxs) (err error) {
-	fc := easyproto.FieldContext{}
-	for len(src) > 0 {
-		src, err = fc.NextField(src)
-		if err != nil {
-			return fmt.Errorf("cannot read next field")
-		}
-
-		switch fc.FieldNum {
-		case 1:
-			data, ok := fc.MessageData()
-			if !ok {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
-			}
-
-			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
-			if err != nil {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
-			}
-			cmd.StateCtx = stateCtx
-		case 2:
-			v, ok := fc.String()
-			if !ok {
-				return fmt.Errorf("cannot read 'string to = 2;' field")
-			}
-
-			cmd.To = FlowID(strings.Clone(v))
-		}
-	}
-
-	return nil
-}
-
-func unmarshalResumeCommand(src []byte, cmd *ResumeCommand, stateCtxs stateCtxs) (err error) {
-	fc := easyproto.FieldContext{}
-	for len(src) > 0 {
-		src, err = fc.NextField(src)
-		if err != nil {
-			return fmt.Errorf("cannot read next field")
-		}
-
-		switch fc.FieldNum {
-		case 1:
-			data, ok := fc.MessageData()
-			if !ok {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
-			}
-
-			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
-			if err != nil {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
-			}
-			cmd.StateCtx = stateCtx
-		case 2:
-			v, ok := fc.String()
-			if !ok {
-				return fmt.Errorf("cannot read 'string to = 2;' field")
-			}
-
-			cmd.To = FlowID(strings.Clone(v))
 		}
 	}
 
@@ -1275,32 +1124,6 @@ func unmarshalCommitCommand(src []byte, cmd *CommitCommand, stateCtxs stateCtxs,
 			}
 
 			cmd.Commands = append(cmd.Commands, sumCmd)
-		}
-	}
-
-	return nil
-}
-
-func unmarshalNoopCommand(src []byte, cmd *NoopCommand, stateCtxs stateCtxs) (err error) {
-	fc := easyproto.FieldContext{}
-	for len(src) > 0 {
-		src, err = fc.NextField(src)
-		if err != nil {
-			return fmt.Errorf("cannot read next field")
-		}
-
-		switch fc.FieldNum {
-		case 1:
-			data, ok := fc.MessageData()
-			if !ok {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
-			}
-
-			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
-			if err != nil {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
-			}
-			cmd.StateCtx = stateCtx
 		}
 	}
 
@@ -1808,32 +1631,6 @@ func unmarshalGetDelayedStatesCommand(src []byte, cmd *GetDelayedStatesCommand, 
 	return nil
 }
 
-func unmarshalCommitStateCtxCommand(src []byte, cmd *CommitStateCtxCommand, stateCtxs stateCtxs) (err error) {
-	fc := easyproto.FieldContext{}
-	for len(src) > 0 {
-		src, err = fc.NextField(src)
-		if err != nil {
-			return fmt.Errorf("cannot read next field")
-		}
-
-		switch fc.FieldNum {
-		case 1:
-			data, ok := fc.MessageData()
-			if !ok {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
-			}
-
-			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
-			if err != nil {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
-			}
-			cmd.StateCtx = stateCtx
-		}
-	}
-
-	return nil
-}
-
 //	message StateCtxRef {
 //	 int64 idx = 1;
 //	}
@@ -1904,14 +1701,6 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 		if cmd.StateCtx != nil {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}
-	case *PauseCommand:
-		if cmd.StateCtx != nil {
-			stateCtxs = append(stateCtxs, cmd.StateCtx)
-		}
-	case *ResumeCommand:
-		if cmd.StateCtx != nil {
-			stateCtxs = append(stateCtxs, cmd.StateCtx)
-		}
 	case *ParkCommand:
 		if cmd.StateCtx != nil {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
@@ -1921,10 +1710,6 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}
 	case *DelayCommand:
-		if cmd.StateCtx != nil {
-			stateCtxs = append(stateCtxs, cmd.StateCtx)
-		}
-	case *NoopCommand:
 		if cmd.StateCtx != nil {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}
@@ -1959,10 +1744,6 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}
 	case *GetStateByLabelsCommand:
-		if cmd.StateCtx != nil {
-			stateCtxs = append(stateCtxs, cmd.StateCtx)
-		}
-	case *CommitStateCtxCommand:
 		if cmd.StateCtx != nil {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}

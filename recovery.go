@@ -130,20 +130,19 @@ func NewRecoverer(e Engine, l *slog.Logger) (*Recoverer, error) {
 		stoppedCh: make(chan struct{}),
 	}
 
-	recoverStateCtx := &StateCtx{}
+	recoveryStateCtx := &StateCtx{}
 	active := true
-	if err := r.e.Do(GetStateByID(recoverStateCtx, recoveryStateID, 0)); errors.Is(err, ErrNotFound) {
-		recoverStateCtx = &StateCtx{
+	if err := r.e.Do(GetStateByID(recoveryStateCtx, recoveryStateID, 0)); errors.Is(err, ErrNotFound) {
+		recoveryStateCtx = &StateCtx{
 			Current: State{
 				ID:  recoveryStateID,
 				Rev: 0,
 			},
 		}
-		DisableRecovery(recoverStateCtx)
-		setRecoverySinceRev(recoverStateCtx, 0)
+		setRecoverySinceRev(recoveryStateCtx, 0)
 
 		if err := r.e.Do(Commit(
-			Transit(recoverStateCtx, `na`),
+			Park(recoveryStateCtx).WithAnnotation(`state`, `active`),
 		)); IsErrRevMismatch(err) {
 			// another process is already doing recovery, we can continue in standby mode
 			active = false
@@ -154,10 +153,10 @@ func NewRecoverer(e Engine, l *slog.Logger) (*Recoverer, error) {
 	} else if err != nil {
 		return nil, fmt.Errorf("get recovery state: %w", err)
 	} else {
-		active = Paused(recoverStateCtx.Current)
+		active = recoveryStateCtx.Current.Annotation(`state`) != `active`
 	}
 
-	r.reset(recoverStateCtx, active)
+	r.reset(recoveryStateCtx, active)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -185,7 +184,9 @@ func (r *Recoverer) Shutdown(ctx context.Context) error {
 	select {
 	case <-r.stoppedCh:
 		setRecoverySinceRev(r.recoveryStateCtx, r.nextSinceRev())
-		if err := r.e.Do(Commit(Pause(r.recoveryStateCtx))); IsErrRevMismatch(err) {
+		if err := r.e.Do(Commit(
+			Park(r.recoveryStateCtx).WithAnnotation(`state`, `inactive`)),
+		); IsErrRevMismatch(err) {
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("commit: pause recovery state: %w", err)
@@ -262,16 +263,6 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 
 	first := true
 	for {
-		// TODO: breaks ticks logic
-		//if len(r.states) > r.statesMaxSize {
-		//	r.headTime = r.headTime.Add(dur)
-		//	return nil
-		//}
-		//if len(r.states) > 0 && r.tailTime.Add(r.statesMaxTailHeadDur).Before(r.headTime) {
-		//	r.headTime = r.headTime.Add(dur)
-		//	return nil
-		//}
-
 		getManyCmd := GetStatesByLabels(nil).WithSinceRev(r.sinceRev)
 		if err := r.e.Do(getManyCmd); err != nil {
 			return fmt.Errorf("get many states: %w; since_rev=%d", err, r.sinceRev)
@@ -285,7 +276,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 			if state.ID == recoveryStateID {
 				r.recoveryStateCtx = state.CopyToCtx(r.recoveryStateCtx)
 				if state.Rev > r.recoveryStateCtx.Committed.Rev {
-					active := Paused(state)
+					active := state.Annotation(`state`) != `active`
 					r.reset(r.recoveryStateCtx, active)
 				}
 				continue
@@ -305,7 +296,7 @@ func (r *Recoverer) doUpdateHead(dur time.Duration) error {
 			if !r.active {
 				continue
 			}
-			if Parked(state) || Paused(state) {
+			if Parked(state) {
 				delete(r.states, state.ID)
 				r.completed++
 
@@ -367,9 +358,9 @@ func (r *Recoverer) doUpdateTail() error {
 	if !r.active {
 		commitedAt := r.recoveryStateCtx.Committed.CommittedAt
 		if (commitedAt.Add(MaxRetryAfter+time.Minute).Before(time.Now()) && r.nextSinceRev() > getRecoverySinceRev(r.recoveryStateCtx)) ||
-			Paused(r.recoveryStateCtx.Current) {
+			r.recoveryStateCtx.Current.Annotation(`state`) == `inactive` {
 			nextRecoveryStateCtx := r.recoveryStateCtx.CopyTo(&StateCtx{})
-			if err := r.e.Do(Commit(Resume(r.recoveryStateCtx))); IsErrRevMismatch(err) {
+			if err := r.e.Do(Commit(Park(r.recoveryStateCtx).WithAnnotation(`state`, `active`))); IsErrRevMismatch(err) {
 				r.reset(r.recoveryStateCtx, false)
 				return nil
 			} else if err != nil {
@@ -404,10 +395,10 @@ func (r *Recoverer) doUpdateTail() error {
 	commitedAt := r.recoveryStateCtx.Committed.CommittedAt
 	if r.tailRev > getRecoverySinceRev(r.recoveryStateCtx)+1000 ||
 		(commitedAt.Add(MaxRetryAfter).Before(now) && r.nextSinceRev() > getRecoverySinceRev(r.recoveryStateCtx)) {
-		nextStateCtx := r.recoveryStateCtx.CopyTo(&StateCtx{})
+		nextRecoveryStateCtx := r.recoveryStateCtx.CopyTo(&StateCtx{})
 
-		setRecoverySinceRev(nextStateCtx, r.nextSinceRev())
-		if err := r.e.Do(Commit(Resume(nextStateCtx))); IsErrRevMismatch(err) {
+		setRecoverySinceRev(nextRecoveryStateCtx, r.nextSinceRev())
+		if err := r.e.Do(Commit(Park(nextRecoveryStateCtx).WithAnnotation(`state`, `active`))); IsErrRevMismatch(err) {
 			r.reset(r.recoveryStateCtx, false)
 			return nil
 		} else if err != nil {
@@ -415,7 +406,7 @@ func (r *Recoverer) doUpdateTail() error {
 		}
 
 		r.commited++
-		r.recoveryStateCtx = nextStateCtx.CopyTo(r.recoveryStateCtx)
+		r.recoveryStateCtx = nextRecoveryStateCtx.CopyTo(r.recoveryStateCtx)
 	}
 
 	return nil
@@ -454,8 +445,11 @@ func (r *Recoverer) doRetry() error {
 			continue
 		}
 
+		transitCmd := Transit(stateCtx, stateCtx.Current.Transition.To).
+			WithAnnotations(stateCtx.Current.Transition.Annotations)
+
 		if err := r.e.Do(
-			Commit(CommitStateCtx(stateCtx)),
+			Commit(transitCmd),
 			Execute(stateCtx),
 		); IsErrRevMismatch(err) {
 			continue

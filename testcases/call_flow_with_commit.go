@@ -15,7 +15,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 	mustSetFlow(fr, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		if flowstate.Resumed(stateCtx.Current) {
+		if stateCtx.Current.Annotation(`state`) == `resumed` {
 			return flowstate.Transit(stateCtx, `callEnd`), nil
 		}
 
@@ -27,7 +27,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 
 		if err := e.Do(
 			flowstate.Commit(
-				flowstate.Pause(stateCtx),
+				flowstate.Park(stateCtx),
 				flowstate.Stack(nextStateCtx, stateCtx, `caller_state`),
 				flowstate.Transit(nextStateCtx, `called`),
 			),
@@ -36,7 +36,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 			return nil, err
 		}
 
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Noop(), nil
 	}))
 	mustSetFlow(fr, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
@@ -48,7 +48,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 			return nil, err
 		}
 
-		return flowstate.Noop(stateCtx), nil
+		return flowstate.Noop(), nil
 	}))
 	mustSetFlow(fr, "calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
@@ -58,7 +58,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 			if err := e.Do(
 				flowstate.Commit(
 					flowstate.Unstack(stateCtx, callStateCtx, `caller_state`),
-					flowstate.Resume(callStateCtx),
+					flowstate.Transit(callStateCtx, `call`).WithAnnotation(`state`, `resumed`),
 					flowstate.Park(stateCtx),
 				),
 				flowstate.Execute(callStateCtx),
@@ -66,7 +66,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 				return nil, err
 			}
 
-			return flowstate.Noop(stateCtx), nil
+			return flowstate.Noop(), nil
 		}
 
 		return flowstate.Park(stateCtx), nil

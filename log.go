@@ -16,10 +16,6 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 
 	currTs := stateCtx.Current.Transition
 
-	if currTs.Annotations[StateAnnotation] != `` {
-		args = append(args, "state", currTs.Annotations[StateAnnotation])
-	}
-
 	if currTs.Annotations[DelayUntilAnnotation] != `` {
 		args = append(args, "delayed", "true")
 	}
@@ -51,30 +47,9 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 			logCommand("commit sub cmd", execSessID, subCmd, l)
 		}
 		return
-	case *CommitStateCtxCommand:
-		args = append(args, "cmd", "commit_state_ctx", "id", cmd.StateCtx.Current.ID, "rev", cmd.StateCtx.Current.Rev)
 	case *TransitCommand:
 		args = append(args, "cmd", "transit", "id", cmd.StateCtx.Current.ID, "rev", cmd.StateCtx.Current.Rev, "to", cmd.To)
 
-		if len(cmd.StateCtx.Current.Labels) > 0 {
-			args = append(args, "labels", cmd.StateCtx.Current.Labels)
-		}
-	case *PauseCommand:
-		args = append(args,
-			"cmd", "pause",
-			"id", cmd.StateCtx.Current.ID,
-			"rev", cmd.StateCtx.Current.Rev,
-		)
-		if cmd.To != `` {
-			args = append(args, "to", cmd.To)
-		}
-		args = append(args, "labels", cmd.StateCtx.Current.Labels)
-	case *ResumeCommand:
-		args = append(args,
-			"cmd", "resume",
-			"id", cmd.StateCtx.Current.ID,
-			"rev", cmd.StateCtx.Current.Rev,
-		)
 		if len(cmd.StateCtx.Current.Labels) > 0 {
 			args = append(args, "labels", cmd.StateCtx.Current.Labels)
 		}
@@ -107,14 +82,7 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 			args = append(args, "labels", cmd.StateCtx.Current.Labels)
 		}
 	case *NoopCommand:
-		args = append(args,
-			"cmd", "noop",
-			"id", cmd.StateCtx.Current.ID,
-			"rev", cmd.StateCtx.Current.Rev,
-		)
-		if len(cmd.StateCtx.Current.Labels) > 0 {
-			args = append(args, "labels", cmd.StateCtx.Current.Labels)
-		}
+		args = append(args, "cmd", "noop")
 	case *AttachDataCommand:
 		args = append(args,
 			"cmd", "attach_data",

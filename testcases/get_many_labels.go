@@ -17,16 +17,16 @@ func GetManyLabels(t *testing.T, e flowstate.Engine, _ flowstate.FlowRegistry, _
 		},
 	}
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 
 	stateCtx.Current.SetLabel(`bar`, `barVal`)
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(stateCtx),
+		flowstate.Park(stateCtx),
 	)))
 
 	require.NoError(t, e.Do(flowstate.Commit(
-		flowstate.Pause(&flowstate.StateCtx{
+		flowstate.Park(&flowstate.StateCtx{
 			Current: flowstate.State{
 				ID: "anotherTID",
 				Labels: map[string]string{
@@ -49,12 +49,10 @@ func GetManyLabels(t *testing.T, e flowstate.Engine, _ flowstate.FlowRegistry, _
 
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[0].ID)
 	require.NotEmpty(t, actStates[0].Rev)
-	require.Equal(t, `paused`, actStates[0].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[0].Labels[`foo`])
 
 	require.Equal(t, flowstate.StateID(`aTID`), actStates[1].ID)
 	require.NotEmpty(t, actStates[1].Rev)
-	require.Equal(t, `paused`, actStates[1].Transition.Annotations[`flowstate.state`])
 	require.Equal(t, `fooVal`, actStates[1].Labels[`foo`])
 	require.Equal(t, `barVal`, actStates[1].Labels[`bar`])
 

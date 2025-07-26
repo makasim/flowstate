@@ -81,30 +81,6 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 		}
 
 		jsonRootCmd.Transit = jsonCmd
-	case *PauseCommand:
-		jsonCmd := &jsonGenericCommand{}
-		if cmd.To != "" {
-			jsonCmd.To = &cmd.To
-		}
-		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateCtxRef{
-				Idx: stateCtxs.strIdx(cmd.StateCtx),
-			}
-		}
-
-		jsonRootCmd.Pause = jsonCmd
-	case *ResumeCommand:
-		jsonCmd := &jsonGenericCommand{}
-		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateCtxRef{
-				Idx: stateCtxs.strIdx(cmd.StateCtx),
-			}
-		}
-		if cmd.To != "" {
-			jsonCmd.To = &cmd.To
-		}
-
-		jsonRootCmd.Resume = jsonCmd
 	case *ParkCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.StateCtx != nil {
@@ -166,14 +142,7 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 
 		jsonRootCmd.Commit = commitJsonCmd
 	case *NoopCommand:
-		jsonCmd := &jsonGenericCommand{}
-		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateCtxRef{
-				Idx: stateCtxs.strIdx(cmd.StateCtx),
-			}
-		}
-
-		jsonRootCmd.Noop = jsonCmd
+		jsonRootCmd.Noop = &jsonGenericCommand{}
 	case *StackCommand:
 		jsonCmd := &jsonGenericCommand{}
 		if cmd.CarrierStateCtx != nil {
@@ -337,15 +306,6 @@ func toJSONCommand(cmd0 Command, stateCtxs stateCtxs, datas datas) (*jsonRootCom
 		}
 
 		jsonRootCmd.GetDelayedStates = jsonCmd
-	case *CommitStateCtxCommand:
-		jsonCmd := &jsonGenericCommand{}
-		if cmd.StateCtx != nil {
-			jsonCmd.StateRef = &jsonStateCtxRef{
-				Idx: stateCtxs.strIdx(cmd.StateCtx),
-			}
-		}
-
-		jsonRootCmd.CommitStateCtx = jsonCmd
 	default:
 		return nil, fmt.Errorf("unsupported command %T", cmd0)
 	}
@@ -378,28 +338,6 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		}
 		if jsonRootCmd.Transit.Annotations != nil {
 			cmd.Annotations = *jsonRootCmd.Transit.Annotations
-		}
-
-		return cmd, nil
-	case jsonRootCmd.Pause != nil:
-		cmd := &PauseCommand{}
-
-		if jsonRootCmd.Pause.To != nil {
-			cmd.To = *jsonRootCmd.Pause.To
-		}
-		if jsonRootCmd.Pause.StateRef != nil {
-			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Pause.StateRef.Idx)
-		}
-
-		return cmd, nil
-	case jsonRootCmd.Resume != nil:
-		cmd := &ResumeCommand{}
-
-		if jsonRootCmd.Resume.StateRef != nil {
-			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Resume.StateRef.Idx)
-		}
-		if jsonRootCmd.Resume.To != nil {
-			cmd.To = *jsonRootCmd.Resume.To
 		}
 
 		return cmd, nil
@@ -466,13 +404,7 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		}
 		return cmd, nil
 	case jsonRootCmd.Noop != nil:
-		cmd := &NoopCommand{}
-
-		if jsonRootCmd.Noop.StateRef != nil {
-			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.Noop.StateRef.Idx)
-		}
-
-		return cmd, nil
+		return &NoopCommand{}, nil
 	case jsonRootCmd.Stack != nil:
 		cmd := &StackCommand{}
 
@@ -657,14 +589,6 @@ func unmarshalJSONCommand(jsonRootCmd *jsonRootCommand, stateCtxs stateCtxs, dat
 		}
 
 		return cmd, nil
-	case jsonRootCmd.CommitStateCtx != nil:
-		cmd := &CommitStateCtxCommand{}
-
-		if jsonRootCmd.CommitStateCtx.StateRef != nil {
-			cmd.StateCtx = stateCtxs.findStrIdx(jsonRootCmd.CommitStateCtx.StateRef.Idx)
-		}
-
-		return cmd, nil
 	default:
 		return nil, fmt.Errorf("unsupported command given")
 	}
@@ -683,8 +607,6 @@ type jsonRootCommand struct {
 	Datas     []*Data     `json:"datas,omitempty"`
 
 	Transit          *jsonGenericCommand          `json:"transit,omitempty"`
-	Pause            *jsonGenericCommand          `json:"pause,omitempty"`
-	Resume           *jsonGenericCommand          `json:"resume,omitempty"`
 	Park             *jsonGenericCommand          `json:"park,omitempty"`
 	Execute          *jsonGenericCommand          `json:"execute,omitempty"`
 	Delay            *jsonDelayCommand            `json:"delay,omitempty"`
@@ -698,7 +620,6 @@ type jsonRootCommand struct {
 	GetStateByLabels *jsonGenericCommand          `json:"getStateByLabels,omitempty"`
 	GetStates        *jsonGetStatesCommand        `json:"getStates,omitempty"`
 	GetDelayedStates *jsonGetDelayedStatesCommand `json:"getDelayedStates,omitempty"`
-	CommitStateCtx   *jsonGenericCommand          `json:"commitStateCtx,omitempty"`
 }
 
 type jsonGenericCommand struct {
