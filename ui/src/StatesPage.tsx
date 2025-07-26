@@ -192,15 +192,6 @@ export const StatesPage = () => {
     });
   };
 
-  function formatTransition({ from, to }: { from: string; to: string }) {
-    if (!from && !to) return "";
-    if (!from) return ` -> ${to}`;
-    if (!to) return `${from} -> `;
-    if (from === to) return from;
-
-    return `${from} -> ${to}`;
-  }
-
   const data = states.map((state) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { id, rev, transition, annotations, labels } = state.toJson() as any;
@@ -208,7 +199,7 @@ export const StatesPage = () => {
       id: `${id}#${rev}`,
       stateId: id,
       rev,
-      transition: transition ? formatTransition(transition) : "",
+      transition: transition ? transition.to : "",
       annotations,
       labels,
       state,
