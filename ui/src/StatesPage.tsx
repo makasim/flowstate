@@ -130,6 +130,7 @@ type DriverClient = ReturnType<typeof createDriverClient>;
 export const StatesPage = () => {
   const [states, setStates] = useState<State[]>([]);
   const [refreshInterval, setRefreshInterval] = useState<number>(5000);
+  const [latestOnly, setLatestOnly] = useState<boolean>(false);
   const client = React.useContext(ApiContext);
 
   const manualRefresh = async () => {
@@ -137,7 +138,7 @@ export const StatesPage = () => {
 
     const getStatesCommand = new GetStatesCommand({
       limit: BigInt(100),
-      latestOnly: false,
+      latestOnly: latestOnly,
       sinceRev: BigInt(0),
     });
 
@@ -175,7 +176,7 @@ export const StatesPage = () => {
     return () => {
       abortController.abort();
     };
-  }, [client, refreshInterval]);
+  }, [client, refreshInterval, latestOnly]);
 
   const listenToStates = async (client: DriverClient, signal: AbortSignal) => {
     let sinceRev = BigInt(0);
@@ -186,7 +187,7 @@ export const StatesPage = () => {
 
       const getStatesCommand = new GetStatesCommand({
         limit: BigInt(100),
-        latestOnly: false,
+        latestOnly: latestOnly,
         sinceRev: sinceRev,
       });
 
@@ -248,30 +249,44 @@ export const StatesPage = () => {
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold">States</h1>
-        <div className="flex items-center gap-2">
-          <label htmlFor="refresh-interval" className="text-sm font-medium">
-            Refresh:
-          </label>
-          <Select
-            id="refresh-interval"
-            value={refreshInterval.toString()}
-            onChange={(e) => setRefreshInterval(Number(e.target.value))}
-            className="w-24"
-          >
-            <option value="1000">1s</option>
-            <option value="5000">5s</option>
-            <option value="10000">10s</option>
-            <option value="20000">20s</option>
-            <option value="30000">30s</option>
-            <option value="0">Off</option>
-          </Select>
-          <Button
-            onClick={manualRefresh}
-            variant="outline"
-            size="sm"
-          >
-            Refresh
-          </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="latest-toggle" className="text-sm font-medium">
+              Latest:
+            </label>
+            <input
+              id="latest-toggle"
+              type="checkbox"
+              checked={latestOnly}
+              onChange={(e) => setLatestOnly(e.target.checked)}
+              className="w-4 h-4 rounded"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="refresh-interval" className="text-sm font-medium">
+              Refresh:
+            </label>
+            <Select
+              id="refresh-interval"
+              value={refreshInterval.toString()}
+              onChange={(e) => setRefreshInterval(Number(e.target.value))}
+              className="w-24"
+            >
+              <option value="1000">1s</option>
+              <option value="5000">5s</option>
+              <option value="10000">10s</option>
+              <option value="20000">20s</option>
+              <option value="30000">30s</option>
+              <option value="0">Off</option>
+            </Select>
+            <Button
+              onClick={manualRefresh}
+              variant="outline"
+              size="sm"
+            >
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
       <DataTable columns={columns} data={data} />
