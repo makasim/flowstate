@@ -36,15 +36,32 @@ const columns: ColumnDef<StateData>[] = [
   {
     accessorKey: "annotations",
     header: "Annotations",
-    cell: ({ row }) =>
-      Object.entries(row.original.annotations || {}).map(([key, value]) => (
-        <div key={key} className="text-left">
-          <Badge variant="outline">
-            <span className="text-green-700">{key}:&nbsp;</span>
-            <span className="text-purple-700">{String(value)}</span>
-          </Badge>
+    cell: ({ row }) => {
+      const stateAnnotations = row.original.annotations || {};
+      const transitionAnnotations = row.original.state.transition?.annotations || {};
+      
+      // Merge annotations with transition annotations having higher priority
+      const mergedAnnotations = { ...stateAnnotations, ...transitionAnnotations };
+      
+      return (
+        <div className="space-y-1">
+          {Object.entries(mergedAnnotations).map(([key, value]) => {
+            return (
+              <div key={key} className="text-left">
+                <Badge variant="outline">
+                  <span className="text-green-700">
+                    {key}:&nbsp;
+                  </span>
+                  <span className="text-purple-700">
+                    {String(value)}
+                  </span>
+                </Badge>
+              </div>
+            );
+          })}
         </div>
-      )),
+      );
+    },
   },
   {
     accessorKey: "data",
