@@ -203,11 +203,10 @@ func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
 			ID:  `flowstate.delayer.meta`,
 			Rev: 0,
 		}
-		DisableRecovery(metaStateCtx)
 		setDelayerMetaState(metaStateCtx, time.Unix(0, 0).UTC(), 0)
 
 		if err := d.e.Do(Commit(
-			Transit(metaStateCtx, `na`),
+			Park(metaStateCtx),
 		)); IsErrRevMismatch(err) {
 			return nil, fmt.Errorf("another process is already doing delaying; exiting (todo: implement standby mode)")
 		} else if err != nil {
@@ -286,7 +285,7 @@ func (d *Delayer) maybeCommitMeta() {
 
 	nextMetaState := d.metaStateCtx.CopyTo(&StateCtx{})
 	setDelayerMetaState(nextMetaState, d.commitSince, d.commitOffset)
-	if err := d.e.Do(Commit(Transit(nextMetaState, `na`))); IsErrRevMismatch(err) {
+	if err := d.e.Do(Commit(Park(nextMetaState))); IsErrRevMismatch(err) {
 		d.l.Warn("another process is already doing delaying; exiting (todo: implement standby mode)")
 	} else if err != nil {
 		d.l.Error(fmt.Sprintf("commit meta state: %s", err))
