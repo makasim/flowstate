@@ -5,8 +5,6 @@ package flowstate.v1;
 import "flowstate/v1/messages.proto";
 
 service Driver {
-  rpc Do(Command) returns (Command) {}
-
   rpc GetStateByID(Command) returns (Command) {}
   rpc GetStateByLabels(Command) returns (Command) {}
   rpc GetStates(Command) returns (Command) {}
