@@ -219,12 +219,12 @@ func HandleGetData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver, 
 		return true
 	}
 
-	if err := cmd.Prepare(); err != nil {
+	// server should always get data, that's client responsibility to not call if not needed
+	if _, err := cmd.Prepare(); err != nil {
 		writeInvalidArgumentError(rw, err.Error(), proto)
 		return true
 	}
 
-	flowstate.LogCommand("netdriver", cmd, l)
 	if err := d.GetData(cmd); err != nil {
 		writeUnknownError(rw, err.Error(), proto)
 		return true
@@ -241,18 +241,19 @@ func HandleStoreData(rw http.ResponseWriter, r *http.Request, d flowstate.Driver
 
 	proto := r.Header.Get("Content-Type") != "application/json"
 
-	cmd, err := readCmd[*flowstate.AttachDataCommand](r)
+	cmd, err := readCmd[*flowstate.StoreDataCommand](r)
 	if err != nil {
 		writeInvalidArgumentError(rw, err.Error(), proto)
 		return true
 	}
 
-	if err := cmd.Prepare(); err != nil {
+	if _, err := cmd.Prepare(); err != nil {
 		writeInvalidArgumentError(rw, err.Error(), proto)
 		return true
 	}
-
 	flowstate.LogCommand("netdriver", cmd, l)
+
+	// server should always get data, that's client responsibility to not call if not needed
 	if err := d.StoreData(cmd); err != nil {
 		writeUnknownError(rw, err.Error(), proto)
 		return true

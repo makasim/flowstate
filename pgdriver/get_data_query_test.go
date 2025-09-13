@@ -25,23 +25,13 @@ func TestQuery_GetData(main *testing.T) {
 		return conn
 	}
 
-	main.Run("IDEmpty", func(t *testing.T) {
-		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
-
-		q := &queries{}
-
-		d := flowstate.Data{}
-		err := q.GetData(context.Background(), conn, ``, 0, &d)
-		require.EqualError(t, err, `id is empty`)
-	})
-
 	main.Run("RevEmpty", func(t *testing.T) {
 		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
 
 		q := &queries{}
 
 		d := flowstate.Data{}
-		err := q.GetData(context.Background(), conn, `anID`, 0, &d)
+		err := q.GetData(context.Background(), conn, 0, &d)
 		require.EqualError(t, err, `rev is empty`)
 	})
 
@@ -51,10 +41,10 @@ func TestQuery_GetData(main *testing.T) {
 		q := &queries{}
 
 		d1 := &flowstate.Data{}
-		err := q.GetData(context.Background(), conn, `anID`, 123, d1)
+		err := q.GetData(context.Background(), conn, 123, d1)
 		require.EqualError(t, err, `no rows in result set`)
 		require.True(t, errors.Is(err, pgx.ErrNoRows))
-		require.Equal(t, []byte(nil), d1.B)
+		require.Equal(t, []byte(nil), d1.Blob)
 
 		require.Equal(t, []testpgdriver.DataRow(nil), testpgdriver.FindAllData(t, conn))
 	})
@@ -64,23 +54,21 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d0 := &flowstate.Data{ID: `anID`, B: []byte(`abc`)}
+		d0 := &flowstate.Data{Blob: []byte(`abc`)}
 		err := q.InsertData(context.Background(), conn, d0)
 		require.NoError(t, err)
 		require.Greater(t, d0.Rev, int64(0))
 
 		d1 := &flowstate.Data{}
-		err = q.GetData(context.Background(), conn, d0.ID, 123, d1)
+		err = q.GetData(context.Background(), conn, 123, d1)
 		require.EqualError(t, err, `no rows in result set`)
 		require.True(t, errors.Is(err, pgx.ErrNoRows))
-		require.Equal(t, []byte(nil), d1.B)
+		require.Equal(t, []byte(nil), d1.Blob)
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:     "anID",
-				Rev:    1,
-				Binary: false,
-				Data:   []byte(`abc`),
+				Rev:  1,
+				Data: []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -90,22 +78,78 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d0 := &flowstate.Data{ID: `anID`, B: []byte(`abc`)}
+		d0 := &flowstate.Data{Blob: []byte(`abc`)}
 		err := q.InsertData(context.Background(), conn, d0)
 		require.NoError(t, err)
 		require.Greater(t, d0.Rev, int64(0))
 
 		d1 := &flowstate.Data{}
-		err = q.GetData(context.Background(), conn, d0.ID, d0.Rev, d1)
+		err = q.GetData(context.Background(), conn, d0.Rev, d1)
 		require.NoError(t, err)
 		require.Equal(t, d0, d1)
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:     "anID",
-				Rev:    1,
-				Binary: false,
-				Data:   []byte(`abc`),
+				Rev:  1,
+				Data: []byte(`abc`),
+			},
+		}, testpgdriver.FindAllData(t, conn))
+	})
+
+	main.Run("OEmpty", func(t *testing.T) {
+		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
+
+		q := &queries{}
+
+		d0 := &flowstate.Data{
+			Blob: nil,
+		}
+		err := q.InsertData(context.Background(), conn, d0)
+		require.NoError(t, err)
+		require.Greater(t, d0.Rev, int64(0))
+
+		d1 := &flowstate.Data{}
+		err = q.GetData(context.Background(), conn, d0.Rev, d1)
+		require.NoError(t, err)
+		require.Equal(t, d0, d1)
+
+		require.Equal(t, []testpgdriver.DataRow{
+			{
+				Rev:  1,
+				Data: nil,
+			},
+		}, testpgdriver.FindAllData(t, conn))
+	})
+
+	main.Run("OKAnnotations", func(t *testing.T) {
+		conn := openDB(t, `postgres://postgres:postgres@localhost:5432/postgres`, ``)
+
+		q := &queries{}
+
+		d0 := &flowstate.Data{
+			Blob: []byte(`abc`),
+			Annotations: map[string]string{
+				"foo": "fooVal",
+				"bar": "barVal",
+			},
+		}
+		err := q.InsertData(context.Background(), conn, d0)
+		require.NoError(t, err)
+		require.Greater(t, d0.Rev, int64(0))
+
+		d1 := &flowstate.Data{}
+		err = q.GetData(context.Background(), conn, d0.Rev, d1)
+		require.NoError(t, err)
+		require.Equal(t, d0, d1)
+
+		require.Equal(t, []testpgdriver.DataRow{
+			{
+				Rev:  1,
+				Data: []byte(`abc`),
+				Annotations: map[string]string{
+					"foo": "fooVal",
+					"bar": "barVal",
+				},
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -115,22 +159,24 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d0 := &flowstate.Data{ID: `anID`, B: []byte(`abc`), Binary: true}
+		d0 := &flowstate.Data{Blob: []byte(`abc`)}
+		d0.SetBinary(true)
 		err := q.InsertData(context.Background(), conn, d0)
 		require.NoError(t, err)
 		require.Greater(t, d0.Rev, int64(0))
 
 		d1 := &flowstate.Data{}
-		err = q.GetData(context.Background(), conn, d0.ID, d0.Rev, d1)
+		err = q.GetData(context.Background(), conn, d0.Rev, d1)
 		require.NoError(t, err)
 		require.Equal(t, d0, d1)
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:     "anID",
-				Rev:    1,
-				Binary: true,
-				Data:   []byte(`YWJj`),
+				Rev:  1,
+				Data: []byte(`YWJj`),
+				Annotations: map[string]string{
+					"binary": "true",
+				},
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -140,7 +186,7 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d0 := &flowstate.Data{ID: `anID`, B: []byte(`abc`)}
+		d0 := &flowstate.Data{Blob: []byte(`abc`)}
 		err := q.InsertData(context.Background(), conn, d0)
 		require.NoError(t, err)
 		require.Greater(t, d0.Rev, int64(0))
@@ -150,7 +196,7 @@ func TestQuery_GetData(main *testing.T) {
 		defer tx.Rollback(context.Background())
 
 		d1 := &flowstate.Data{}
-		err = q.GetData(context.Background(), tx, d0.ID, d0.Rev, d1)
+		err = q.GetData(context.Background(), tx, d0.Rev, d1)
 		require.NoError(t, err)
 		require.Equal(t, d0, d1)
 
@@ -158,10 +204,8 @@ func TestQuery_GetData(main *testing.T) {
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:     "anID",
-				Rev:    1,
-				Binary: false,
-				Data:   []byte(`abc`),
+				Rev:  1,
+				Data: []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -171,28 +215,24 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d0 := flowstate.Data{ID: `aFooID`, B: []byte(`abc`)}
+		d0 := flowstate.Data{Blob: []byte(`abc`)}
 		err := q.InsertData(context.Background(), conn, &d0)
 		require.NoError(t, err)
 		require.Greater(t, d0.Rev, int64(0))
 
-		d1 := flowstate.Data{ID: `aBarID`, B: []byte(`123`)}
+		d1 := flowstate.Data{Blob: []byte(`123`)}
 		err = q.InsertData(context.Background(), conn, &d1)
 		require.NoError(t, err)
 		require.Greater(t, d1.Rev, int64(0))
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:     "aBarID",
-				Rev:    2,
-				Binary: false,
-				Data:   []byte(`123`),
+				Rev:  2,
+				Data: []byte(`123`),
 			},
 			{
-				ID:     "aFooID",
-				Rev:    1,
-				Binary: false,
-				Data:   []byte(`abc`),
+				Rev:  1,
+				Data: []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})
@@ -202,28 +242,24 @@ func TestQuery_GetData(main *testing.T) {
 
 		q := &queries{}
 
-		d := flowstate.Data{ID: `anID`, B: []byte(`abc`)}
+		d := flowstate.Data{Blob: []byte(`abc`)}
 		err := q.InsertData(context.Background(), conn, &d)
 		require.NoError(t, err)
 		require.Greater(t, d.Rev, int64(0))
 
-		d.B = []byte(`123`)
+		d.Blob = []byte(`123`)
 		err = q.InsertData(context.Background(), conn, &d)
 		require.NoError(t, err)
 		require.Greater(t, d.Rev, int64(0))
 
 		require.Equal(t, []testpgdriver.DataRow{
 			{
-				ID:     "anID",
-				Rev:    2,
-				Binary: false,
-				Data:   []byte(`123`),
+				Rev:  2,
+				Data: []byte(`123`),
 			},
 			{
-				ID:     "anID",
-				Rev:    1,
-				Binary: false,
-				Data:   []byte(`abc`),
+				Rev:  1,
+				Data: []byte(`abc`),
 			},
 		}, testpgdriver.FindAllData(t, conn))
 	})

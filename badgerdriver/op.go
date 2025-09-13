@@ -2,6 +2,7 @@ package badgerdriver
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -130,46 +131,62 @@ func committedAtIndexPrefix() []byte {
 	return []byte("flowstate.index.committed_at.")
 }
 
-func dataBKey(data *flowstate.Data) []byte {
-	return []byte(fmt.Sprintf(`flowstate.data.blob.%020d.%s`, data.Rev, data.ID))
+func dataBlobKey(data *flowstate.Data) []byte {
+	return []byte(fmt.Sprintf(`flowstate.data.blob.%020d`, data.Rev))
 }
 
-func dataBinaryKey(data *flowstate.Data) []byte {
-	return []byte(fmt.Sprintf(`flowstate.data.binary.%020d.%s`, data.Rev, data.ID))
+func dataAnnotationsKey(data *flowstate.Data) []byte {
+	return []byte(fmt.Sprintf(`flowstate.data.annotations.%020d`, data.Rev))
 }
 
 func setData(txn *badger.Txn, data *flowstate.Data) error {
-	if err := txn.Set(dataBKey(data), data.B); err != nil {
-		return fmt.Errorf("set data.B: %w", err)
+	if err := txn.Set(dataBlobKey(data), data.Blob); err != nil {
+		return fmt.Errorf("set data.Blob: %w", err)
 	}
 
-	var dataBinary []byte
-	if data.Binary {
-		dataBinary = append(dataBinary, 1)
-	}
-
-	if err := txn.Set(dataBinaryKey(data), dataBinary); err != nil {
-		return fmt.Errorf("set data.Binary: %w", err)
+	if len(data.Annotations) > 0 {
+		annotationsJSON, err := json.Marshal(data.Annotations)
+		if err != nil {
+			return fmt.Errorf("marshal data.Annotations: %w", err)
+		}
+		if err := txn.Set(dataAnnotationsKey(data), annotationsJSON); err != nil {
+			return fmt.Errorf("set data.Annotations: %w", err)
+		}
 	}
 
 	return nil
 }
 
 func getData(txn *badger.Txn, data *flowstate.Data) error {
-	item, err := txn.Get(dataBKey(data))
+	blobItem, err := txn.Get(dataBlobKey(data))
 	if err != nil {
-		return fmt.Errorf("get data.Bd: %w", err)
+		return fmt.Errorf("get data.Blob: %w", err)
 	}
-	data.B, err = item.ValueCopy(data.B)
+	data.Blob, err = blobItem.ValueCopy(data.Blob)
 	if err != nil {
-		return fmt.Errorf("copy data.B: %w", err)
+		return fmt.Errorf("copy data.Blob: %w", err)
 	}
 
-	dataBinary, err := txn.Get(dataBinaryKey(data))
-	if err != nil {
-		return fmt.Errorf("get data.Binary: %w", err)
+	if annotationsItem, err := txn.Get(dataAnnotationsKey(data)); errors.Is(err, badger.ErrKeyNotFound) {
+		// ok
+	} else if err != nil {
+		return fmt.Errorf("get data.Annotations: %w", err)
+	} else {
+		if err := annotationsItem.Value(func(val []byte) error {
+			if len(val) == 0 {
+				return nil
+			}
+			annotations := make(map[string]string)
+			if err := json.Unmarshal(val, &annotations); err != nil {
+				return fmt.Errorf("unmarshal annotations: %w", err)
+			}
+
+			data.Annotations = annotations
+			return nil
+		}); err != nil {
+			return fmt.Errorf("copy data.Annotations: %w", err)
+		}
 	}
-	data.Binary = dataBinary.ValueSize() > 0
 
 	return nil
 }

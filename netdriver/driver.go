@@ -58,7 +58,7 @@ func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
 	return d.do(cmd, "/flowstate.v1.Driver/GetData")
 }
 
-func (d *Driver) StoreData(cmd *flowstate.AttachDataCommand) error {
+func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
 	return d.do(cmd, "/flowstate.v1.Driver/StoreData")
 }
 
@@ -194,18 +194,6 @@ func syncResult(inCmd0, resCmd0 flowstate.Command) error {
 		resCmd.CarrierStateCtx.CopyTo(inCmd.CarrierStateCtx)
 		resCmd.UnstackStateCtx.CopyTo(inCmd.UnstackStateCtx)
 		return nil
-	case *flowstate.AttachDataCommand:
-		resCmd, ok := resCmd0.(*flowstate.AttachDataCommand)
-		if !ok {
-			return fmt.Errorf("resCmd is not a AttachDataCommand")
-		}
-
-		resCmd.Store = inCmd.Store
-		resCmd.Alias = inCmd.Alias
-		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
-		resCmd.Data.CopyTo(inCmd.Data)
-
-		return nil
 	case *flowstate.GetDataCommand:
 		resCmd, ok := resCmd0.(*flowstate.GetDataCommand)
 		if !ok {
@@ -213,8 +201,28 @@ func syncResult(inCmd0, resCmd0 flowstate.Command) error {
 		}
 
 		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
-		resCmd.Data.CopyTo(inCmd.Data)
 		resCmd.Alias = inCmd.Alias
+
+		for n, resD := range resCmd.StateCtx.Datas {
+			inD := inCmd.StateCtx.MustData(n)
+			resD.CopyTo(inD)
+		}
+
+		return nil
+	case *flowstate.StoreDataCommand:
+		resCmd, ok := resCmd0.(*flowstate.StoreDataCommand)
+		if !ok {
+			return fmt.Errorf("resCmd is not a StoreDataCommand")
+		}
+
+		resCmd.StateCtx.CopyTo(inCmd.StateCtx)
+		resCmd.Alias = inCmd.Alias
+
+		for n, resD := range resCmd.StateCtx.Datas {
+			inD := inCmd.StateCtx.MustData(n)
+			resD.CopyTo(inD)
+		}
+
 		return nil
 	case *flowstate.GetStateByIDCommand:
 		resCmd, ok := resCmd0.(*flowstate.GetStateByIDCommand)

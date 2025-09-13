@@ -43,41 +43,16 @@ CREATE INDEX IF NOT EXISTS flowstate_delayed_states_execute_at ON flowstate_dela
 `,
 	},
 	{
-		Desc: "create flowstate_meta",
-		SQL: `
-CREATE TABLE IF NOT EXISTS flowstate_meta (
-    "key" text NOT NULL,
-    "value" JSONB NOT NULL,
-	PRIMARY KEY ("key")       
-);
-`,
-	},
-	{
 		Desc: "create flowstate_data",
 		SQL: `
 CREATE SEQUENCE IF NOT EXISTS flowstate_data_rev_seq;
 
 CREATE TABLE IF NOT EXISTS flowstate_data (
 	rev bigint NOT NULL,
-	id TEXT NOT NULL,
 	annotations JSONB,
-	bytes BYTEA NOT NULL,
-	PRIMARY KEY (rev, id)
+	b TEXT,
+	PRIMARY KEY (rev)
 );`,
-	},
-	{
-		Desc: "bytes to b column in flowstate_data",
-		SQL: `
-ALTER TABLE flowstate_data
-	ADD COLUMN IF NOT EXISTS "binary" BOOLEAN NOT NULL DEFAULT FALSE,
-	ADD COLUMN IF NOT EXISTS data TEXT;
-
-UPDATE flowstate_data SET data = encode(bytes, 'base64'), "binary" = true;
-
-ALTER TABLE flowstate_data 
-	DROP COLUMN bytes,
-	ALTER COLUMN data SET NOT NULL;
-`,
 	},
 	{
 		Desc: "add state id to flowstate_delayed_states table, recreate index",

@@ -122,6 +122,19 @@ func TestMarshalUnmarshalJSONStateCtx(t *testing.T) {
 				To: "toID2",
 			},
 		},
+		Datas: map[string]*flowstate.Data{
+			"theBinaryData": {
+				Rev: 123,
+				Annotations: map[string]string{
+					"binary": "true",
+				},
+				Blob: []byte("theBinaryDataValue"),
+			},
+			"theStringData": {
+				Rev:  321,
+				Blob: []byte("theStringDataValue"),
+			},
+		},
 	})
 }
 
@@ -231,25 +244,28 @@ func TestMarshalUnmarshalJSONData(t *testing.T) {
 	// empty
 	f(&flowstate.Data{})
 
-	// id rev
+	// id rev annotations
 	f(&flowstate.Data{
-		ID:  "theID",
 		Rev: 123,
+		Annotations: map[string]string{
+			"fooAnnot": "fooVal",
+			"barAnnot": "barVal",
+		},
 	})
 
-	// string B
+	// string Blob
 	f(&flowstate.Data{
-		ID:  "theID",
-		Rev: 123,
-		B:   []byte("fooValString"),
+		Rev:  123,
+		Blob: []byte("fooValString"),
 	})
 
-	// binary B
+	// binary Blob
 	f(&flowstate.Data{
-		ID:     "theID",
-		Rev:    123,
-		Binary: true,
-		B:      []byte{42, 0, 0, 0, 31, 133, 235, 81, 184, 30, 9, 64},
+		Rev: 123,
+		Annotations: map[string]string{
+			"binary": "true",
+		},
+		Blob: []byte{42, 0, 0, 0, 31, 133, 235, 81, 184, 30, 9, 64},
 	})
 }
 
@@ -381,28 +397,48 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 		},
 	})
 
-	data := &flowstate.Data{ID: "theDataID", Rev: 123, B: []byte("theDataValue")}
 	f(&flowstate.CommitCommand{
 		Commands: []flowstate.Command{
-			&flowstate.AttachDataCommand{
-				Data:  data,
-				Store: true,
+			&flowstate.StoreDataCommand{
+				StateCtx: &flowstate.StateCtx{
+					Current: flowstate.State{
+						ID:  "theStoreDataID",
+						Rev: 123,
+					},
+				},
+				Alias: "foo",
 			},
-			&flowstate.GetDataCommand{
-				Data: data,
+			&flowstate.StoreDataCommand{
+				StateCtx: &flowstate.StateCtx{
+					Current: flowstate.State{
+						ID:  "theOtherStoreDataID",
+						Rev: 321,
+					},
+				},
+				Alias: "bar",
 			},
 		},
 	})
 
 	f(&flowstate.CommitCommand{
 		Commands: []flowstate.Command{
-			&flowstate.AttachDataCommand{
-				Data:  &flowstate.Data{ID: "theDataID", Rev: 123, B: []byte("theDataValue")},
-				Store: true,
+			&flowstate.GetDataCommand{
+				StateCtx: &flowstate.StateCtx{
+					Current: flowstate.State{
+						ID:  "theStoreDataID",
+						Rev: 123,
+					},
+				},
+				Alias: "foo",
 			},
-			&flowstate.AttachDataCommand{
-				Data:  &flowstate.Data{ID: "theOtherDataID", Rev: 234},
-				Store: true,
+			&flowstate.GetDataCommand{
+				StateCtx: &flowstate.StateCtx{
+					Current: flowstate.State{
+						ID:  "theOtherStoreDataID",
+						Rev: 321,
+					},
+				},
+				Alias: "bar",
 			},
 		},
 	})
@@ -445,22 +481,16 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 		Annotation: "theAnnotation",
 	})
 
-	f(&flowstate.AttachDataCommand{})
+	f(&flowstate.StoreDataCommand{})
 
-	f(&flowstate.AttachDataCommand{
+	f(&flowstate.StoreDataCommand{
 		StateCtx: &flowstate.StateCtx{
 			Current: flowstate.State{
 				ID:  "theID",
 				Rev: 123,
 			},
 		},
-		Data: &flowstate.Data{
-			ID:  "theDataID",
-			Rev: 123,
-			B:   []byte("theDataValue"),
-		},
-		Alias: "theAnnotation",
-		Store: true,
+		Alias: "foo",
 	})
 
 	f(&flowstate.GetDataCommand{})
@@ -472,12 +502,7 @@ func TestMarshalUnmarshalJSONCommand(t *testing.T) {
 				Rev: 123,
 			},
 		},
-		Data: &flowstate.Data{
-			ID:  "theDataID",
-			Rev: 123,
-			B:   []byte("theDataValue"),
-		},
-		Alias: "theAnnotation",
+		Alias: "foo",
 	})
 
 	f(&flowstate.GetStateByIDCommand{})

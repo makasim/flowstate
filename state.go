@@ -3,6 +3,7 @@ package flowstate
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -88,6 +89,8 @@ type StateCtx struct {
 	Current   State
 	Committed State
 
+	Datas map[string]*Data
+
 	// Transitions between committed and current states
 	Transitions []Transition
 
@@ -96,8 +99,32 @@ type StateCtx struct {
 	doneCh chan struct{}
 }
 
-func (s *StateCtx) SessID() int64 {
-	return s.sessID
+func (s *StateCtx) SetData(name string, d *Data) {
+	if s.Datas == nil {
+		s.Datas = make(map[string]*Data)
+	}
+	s.Datas[name] = d
+}
+
+func (s *StateCtx) Data(name string) (*Data, error) {
+	if name == "" {
+		return nil, fmt.Errorf("name is empty")
+	}
+
+	d, ok := s.Datas[name]
+	if !ok {
+		return nil, fmt.Errorf("no data with name %s; has it been loaded with flowstate.GetData command", name)
+	}
+
+	return d, nil
+}
+
+func (s *StateCtx) MustData(name string) *Data {
+	data, err := s.Data(name)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func (s *StateCtx) CopyTo(to *StateCtx) *StateCtx {

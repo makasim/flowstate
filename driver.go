@@ -15,51 +15,51 @@ type Driver interface {
 	Delay(cmd *DelayCommand) error
 	Commit(cmd *CommitCommand) error
 	GetData(cmd *GetDataCommand) error
-	StoreData(cmd *AttachDataCommand) error
+	StoreData(cmd *StoreDataCommand) error
 }
 
-func DoCommitSubCommand(d Driver, subCmd0 Command) error {
-	switch subCmd := subCmd0.(type) {
+func DoCommitSubCommand(d Driver, cmd0 Command) error {
+	switch cmd := cmd0.(type) {
 	case *NoopCommand:
 		return nil
 	case *TransitCommand:
-		return subCmd.Do()
+		return cmd.Do()
 	case *ParkCommand:
-		return subCmd.Do()
+		return cmd.Do()
 	case *StackCommand:
-		return subCmd.Do()
+		return cmd.Do()
 	case *UnstackCommand:
-		return subCmd.Do()
-	case *GetDataCommand:
-		if err := subCmd.Prepare(); err != nil {
+		return cmd.Do()
+	case *StoreDataCommand:
+		if store, err := cmd.Prepare(); err != nil {
+			return err
+		} else if !store {
+			return nil
+		}
+		if err := d.StoreData(cmd); err != nil {
 			return err
 		}
-		return d.GetData(subCmd)
-	case *AttachDataCommand:
-		if err := subCmd.Prepare(); err != nil {
-			return err
-		}
-
-		if subCmd.Store {
-			if err := d.StoreData(subCmd); err != nil {
-				return fmt.Errorf("store data: %w", err)
-			}
-		}
-
-		subCmd.Do()
+		cmd.post()
 		return nil
+	case *GetDataCommand:
+		if get, err := cmd.Prepare(); err != nil {
+			return err
+		} else if !get {
+			return nil
+		}
+		return d.GetData(cmd)
 	case *GetStateByIDCommand:
-		if err := subCmd.Prepare(); err != nil {
+		if err := cmd.Prepare(); err != nil {
 			return err
 		}
-		return d.GetStateByID(subCmd)
+		return d.GetStateByID(cmd)
 	case *GetStateByLabelsCommand:
-		return d.GetStateByLabels(subCmd)
+		return d.GetStateByLabels(cmd)
 	case *DelayCommand:
-		if err := subCmd.Prepare(); err != nil {
+		if err := cmd.Prepare(); err != nil {
 			return err
 		}
-		return d.Delay(subCmd)
+		return d.Delay(cmd)
 	case *ExecuteCommand:
 		return fmt.Errorf("execute command not allowed inside commit")
 	case *CommitCommand:
@@ -69,6 +69,6 @@ func DoCommitSubCommand(d Driver, subCmd0 Command) error {
 	case *GetDelayedStatesCommand:
 		return fmt.Errorf("get delayed states command not allowed inside commit")
 	default:
-		return fmt.Errorf("command %T not supported", subCmd0)
+		return fmt.Errorf("command %T not supported", cmd0)
 	}
 }

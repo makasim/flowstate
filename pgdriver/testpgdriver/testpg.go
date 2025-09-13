@@ -96,14 +96,13 @@ func OpenFreshDB(t *testing.T, dsn0, dbName string) *pgxpool.Pool {
 }
 
 type DataRow struct {
-	ID     flowstate.DataID
-	Rev    int64
-	Binary bool
-	Data   []byte
+	Rev         int64
+	Annotations map[string]string
+	Data        []byte
 }
 
 func FindAllData(t *testing.T, conn conn) []DataRow {
-	rows, err := conn.Query(context.Background(), `SELECT rev, id, "binary", data::bytea FROM flowstate_data ORDER BY rev DESC`)
+	rows, err := conn.Query(context.Background(), `SELECT rev, annotations, b::bytea FROM flowstate_data ORDER BY rev DESC`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,8 +110,10 @@ func FindAllData(t *testing.T, conn conn) []DataRow {
 
 	var scannedRows []DataRow
 	for rows.Next() {
-		r := DataRow{}
-		require.NoError(t, rows.Scan(&r.Rev, &r.ID, &r.Binary, &r.Data))
+		r := DataRow{
+			Annotations: map[string]string{},
+		}
+		require.NoError(t, rows.Scan(&r.Rev, &r.Annotations, &r.Data))
 		scannedRows = append(scannedRows, r)
 	}
 	if err := rows.Err(); err != nil {
@@ -151,24 +152,4 @@ func FindAllDelayedStates(t *testing.T, conn conn) []DelayedStateRow {
 type MetaRow struct {
 	Key   string
 	Value string
-}
-
-func FindAllMeta(t *testing.T, conn conn) []MetaRow {
-	rows, err := conn.Query(context.Background(), `SELECT "key", "value" FROM flowstate_meta ORDER BY "key" ASC`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-
-	var scannedRows []MetaRow
-	for rows.Next() {
-		r := MetaRow{}
-		require.NoError(t, rows.Scan(&r.Key, &r.Value))
-		scannedRows = append(scannedRows, r)
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-
-	return scannedRows
 }

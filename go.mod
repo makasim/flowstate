@@ -4,10 +4,10 @@ go 1.24.0
 
 require (
 	github.com/VictoriaMetrics/easyproto v0.1.4
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	github.com/jackc/pgx/v5 v5.6.0
-	github.com/oklog/ulid/v2 v2.1.1
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.10.0
 	github.com/thejerf/slogassert v0.3.4
@@ -18,7 +18,6 @@ require (
 )
 
 require (
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
