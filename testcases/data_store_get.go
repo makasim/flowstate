@@ -18,9 +18,11 @@ func DataStoreGet(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d
 	trkr := &Tracker{}
 
 	expData := &flowstate.Data{
-		ID:  `aDataID`,
 		Rev: 1,
-		B:   []byte(`foo`),
+		Annotations: map[string]string{
+			"checksum/xxhash64": "3728699739546630719",
+		},
+		Blob: []byte(`foo`),
 	}
 	actData := &flowstate.Data{}
 
@@ -28,12 +30,12 @@ func DataStoreGet(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d
 		Track(stateCtx, trkr)
 
 		d := &flowstate.Data{
-			ID: `aDataID`,
-			B:  []byte(`foo`),
+			Blob: []byte(`foo`),
 		}
+		stateCtx.SetData(`aDataKey`, d)
 
 		if err := e.Do(
-			flowstate.AttachData(stateCtx, d, `aDataKey`),
+			flowstate.StoreData(stateCtx, `aDataKey`),
 			flowstate.Transit(stateCtx, `get`),
 		); err != nil {
 			return nil, err
@@ -45,11 +47,12 @@ func DataStoreGet(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d
 		Track(stateCtx, trkr)
 
 		if err := e.Do(
-			flowstate.GetData(stateCtx, actData, `aDataKey`),
+			flowstate.GetData(stateCtx, `aDataKey`),
 			flowstate.Transit(stateCtx, `end`),
 		); err != nil {
 			return nil, err
 		}
+		actData = stateCtx.MustData(`aDataKey`)
 
 		return flowstate.Execute(stateCtx), nil
 	}))

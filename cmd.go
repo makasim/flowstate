@@ -3,11 +3,7 @@ package flowstate
 import (
 	"encoding/base64"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
-
-	"github.com/oklog/ulid/v2"
 )
 
 var _ Command = &TransitCommand{}
@@ -29,10 +25,6 @@ var _ Command = &GetStateByLabelsCommand{}
 var _ Command = &GetStatesCommand{}
 
 var _ Command = &GetDelayedStatesCommand{}
-
-var _ Command = &AttachDataCommand{}
-
-var _ Command = &GetDataCommand{}
 
 var _ Command = &CommitCommand{}
 
@@ -394,60 +386,47 @@ func (cmd *UnstackCommand) Do() error {
 	return nil
 }
 
-func AttachData(stateCtx *StateCtx, data *Data, alias string) *AttachDataCommand {
-	return &AttachDataCommand{
+func StoreData(stateCtx *StateCtx, alias string) *StoreDataCommand {
+	return &StoreDataCommand{
 		StateCtx: stateCtx,
-		Data:     data,
 		Alias:    alias,
-
-		Store: true,
 	}
 }
 
-type AttachDataCommand struct {
+type StoreDataCommand struct {
 	command
 	StateCtx *StateCtx
-	Data     *Data
 	Alias    string
-	Store    bool
 }
 
-func (cmd *AttachDataCommand) WithoutStore() *AttachDataCommand {
-	cmd.Store = false
-	return cmd
+func (cmd *StoreDataCommand) Prepare() (bool, error) {
+	d, err := cmd.StateCtx.Data(cmd.Alias)
+	if err != nil {
+		return false, err
+	}
+
+	if d.Rev < 0 {
+		return false, fmt.Errorf("data rev is negative")
+	}
+
+	if !d.isDirty() {
+		referenceData(cmd.StateCtx, cmd.Alias, d.Rev)
+		return false, nil
+	}
+
+	d.checksum()
+
+	return true, nil
 }
 
-func (cmd *AttachDataCommand) Prepare() error {
-	if cmd.Alias == "" {
-		return fmt.Errorf("alias is empty")
-	}
-	if cmd.Data.ID == "" {
-		cmd.Data.ID = DataID(ulid.Make().String())
-	}
-	if cmd.Data.Rev < 0 {
-		return fmt.Errorf("Data.Rev is negative")
-	}
-	if cmd.Data.B == nil || len(cmd.Data.B) == 0 {
-		return fmt.Errorf("Data.B is empty")
-	}
-	if cmd.Data.Rev == 0 && !cmd.Store {
-		return fmt.Errorf("Data.Rev is zero, but Store is false; this would lead to data loss")
-	}
-
-	return nil
+func (cmd *StoreDataCommand) post() {
+	d := cmd.StateCtx.MustData(cmd.Alias)
+	referenceData(cmd.StateCtx, cmd.Alias, d.Rev)
 }
 
-func (cmd *AttachDataCommand) Do() {
-	cmd.StateCtx.Current.SetAnnotation(
-		dataAnnotation(cmd.Alias),
-		string(cmd.Data.ID)+":"+strconv.FormatInt(cmd.Data.Rev, 10),
-	)
-}
-
-func GetData(stateCtx *StateCtx, data *Data, alias string) *GetDataCommand {
+func GetData(stateCtx *StateCtx, alias string) *GetDataCommand {
 	return &GetDataCommand{
 		StateCtx: stateCtx,
-		Data:     data,
 		Alias:    alias,
 	}
 
@@ -456,43 +435,32 @@ func GetData(stateCtx *StateCtx, data *Data, alias string) *GetDataCommand {
 type GetDataCommand struct {
 	command
 	StateCtx *StateCtx
-	Data     *Data
 	Alias    string
 }
 
-func (cmd *GetDataCommand) Prepare() error {
-	if cmd.Data == nil {
-		return fmt.Errorf("data is nil")
-	}
-	if cmd.Alias == "" {
-		return fmt.Errorf("alias is empty")
-	}
-
-	annotKey := dataAnnotation(cmd.Alias)
-	idRevStr := cmd.StateCtx.Current.Annotations[annotKey]
-	if idRevStr == "" {
-		return fmt.Errorf("annotation %q is not set", annotKey)
-	}
-
-	sepIdx := strings.LastIndexAny(idRevStr, ":")
-	if sepIdx < 1 || sepIdx+1 == len(idRevStr) {
-		return fmt.Errorf("annotation %q contains invalid data reference; got %q", annotKey, idRevStr)
-	}
-
-	id := DataID(idRevStr[:sepIdx])
-	rev, err := strconv.ParseInt(idRevStr[sepIdx+1:], 10, 64)
+func (cmd *GetDataCommand) Prepare() (bool, error) {
+	rev, err := dereferenceData(cmd.StateCtx, cmd.Alias)
 	if err != nil {
-		return fmt.Errorf("annotation %q contains invalid data revision; got %q: %w", annotKey, idRevStr[sepIdx+1:], err)
+		return false, err
 	}
 
-	cmd.Data.ID = id
-	cmd.Data.Rev = rev
+	d, err := cmd.StateCtx.Data(cmd.Alias)
+	if err != nil {
+		cmd.StateCtx.SetData(cmd.Alias, &Data{
+			Rev: rev,
+		})
+		return true, nil
+	} else if d.Rev == rev {
+		return false, nil
+	}
 
-	return nil
-}
+	d.Rev = rev
+	d.Blob = d.Blob[:0]
+	for k := range d.Annotations {
+		delete(d.Annotations, k)
+	}
 
-func dataAnnotation(alias string) string {
-	return "flowstate.data." + string(alias)
+	return true, nil
 }
 
 func nextTransitionOrCurrent(stateCtx *StateCtx, to FlowID) Transition {

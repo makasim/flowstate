@@ -123,10 +123,11 @@ func MarshalStateCtx(stateCtx *StateCtx, dst []byte) []byte {
 	return m.Marshal(dst)
 }
 
-//	message StateContext {
+//	message StateCtx {
 //	 State committed = 1;
 //	 State current = 2;
 //	 repeated Transition transitions = 3;
+//	 map<string, Data> datas = 4;
 //	}
 func marshalStateCtx(stateCtx *StateCtx, mm *easyproto.MessageMarshaler) {
 	marshalState(stateCtx.Committed, mm.AppendMessage(1))
@@ -134,6 +135,23 @@ func marshalStateCtx(stateCtx *StateCtx, mm *easyproto.MessageMarshaler) {
 
 	for _, s := range stateCtx.Transitions {
 		marshalTransition(s, mm.AppendMessage(3))
+	}
+
+	if len(stateCtx.Datas) > 0 {
+		// sort keys to have a deterministic order
+		keys := make([]string, 0, len(stateCtx.Datas))
+		for k := range stateCtx.Datas {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+
+		for _, k := range keys {
+			v := stateCtx.Datas[k]
+			dMM := mm.AppendMessage(4)
+
+			dMM.AppendString(1, k)
+			marshalData(v, dMM.AppendMessage(2))
+		}
 	}
 }
 
@@ -175,8 +193,59 @@ func UnmarshalStateCtx(src []byte, stateCtx *StateCtx) (err error) {
 			}
 
 			stateCtx.Transitions = append(stateCtx.Transitions, ts)
+		case 4:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read 'map<string, Data> datas = 4;' field")
+			}
+
+			if stateCtx.Datas == nil {
+				stateCtx.Datas = make(map[string]*Data)
+			}
+
+			if err := unmarshalDataMapItem(data, stateCtx.Datas); err != nil {
+				return fmt.Errorf("cannot unmarshal 'map<string, Data> datas = 4;' field: %w", err)
+			}
 		}
 	}
+	return nil
+}
+
+func unmarshalDataMapItem(src []byte, datas map[string]*Data) (err error) {
+	var fc easyproto.FieldContext
+	var key string
+	var d *Data
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field")
+		}
+		switch fc.FieldNum {
+		case 1:
+			key0, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read 'string key = 1;' field")
+			}
+			key = strings.Clone(key0)
+		case 2:
+			dData, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read 'Data data = 2;' field")
+			}
+
+			d = &Data{}
+			if err := UnmarshalData(dData, d); err != nil {
+				return fmt.Errorf("cannot unmarshal 'Data data = 2;' field: %w", err)
+			}
+		}
+	}
+
+	if key == "" {
+		return fmt.Errorf("missing 'string key = 1;' field")
+	}
+
+	datas[key] = d
+
 	return nil
 }
 
@@ -306,34 +375,30 @@ func MarshalData(d *Data, dst []byte) []byte {
 }
 
 //	message Data {
-//	 string id = 1;
 //	 int64 rev = 2;
-//	 bool binary = 3;
-//	 string b = 4;
+//	 string blob = 4;
+//	 map<string, string> annotations = 5;
 //	}
 func marshalData(d *Data, mm *easyproto.MessageMarshaler) {
-	if d.ID != "" {
-		mm.AppendString(1, string(d.ID))
-	}
 	if d.Rev != 0 {
 		mm.AppendInt64(2, d.Rev)
 	}
-	if d.Binary {
-		mm.AppendBool(3, d.Binary)
-	}
-	if len(d.B) > 0 {
-		dst := d.B
-		if d.Binary {
-			dst = make([]byte, base64.StdEncoding.EncodedLen(len(d.B)))
-			base64.StdEncoding.Encode(dst, d.B)
+	if len(d.Blob) > 0 {
+		dst := d.Blob
+		if d.IsBinary() {
+			dst = make([]byte, base64.StdEncoding.EncodedLen(len(d.Blob)))
+			base64.StdEncoding.Encode(dst, d.Blob)
 		}
 
 		mm.AppendString(4, string(dst))
 	}
+	if len(d.Annotations) > 0 {
+		marshalStringMap(d.Annotations, 5, mm)
+	}
 }
 
 func UnmarshalData(src []byte, d *Data) (err error) {
-	var b string
+	var blob string
 
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -342,46 +407,47 @@ func UnmarshalData(src []byte, d *Data) (err error) {
 			return fmt.Errorf("cannot read next field")
 		}
 		switch fc.FieldNum {
-		case 1:
-			v, ok := fc.String()
-			if !ok {
-				return fmt.Errorf("cannot read 'string id = 1;' field")
-			}
-			d.ID = DataID(v)
 		case 2:
 			v, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read 'int64 rev = 2;' field")
 			}
 			d.Rev = v
-		case 3:
-			v, ok := fc.Bool()
-			if !ok {
-				return fmt.Errorf("cannot read 'bool binary = 3;' field")
-			}
-			d.Binary = v
 		case 4:
 			v, ok := fc.String()
 			if !ok {
-				return fmt.Errorf("cannot read 'string b = 4;' field")
+				return fmt.Errorf("cannot read 'string blob = 4;' field")
 			}
 
-			b = v
+			blob = v
+		case 5:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read 'map<string, string> annotations = 5;' field")
+			}
+
+			if d.Annotations == nil {
+				d.Annotations = make(map[string]string)
+			}
+
+			if err := unmarshalStringMapItem(data, d.Annotations); err != nil {
+				return fmt.Errorf("map<string, string> annotations = 5;' field: %w", err)
+			}
 		}
 	}
 
-	if len(b) == 0 {
+	if len(blob) == 0 {
 		return nil
 	}
 
-	if d.Binary {
-		b, err := base64.StdEncoding.AppendDecode(d.B[:0], []byte(b))
+	if d.IsBinary() {
+		b, err := base64.StdEncoding.AppendDecode(d.Blob[:0], []byte(blob))
 		if err != nil {
-			return fmt.Errorf("cannot decode 'string b = 4;' field from base64: %w", err)
+			return fmt.Errorf("cannot decode 'string blob = 4;' field from base64: %w", err)
 		}
-		d.B = b
+		d.Blob = b
 	} else {
-		d.B = []byte(strings.Clone(b))
+		d.Blob = []byte(strings.Clone(blob))
 	}
 
 	return nil
@@ -399,19 +465,14 @@ func MarshalCommand(cmd Command, dst []byte) []byte {
 			marshalStateCtx(stateCtx, mm.AppendMessage(1))
 		}
 	}
-	datas := commandDatas(cmd)
-	if len(datas) > 0 {
-		for _, data := range datas {
-			marshalData(data, mm.AppendMessage(2))
-		}
-	}
 
-	marshalCommand(cmd, stateCtxs, datas, mm)
+	marshalCommand(cmd, stateCtxs, mm)
 
 	return m.Marshal(dst)
 }
 
 //	message Command {
+//	 reserved 13, 14; // Legacy commands that no longer exist
 //	 repeated StateCtx state_ctxs = 1;
 //	 repeated Data datas = 2;
 //
@@ -423,14 +484,15 @@ func MarshalCommand(cmd Command, dst []byte) []byte {
 //	 NoopCommand noop = 10;
 //	 StackCommand stack = 11;
 //	 UnstackCommand unstack = 12;
-//	 AttachDataCommand attach_data = 13;
-//	 GetDataCommand get_data = 14;
 //	 GetStateByIDCommand get_state_by_id = 17;
 //	 GetStateByLabelsCommand get_state_by_labels = 18;
 //	 GetStatesCommand get_states = 19;
 //	 GetDelayedStatesCommand get_delayed_states = 20;
+//
+//	 StoreDataCommand store_data = 21;
+//	 GetDataCommand get_data = 22;
 //	}
-func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyproto.MessageMarshaler) {
+func marshalCommand(cmd0 Command, stateCtxs stateCtxs, mm *easyproto.MessageMarshaler) {
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
 		//	message TransitCommand {
@@ -509,7 +571,7 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 		// }
 		cmdMM := mm.AppendMessage(9)
 		for _, subCmd := range cmd.Commands {
-			marshalCommand(subCmd, stateCtxs, datas, cmdMM.AppendMessage(1))
+			marshalCommand(subCmd, stateCtxs, cmdMM.AppendMessage(1))
 		}
 	case *NoopCommand:
 		//	message NoopCommand {
@@ -547,41 +609,29 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 		if cmd.Annotation != "" {
 			cmdMM.AppendString(3, cmd.Annotation)
 		}
-	case *AttachDataCommand:
-		// message AttachDataCommand {
+	case *StoreDataCommand:
+		// message StoreDataCommand {
 		//  StateCtxRef state_ref = 1;
-		//  DataRef data_ref = 2;
-		//  string alias = 3;
-		//  bool store = 4;
+		//  string alias = 2;
 		// }
-		cmdMM := mm.AppendMessage(13)
+		cmdMM := mm.AppendMessage(21)
 		if cmd.StateCtx != nil {
 			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
 		}
-		if cmd.Data != nil {
-			marshalDataRef(cmd.Data, datas, cmdMM.AppendMessage(2))
-		}
 		if cmd.Alias != "" {
-			cmdMM.AppendString(3, cmd.Alias)
-		}
-		if cmd.Store {
-			cmdMM.AppendBool(4, true)
+			cmdMM.AppendString(2, cmd.Alias)
 		}
 	case *GetDataCommand:
 		// message GetDataCommand {
 		//  StateCtxRef state_ref = 1;
-		//  DataRef data_ref = 2;
-		//  string alias = 3;
-		//}
-		cmdMM := mm.AppendMessage(14)
+		//  string alias = 2;
+		// }
+		cmdMM := mm.AppendMessage(22)
 		if cmd.StateCtx != nil {
 			marshalStateCtxRef(cmd.StateCtx, stateCtxs, cmdMM.AppendMessage(1))
 		}
-		if cmd.Data != nil {
-			marshalDataRef(cmd.Data, datas, cmdMM.AppendMessage(2))
-		}
 		if cmd.Alias != "" {
-			cmdMM.AppendString(3, cmd.Alias)
+			cmdMM.AppendString(2, cmd.Alias)
 		}
 	case *GetStateByIDCommand:
 		// message GetStateByIDCommand {
@@ -704,7 +754,6 @@ func marshalCommand(cmd0 Command, stateCtxs stateCtxs, datas datas, mm *easyprot
 
 func UnmarshalCommand(src0 []byte) (Command, error) {
 	var stateCtxs stateCtxs
-	var datas datas
 	var err error
 
 	// unmarshal stateCtxs and datas first
@@ -729,25 +778,13 @@ func UnmarshalCommand(src0 []byte) (Command, error) {
 			}
 
 			stateCtxs = append(stateCtxs, stateCtx)
-		case 2:
-			data, ok := fc.MessageData()
-			if !ok {
-				return nil, fmt.Errorf("cannot read 'repeated Data datas = 2;' field")
-			}
-
-			d := &Data{}
-			if err := UnmarshalData(data, d); err != nil {
-				return nil, fmt.Errorf("cannot read 'repeated Data datas = 2;' field: %w", err)
-			}
-
-			datas = append(datas, d)
 		}
 	}
 
-	return unmarshalCommand(src0, stateCtxs, datas)
+	return unmarshalCommand(src0, stateCtxs)
 }
 
-func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, error) {
+func unmarshalCommand(src []byte, stateCtxs stateCtxs) (Command, error) {
 	var err error
 
 	fc := easyproto.FieldContext{}
@@ -811,7 +848,7 @@ func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, er
 			}
 
 			cmd := &CommitCommand{}
-			if err := unmarshalCommitCommand(data, cmd, stateCtxs, datas); err != nil {
+			if err := unmarshalCommitCommand(data, cmd, stateCtxs); err != nil {
 				return nil, fmt.Errorf("cannot read 'CommitCommand commit = 9;' field: %w", err)
 			}
 
@@ -839,30 +876,6 @@ func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, er
 			cmd := &UnstackCommand{}
 			if err := unmarshalUnstackCommand(data, cmd, stateCtxs); err != nil {
 				return nil, fmt.Errorf("cannot read 'UnstackCommand unstack = 12;' field: %w", err)
-			}
-
-			return cmd, nil
-		case 13: // AttachDataCommand attach_data = 13;
-			data, ok := fc.MessageData()
-			if !ok {
-				return nil, fmt.Errorf("cannot read 'AttachDataCommand attach_data = 13;' field")
-			}
-
-			cmd := &AttachDataCommand{}
-			if err := unmarshalAttachDataCommand(data, cmd, stateCtxs, datas); err != nil {
-				return nil, fmt.Errorf("cannot read 'AttachDataCommand attach_data = 13;' field: %w", err)
-			}
-
-			return cmd, nil
-		case 14: // GetDataCommand get_data = 14;
-			data, ok := fc.MessageData()
-			if !ok {
-				return nil, fmt.Errorf("cannot read 'GetDataCommand get_data = 14;' field")
-			}
-
-			cmd := &GetDataCommand{}
-			if err := unmarshalGetDataCommand(data, cmd, stateCtxs, datas); err != nil {
-				return nil, fmt.Errorf("cannot read 'GetDataCommand get_data = 14;' field: %w", err)
 			}
 
 			return cmd, nil
@@ -909,6 +922,30 @@ func unmarshalCommand(src []byte, stateCtxs stateCtxs, datas datas) (Command, er
 			if err := unmarshalGetDelayedStatesCommand(data, cmd, stateCtxs); err != nil {
 				return nil, fmt.Errorf("cannot read 'GetDelayedStatesCommand get_delayed_states = 20;' field: %w", err)
 			}
+			return cmd, nil
+		case 21: // StoreDataCommand store_data = 21;
+			data, ok := fc.MessageData()
+			if !ok {
+				return nil, fmt.Errorf("cannot read 'StoreDataCommand store_data = 21;' field")
+			}
+
+			cmd := &StoreDataCommand{}
+			if err := unmarshalStoreDataCommand(data, cmd, stateCtxs); err != nil {
+				return nil, fmt.Errorf("cannot read 'StoreDataCommand store_data = 21;' field: %w", err)
+			}
+
+			return cmd, nil
+		case 22: // GetDataCommand get_data = 22;
+			data, ok := fc.MessageData()
+			if !ok {
+				return nil, fmt.Errorf("cannot read 'GetDataCommand get_data = 22;' field")
+			}
+
+			cmd := &GetDataCommand{}
+			if err := unmarshalGetDataCommand(data, cmd, stateCtxs); err != nil {
+				return nil, fmt.Errorf("cannot read 'GetDataCommand get_data = 22;' field: %w", err)
+			}
+
 			return cmd, nil
 		}
 	}
@@ -1099,7 +1136,7 @@ func unmarshalDelayCommand(src []byte, cmd *DelayCommand, stateCtxs stateCtxs) (
 	return nil
 }
 
-func unmarshalCommitCommand(src []byte, cmd *CommitCommand, stateCtxs stateCtxs, datas datas) (err error) {
+func unmarshalCommitCommand(src []byte, cmd *CommitCommand, stateCtxs stateCtxs) (err error) {
 	fc := easyproto.FieldContext{}
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -1118,7 +1155,7 @@ func unmarshalCommitCommand(src []byte, cmd *CommitCommand, stateCtxs stateCtxs,
 				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			sumCmd, err := unmarshalCommand(data, stateCtxs, datas)
+			sumCmd, err := unmarshalCommand(data, stateCtxs)
 			if err != nil {
 				return fmt.Errorf("cannot read 'repeated Command commands = 1;' field: %w", err)
 			}
@@ -1228,7 +1265,7 @@ func unmarshalUnstackCommand(src []byte, cmd *UnstackCommand, stateCtxs stateCtx
 	return nil
 }
 
-func unmarshalAttachDataCommand(src []byte, cmd *AttachDataCommand, stateCtxs stateCtxs, datas datas) (err error) {
+func unmarshalStoreDataCommand(src []byte, cmd *StoreDataCommand, stateCtxs stateCtxs) (err error) {
 	fc := easyproto.FieldContext{}
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -1236,67 +1273,9 @@ func unmarshalAttachDataCommand(src []byte, cmd *AttachDataCommand, stateCtxs st
 			return fmt.Errorf("cannot read next field")
 		}
 
-		// message AttachDataCommand {
+		// message StoreDataCommand {
 		//  StateCtxRef state_ref = 1;
-		//  DataRef data_ref = 2;
-		//  string alias = 3;
-		//  bool store = 4;
-		// }
-
-		switch fc.FieldNum {
-		case 1:
-			data, ok := fc.MessageData()
-			if !ok {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
-			}
-
-			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
-			if err != nil {
-				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
-			}
-			cmd.StateCtx = stateCtx
-		case 2:
-			data, ok := fc.MessageData()
-			if !ok {
-				return fmt.Errorf("cannot read 'DataRef data_ref = 1;' field")
-			}
-
-			d, err := unmarshalDataRef(data, datas)
-			if err != nil {
-				return fmt.Errorf("cannot read 'DataRef data_ref = 1;' field: %w", err)
-			}
-			cmd.Data = d
-		case 3:
-			v, ok := fc.String()
-			if !ok {
-				return fmt.Errorf("cannot read 'string annotation = 3;' field")
-			}
-
-			cmd.Alias = strings.Clone(v)
-		case 4:
-			v, ok := fc.Bool()
-			if !ok {
-				return fmt.Errorf("cannot read 'bool store = 4;' field")
-			}
-			cmd.Store = v
-		}
-	}
-
-	return nil
-}
-
-func unmarshalGetDataCommand(src []byte, cmd *GetDataCommand, stateCtxs stateCtxs, datas datas) (err error) {
-	fc := easyproto.FieldContext{}
-	for len(src) > 0 {
-		src, err = fc.NextField(src)
-		if err != nil {
-			return fmt.Errorf("cannot read next field")
-		}
-
-		// message GetDataCommand {
-		//  StateCtxRef state_ref = 1;
-		//  DataRef data_ref = 2;
-		//  string alias = 3;
+		//  string alias = 2;
 		//}
 
 		switch fc.FieldNum {
@@ -1312,23 +1291,50 @@ func unmarshalGetDataCommand(src []byte, cmd *GetDataCommand, stateCtxs stateCtx
 			}
 			cmd.StateCtx = stateCtx
 		case 2:
+			alias, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read 'string alias = 2;' field")
+			}
+
+			cmd.Alias = strings.Clone(alias)
+		}
+	}
+
+	return nil
+}
+
+func unmarshalGetDataCommand(src []byte, cmd *GetDataCommand, stateCtxs stateCtxs) (err error) {
+	fc := easyproto.FieldContext{}
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field")
+		}
+
+		// message GetDataCommand {
+		//  StateCtxRef state_ref = 1;
+		//  string alias = 2;
+		//}
+
+		switch fc.FieldNum {
+		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read 'DataRef data_ref = 1;' field")
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field")
 			}
 
-			d, err := unmarshalDataRef(data, datas)
+			stateCtx, err := unmarshalStateCtxRef(data, stateCtxs)
 			if err != nil {
-				return fmt.Errorf("cannot read 'DataRef data_ref = 1;' field: %w", err)
+				return fmt.Errorf("cannot read 'StateCtxRef state_ref = 1;' field: %w", err)
 			}
-			cmd.Data = d
-		case 3:
-			v, ok := fc.String()
+			cmd.StateCtx = stateCtx
+		case 2:
+			name, ok := fc.String()
 			if !ok {
-				return fmt.Errorf("cannot read 'string annotation = 3;' field")
+				return fmt.Errorf("cannot read 'string alias = 2;' field")
 			}
 
-			cmd.Alias = strings.Clone(v)
+			cmd.Alias = strings.Clone(name)
 		}
 	}
 
@@ -1662,37 +1668,6 @@ func unmarshalStateCtxRef(src []byte, stateCtxs stateCtxs) (*StateCtx, error) {
 	return stateCtxs.find(idx), nil
 }
 
-//	message DataRef {
-//	 int64 idx = 1;
-//	}
-func marshalDataRef(data *Data, datas datas, mm *easyproto.MessageMarshaler) {
-	mm.AppendInt64(1, datas.idx(data))
-}
-
-func unmarshalDataRef(src []byte, datas datas) (*Data, error) {
-	var fc easyproto.FieldContext
-
-	var err error
-	idx := int64(-1)
-	for len(src) > 0 {
-		src, err = fc.NextField(src)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read next field: %w", err)
-		}
-		switch fc.FieldNum {
-		case 1:
-			v, ok := fc.Int64()
-			if !ok {
-				return nil, fmt.Errorf("cannot read 'int64 idx = 1;' field")
-			}
-			idx = v
-			break
-		}
-	}
-
-	return datas.find(idx), nil
-}
-
 func commandStateCtxs(cmd0 Command) []*StateCtx {
 	stateCtxs := make([]*StateCtx, 0)
 
@@ -1731,7 +1706,7 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 		for _, subCmd := range cmd.Commands {
 			stateCtxs = append(stateCtxs, commandStateCtxs(subCmd)...)
 		}
-	case *AttachDataCommand:
+	case *StoreDataCommand:
 		if cmd.StateCtx != nil {
 			stateCtxs = append(stateCtxs, cmd.StateCtx)
 		}
@@ -1756,33 +1731,6 @@ func commandStateCtxs(cmd0 Command) []*StateCtx {
 	})
 
 	return stateCtxs
-}
-
-func commandDatas(cmd0 Command) []*Data {
-	datas := make([]*Data, 0)
-
-	switch cmd := cmd0.(type) {
-	case *AttachDataCommand:
-		if cmd.Data != nil {
-			datas = append(datas, cmd.Data)
-		}
-	case *GetDataCommand:
-		if cmd.Data != nil {
-			datas = append(datas, cmd.Data)
-		}
-	case *CommitCommand:
-		for _, subCmd := range cmd.Commands {
-			datas = append(datas, commandDatas(subCmd)...)
-		}
-	default:
-		return nil
-	}
-
-	datas = slices.CompactFunc(datas, func(l, r *Data) bool {
-		return l == r
-	})
-
-	return datas
 }
 
 func unmarshalStringMapItem(src []byte, m map[string]string) (err error) {
@@ -1858,36 +1806,4 @@ func (s stateCtxs) idx(stateCtx *StateCtx) int64 {
 
 func (s stateCtxs) strIdx(stateCtx *StateCtx) string {
 	return strconv.FormatInt(s.idx(stateCtx), 10)
-}
-
-type datas []*Data
-
-func (d datas) find(idx int64) *Data {
-	return d[idx]
-}
-
-func (d datas) findStrIdx(strIdx string) *Data {
-	if strIdx == "" {
-		return d.find(0)
-	}
-
-	idx, err := strconv.ParseInt(strIdx, 10, 64)
-	if err != nil {
-		idx = -1
-	}
-	return d.find(idx)
-}
-
-func (d datas) idx(data *Data) int64 {
-	for i, data1 := range d {
-		if data1 == data {
-			return int64(i)
-		}
-	}
-
-	panic(fmt.Errorf("cannot find idx for data %+v", data))
-}
-
-func (d datas) strIdx(data *Data) string {
-	return strconv.FormatInt(d.idx(data), 10)
 }

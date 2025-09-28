@@ -37,17 +37,27 @@ func (d *Driver) Init(_ flowstate.Engine) error {
 }
 
 func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
-	data, err := d.dataLog.get(cmd.Data.ID, cmd.Data.Rev)
+	data, err := cmd.StateCtx.Data(cmd.Alias)
 	if err != nil {
 		return err
 	}
 
-	data.CopyTo(cmd.Data)
+	storedData, err := d.dataLog.get(data.Rev)
+	if err != nil {
+		return err
+	}
+	storedData.CopyTo(data)
+
 	return nil
 }
 
-func (d *Driver) StoreData(cmd *flowstate.AttachDataCommand) error {
-	d.dataLog.append(cmd.Data)
+func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
+	data, err := cmd.StateCtx.Data(cmd.Alias)
+	if err != nil {
+		return err
+	}
+
+	d.dataLog.append(data)
 	return nil
 }
 
@@ -224,12 +234,12 @@ func (l *dataLog) append(data *flowstate.Data) {
 	l.entries = append(l.entries, data.CopyTo(&flowstate.Data{}))
 }
 
-func (l *dataLog) get(id flowstate.DataID, rev int64) (*flowstate.Data, error) {
+func (l *dataLog) get(rev int64) (*flowstate.Data, error) {
 	l.Lock()
 	defer l.Unlock()
 
 	for _, data := range l.entries {
-		if data.ID == id && data.Rev == rev {
+		if data.Rev == rev {
 			return data, nil
 		}
 	}

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { ApiContext } from "./ApiContext";
-import {Command, GetDataCommand, Data, DataRef, State, StateCtx, StateCtxRef} from "./gen/flowstate/v1/messages_pb";
+import {Command, GetDataCommand, State, StateCtx, StateCtxRef} from "./gen/flowstate/v1/messages_pb";
 
 export const AnnotationDetails = ({ alias, state }: { alias: string; state: State }) => {
   const [info, setInfo] = useState<Command | null>(null);
@@ -13,13 +13,9 @@ export const AnnotationDetails = ({ alias, state }: { alias: string; state: Stat
       stateCtxs: [
         new StateCtx({current: state, committed: state})
       ],
-      datas: [
-        new Data()
-      ],
       getData: new GetDataCommand({
         alias: alias,
-        stateRef: new StateCtxRef({ idx: BigInt(0) }),
-        dataRef: new DataRef({ idx: BigInt(0) })
+        stateRef: new StateCtxRef({ idx: BigInt(0) })
       })
     });
     
@@ -28,21 +24,21 @@ export const AnnotationDetails = ({ alias, state }: { alias: string; state: Stat
 
   if (!info) return "Loading...";
 
-  return (
-    <>
-      {info.datas.map((d) => {
-        if (d.binary) return <span>{d.b}</span>;
+  const data = info.stateCtxs[0].datas[alias];
 
-        try {
-          return (
-            <pre className="text-left">
-              {JSON.stringify(JSON.parse(d.b), null, 2)}
-            </pre>
-          );
-        } catch {
-          return <span>{d.b}</span>;
-        }
-      })}
-    </>
-  );
+  if (!data) return "No data found for alias";
+
+  if (data.annotations["binary"]) {
+    return <span>{data.blob}</span>;
+  }
+
+  try {
+    return (
+      <pre className="text-left">
+        {JSON.stringify(JSON.parse(data.blob), null, 2)}
+      </pre>
+    );
+  } catch {
+    return <span>{data.blob}</span>;
+  }
 };

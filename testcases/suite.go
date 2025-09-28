@@ -139,6 +139,9 @@ func Get(setUp func(t *testing.T) flowstate.Driver) *Suite {
 			"WatchSinceTime":   WatchSinceTime,
 
 			"Cron": Cron,
+
+			"StoreData": StoreData,
+			"GetData":   GetData,
 		},
 	}
 }

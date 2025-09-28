@@ -25,9 +25,11 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 	}
 
 	expData := &flowstate.Data{
-		ID:  `tid_data`,
 		Rev: 4,
-		B:   []byte(`50`),
+		Annotations: map[string]string{
+			"checksum/xxhash64": "11329650324634456925",
+		},
+		Blob: []byte(`50`),
 	}
 	actData := &flowstate.Data{}
 
@@ -36,22 +38,23 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 	mustSetFlow(fr, "foo", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		data := &flowstate.Data{}
-		cfgs := &flowstate.Data{}
 		if err := e.Do(
-			flowstate.GetData(stateCtx, cfgs, `config_set`),
-			flowstate.GetData(stateCtx, data, `data`),
+			flowstate.GetData(stateCtx, `config_set`),
+			flowstate.GetData(stateCtx, `data`),
 		); err != nil {
 			return nil, err
 		}
 
+		data := stateCtx.MustData(`data`)
+		cfgs := stateCtx.MustData(`config_set`)
+
 		var cfg fooConfigs
-		if err := json.Unmarshal(cfgs.B, &cfg); err != nil {
+		if err := json.Unmarshal(cfgs.Blob, &cfg); err != nil {
 			return nil, err
 		}
 
 		var num int
-		if err := json.Unmarshal(data.B, &num); err != nil {
+		if err := json.Unmarshal(data.Blob, &num); err != nil {
 			return nil, err
 		}
 
@@ -60,10 +63,12 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 		if err != nil {
 			return nil, err
 		}
-		data.B = append(data.B[:0], b...)
+		data.Blob = append(data.Blob[:0], b...)
+
+		stateCtx.SetData(`data`, data)
 
 		if err := e.Do(
-			flowstate.AttachData(stateCtx, data, `data`),
+			flowstate.StoreData(stateCtx, `data`),
 			flowstate.Transit(stateCtx, `bar`),
 		); err != nil {
 			return nil, err
@@ -74,22 +79,23 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 	mustSetFlow(fr, "bar", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		data := &flowstate.Data{}
-		cfgs := &flowstate.Data{}
 		if err := e.Do(
-			flowstate.GetData(stateCtx, cfgs, `config_set`),
-			flowstate.GetData(stateCtx, data, `data`),
+			flowstate.GetData(stateCtx, `config_set`),
+			flowstate.GetData(stateCtx, `data`),
 		); err != nil {
 			return nil, err
 		}
 
+		cfgs := stateCtx.MustData(`config_set`)
+		data := stateCtx.MustData(`data`)
+
 		var cfg barConfigs
-		if err := json.Unmarshal(cfgs.B, &cfg); err != nil {
+		if err := json.Unmarshal(cfgs.Blob, &cfg); err != nil {
 			return nil, err
 		}
 
 		var num int
-		if err := json.Unmarshal(data.B, &num); err != nil {
+		if err := json.Unmarshal(data.Blob, &num); err != nil {
 			return nil, err
 		}
 
@@ -98,15 +104,16 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 		if err != nil {
 			return nil, err
 		}
-		data.B = append(data.B[:0], b...)
+		data.Blob = append(data.Blob[:0], b...)
 
 		if err := e.Do(
-			flowstate.AttachData(stateCtx, data, `data`),
+			flowstate.StoreData(stateCtx, `data`),
 			flowstate.Transit(stateCtx, `end`),
 		); err != nil {
 			return nil, err
 		}
 
+		data = stateCtx.MustData(`data`)
 		data.CopyTo(actData)
 
 		return flowstate.Execute(stateCtx), nil
@@ -121,10 +128,8 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 			ID: "TID",
 		},
 	}
-
-	configSet := &flowstate.Data{
-		ID: `first_config_set`,
-		B: []byte(`
+	stateCtx.SetData(`config_set`, &flowstate.Data{
+		Blob: []byte(`
 {
 	"foo": {
 		"a": 10
@@ -134,16 +139,15 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 	}
 }
 `),
-	}
+	})
 
-	data := &flowstate.Data{
-		ID: `tid_data`,
-		B:  []byte(`100`),
-	}
+	stateCtx.SetData(`data`, &flowstate.Data{
+		Blob: []byte(`100`),
+	})
 
 	require.NoError(t, e.Do(
-		flowstate.AttachData(stateCtx, configSet, `config_set`),
-		flowstate.AttachData(stateCtx, data, `data`),
+		flowstate.StoreData(stateCtx, `config_set`),
+		flowstate.StoreData(stateCtx, `data`),
 	))
 
 	require.NoError(t, e.Do(flowstate.Transit(stateCtx, `foo`)))

@@ -95,7 +95,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 
 		conflictErr := &ErrRevMismatch{}
 
-		if err = e.doCmd(stateCtx.SessID(), cmd0); errors.As(err, conflictErr) {
+		if err = e.doCmd(stateCtx.sessID, cmd0); errors.As(err, conflictErr) {
 			e.l.Info("engine: do conflict",
 				"sess", cmd0.SessID(),
 				"conflict", err.Error(),
@@ -192,34 +192,38 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 		return cmd.Do()
 	case *UnstackCommand:
 		return cmd.Do()
-	case *GetDataCommand:
-		if err := cmd.Prepare(); err != nil {
+	case *StoreDataCommand:
+		if store, err := cmd.Prepare(); err != nil {
 			return err
+		} else if !store {
+			return nil
+		}
+		if err := e.d.StoreData(cmd); err != nil {
+			return err
+		}
+		cmd.post()
+		return nil
+	case *GetDataCommand:
+		if get, err := cmd.Prepare(); err != nil {
+			return err
+		} else if !get {
+			return nil
 		}
 		return e.d.GetData(cmd)
-	case *AttachDataCommand:
-		if err := cmd.Prepare(); err != nil {
-			return err
-		}
-
-		if cmd.Store {
-			if err := e.d.StoreData(cmd); err != nil {
-				return fmt.Errorf("store data: %w", err)
-			}
-		}
-
-		cmd.Do()
-		return nil
 	case *ExecuteCommand:
 		if cmd.sync {
 			return nil
 		}
 
 		stateCtx := cmd.StateCtx.CopyTo(&StateCtx{})
+		for n, d := range cmd.StateCtx.Datas {
+			stateCtx.SetData(n, d.CopyTo(&Data{}))
+		}
+
 		go func() {
 			if err := e.Execute(stateCtx); err != nil {
 				e.l.Error("execute failed",
-					"sess", stateCtx.SessID(),
+					"sess", stateCtx.sessID,
 					"error", err,
 					"id", stateCtx.Current.ID,
 					"rev", stateCtx.Current.Rev,

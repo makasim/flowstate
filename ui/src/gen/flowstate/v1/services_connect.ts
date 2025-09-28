@@ -13,15 +13,6 @@ export const Driver = {
   typeName: "flowstate.v1.Driver",
   methods: {
     /**
-     * @generated from rpc flowstate.v1.Driver.Do
-     */
-    do: {
-      name: "Do",
-      I: Command,
-      O: Command,
-      kind: MethodKind.Unary,
-    },
-    /**
      * @generated from rpc flowstate.v1.Driver.GetStateByID
      */
     getStateByID: {

@@ -79,21 +79,28 @@ func (d *Driver) Shutdown(_ context.Context) error {
 
 func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
 	return d.db.View(func(txn *badger.Txn) error {
-		return getData(txn, cmd.Data)
+		data := cmd.StateCtx.MustData(cmd.Alias)
+		if err := getData(txn, data); err != nil {
+			return err
+		}
+		return nil
 	})
+
 }
 
-func (d *Driver) StoreData(cmd *flowstate.AttachDataCommand) error {
-	nextRev, err := d.dataRevSeq.Next()
-	if err != nil {
-		return fmt.Errorf("get next sequence: %w", err)
-	}
-
-	data := cmd.Data
-	data.Rev = int64(nextRev)
-
+func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
 	return d.db.Update(func(txn *badger.Txn) error {
-		return setData(txn, data)
+		data := cmd.StateCtx.MustData(cmd.Alias)
+		nextRev, err := d.dataRevSeq.Next()
+		if err != nil {
+			return fmt.Errorf("get next sequence: %w", err)
+		}
+
+		data.Rev = int64(nextRev)
+		if err := setData(txn, data); err != nil {
+			return err
+		}
+		return nil
 	})
 }
 

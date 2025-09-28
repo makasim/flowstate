@@ -83,13 +83,11 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 		}
 	case *NoopCommand:
 		args = append(args, "cmd", "noop")
-	case *AttachDataCommand:
+	case *StoreDataCommand:
 		args = append(args,
-			"cmd", "attach_data",
+			"cmd", "store_data",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
-			"data_id", cmd.Data.ID,
-			"data_rev", cmd.Data.Rev,
 			"alias", cmd.Alias,
 		)
 	case *GetDataCommand:
@@ -97,9 +95,7 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 			"cmd", "get_data",
 			"id", cmd.StateCtx.Current.ID,
 			"rev", cmd.StateCtx.Current.Rev,
-			"data_id", cmd.Data.ID,
-			"data_rev", cmd.Data.Rev,
-			"alias", cmd.Alias,
+			"aliases", cmd.Alias,
 		)
 	case *UnstackCommand:
 		args = append(args, "cmd", "unstack")

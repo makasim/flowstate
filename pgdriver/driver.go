@@ -37,18 +37,18 @@ func (d *Driver) Init(_ flowstate.Engine) error {
 }
 
 func (d *Driver) GetData(cmd *flowstate.GetDataCommand) error {
-	if err := d.q.GetData(context.Background(), d.conn, cmd.Data.ID, cmd.Data.Rev, cmd.Data); err != nil {
+	data := cmd.StateCtx.MustData(cmd.Alias)
+	if err := d.q.GetData(context.Background(), d.conn, data.Rev, data); err != nil {
 		return fmt.Errorf("get data query: %w", err)
 	}
-
 	return nil
 }
 
-func (d *Driver) StoreData(cmd *flowstate.AttachDataCommand) error {
-	if err := d.q.InsertData(context.Background(), d.conn, cmd.Data); err != nil {
+func (d *Driver) StoreData(cmd *flowstate.StoreDataCommand) error {
+	data := cmd.StateCtx.MustData(cmd.Alias)
+	if err := d.q.InsertData(context.Background(), d.conn, data); err != nil {
 		return fmt.Errorf("insert data queue: %w", err)
 	}
-
 	return nil
 }
 

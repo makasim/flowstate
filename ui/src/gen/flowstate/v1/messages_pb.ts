@@ -92,6 +92,11 @@ export class StateCtx extends Message<StateCtx> {
    */
   transitions: Transition[] = [];
 
+  /**
+   * @generated from field: map<string, flowstate.v1.Data> datas = 4;
+   */
+  datas: { [key: string]: Data } = {};
+
   constructor(data?: PartialMessage<StateCtx>) {
     super();
     proto3.util.initPartial(data, this);
@@ -103,6 +108,7 @@ export class StateCtx extends Message<StateCtx> {
     { no: 1, name: "committed", kind: "message", T: State },
     { no: 2, name: "current", kind: "message", T: State },
     { no: 3, name: "transitions", kind: "message", T: Transition, repeated: true },
+    { no: 4, name: "datas", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: Data} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StateCtx {
@@ -262,24 +268,19 @@ export class Transition extends Message<Transition> {
  */
 export class Data extends Message<Data> {
   /**
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
    * @generated from field: int64 rev = 2;
    */
   rev = protoInt64.zero;
 
   /**
-   * @generated from field: bool binary = 3;
+   * @generated from field: string blob = 4;
    */
-  binary = false;
+  blob = "";
 
   /**
-   * @generated from field: string b = 4;
+   * @generated from field: map<string, string> annotations = 5;
    */
-  b = "";
+  annotations: { [key: string]: string } = {};
 
   constructor(data?: PartialMessage<Data>) {
     super();
@@ -289,10 +290,9 @@ export class Data extends Message<Data> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "flowstate.v1.Data";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "rev", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 3, name: "binary", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "b", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "blob", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "annotations", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Data {
@@ -313,43 +313,6 @@ export class Data extends Message<Data> {
 }
 
 /**
- * @generated from message flowstate.v1.DataRef
- */
-export class DataRef extends Message<DataRef> {
-  /**
-   * @generated from field: int64 idx = 1;
-   */
-  idx = protoInt64.zero;
-
-  constructor(data?: PartialMessage<DataRef>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "flowstate.v1.DataRef";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "idx", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DataRef {
-    return new DataRef().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DataRef {
-    return new DataRef().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DataRef {
-    return new DataRef().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: DataRef | PlainMessage<DataRef> | undefined, b: DataRef | PlainMessage<DataRef> | undefined): boolean {
-    return proto3.util.equals(DataRef, a, b);
-  }
-}
-
-/**
  * @generated from message flowstate.v1.Command
  */
 export class Command extends Message<Command> {
@@ -357,11 +320,6 @@ export class Command extends Message<Command> {
    * @generated from field: repeated flowstate.v1.StateCtx state_ctxs = 1;
    */
   stateCtxs: StateCtx[] = [];
-
-  /**
-   * @generated from field: repeated flowstate.v1.Data datas = 2;
-   */
-  datas: Data[] = [];
 
   /**
    * @generated from field: flowstate.v1.TransitCommand transit = 3;
@@ -404,16 +362,6 @@ export class Command extends Message<Command> {
   unstack?: UnstackCommand;
 
   /**
-   * @generated from field: flowstate.v1.AttachDataCommand attach_data = 13;
-   */
-  attachData?: AttachDataCommand;
-
-  /**
-   * @generated from field: flowstate.v1.GetDataCommand get_data = 14;
-   */
-  getData?: GetDataCommand;
-
-  /**
    * @generated from field: flowstate.v1.GetStateByIDCommand get_state_by_id = 17;
    */
   getStateById?: GetStateByIDCommand;
@@ -433,6 +381,16 @@ export class Command extends Message<Command> {
    */
   getDelayedStates?: GetDelayedStatesCommand;
 
+  /**
+   * @generated from field: flowstate.v1.StoreDataCommand store_data = 21;
+   */
+  storeData?: StoreDataCommand;
+
+  /**
+   * @generated from field: flowstate.v1.GetDataCommand get_data = 22;
+   */
+  getData?: GetDataCommand;
+
   constructor(data?: PartialMessage<Command>) {
     super();
     proto3.util.initPartial(data, this);
@@ -442,7 +400,6 @@ export class Command extends Message<Command> {
   static readonly typeName = "flowstate.v1.Command";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "state_ctxs", kind: "message", T: StateCtx, repeated: true },
-    { no: 2, name: "datas", kind: "message", T: Data, repeated: true },
     { no: 3, name: "transit", kind: "message", T: TransitCommand },
     { no: 6, name: "park", kind: "message", T: ParkCommand },
     { no: 7, name: "execute", kind: "message", T: ExecuteCommand },
@@ -451,12 +408,12 @@ export class Command extends Message<Command> {
     { no: 10, name: "noop", kind: "message", T: NoopCommand },
     { no: 11, name: "stack", kind: "message", T: StackCommand },
     { no: 12, name: "unstack", kind: "message", T: UnstackCommand },
-    { no: 13, name: "attach_data", kind: "message", T: AttachDataCommand },
-    { no: 14, name: "get_data", kind: "message", T: GetDataCommand },
     { no: 17, name: "get_state_by_id", kind: "message", T: GetStateByIDCommand },
     { no: 18, name: "get_state_by_labels", kind: "message", T: GetStateByLabelsCommand },
     { no: 19, name: "get_states", kind: "message", T: GetStatesCommand },
     { no: 20, name: "get_delayed_states", kind: "message", T: GetDelayedStatesCommand },
+    { no: 21, name: "store_data", kind: "message", T: StoreDataCommand },
+    { no: 22, name: "get_data", kind: "message", T: GetDataCommand },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Command {
@@ -851,57 +808,45 @@ export class UnstackCommand extends Message<UnstackCommand> {
 }
 
 /**
- * @generated from message flowstate.v1.AttachDataCommand
+ * @generated from message flowstate.v1.StoreDataCommand
  */
-export class AttachDataCommand extends Message<AttachDataCommand> {
+export class StoreDataCommand extends Message<StoreDataCommand> {
   /**
    * @generated from field: flowstate.v1.StateCtxRef state_ref = 1;
    */
   stateRef?: StateCtxRef;
 
   /**
-   * @generated from field: flowstate.v1.DataRef data_ref = 2;
-   */
-  dataRef?: DataRef;
-
-  /**
-   * @generated from field: string alias = 3;
+   * @generated from field: string alias = 2;
    */
   alias = "";
 
-  /**
-   * @generated from field: bool commit = 4;
-   */
-  commit = false;
-
-  constructor(data?: PartialMessage<AttachDataCommand>) {
+  constructor(data?: PartialMessage<StoreDataCommand>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "flowstate.v1.AttachDataCommand";
+  static readonly typeName = "flowstate.v1.StoreDataCommand";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "state_ref", kind: "message", T: StateCtxRef },
-    { no: 2, name: "data_ref", kind: "message", T: DataRef },
-    { no: 3, name: "alias", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "commit", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "alias", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AttachDataCommand {
-    return new AttachDataCommand().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StoreDataCommand {
+    return new StoreDataCommand().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AttachDataCommand {
-    return new AttachDataCommand().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StoreDataCommand {
+    return new StoreDataCommand().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AttachDataCommand {
-    return new AttachDataCommand().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StoreDataCommand {
+    return new StoreDataCommand().fromJsonString(jsonString, options);
   }
 
-  static equals(a: AttachDataCommand | PlainMessage<AttachDataCommand> | undefined, b: AttachDataCommand | PlainMessage<AttachDataCommand> | undefined): boolean {
-    return proto3.util.equals(AttachDataCommand, a, b);
+  static equals(a: StoreDataCommand | PlainMessage<StoreDataCommand> | undefined, b: StoreDataCommand | PlainMessage<StoreDataCommand> | undefined): boolean {
+    return proto3.util.equals(StoreDataCommand, a, b);
   }
 }
 
@@ -915,12 +860,7 @@ export class GetDataCommand extends Message<GetDataCommand> {
   stateRef?: StateCtxRef;
 
   /**
-   * @generated from field: flowstate.v1.DataRef data_ref = 2;
-   */
-  dataRef?: DataRef;
-
-  /**
-   * @generated from field: string alias = 3;
+   * @generated from field: string alias = 2;
    */
   alias = "";
 
@@ -933,8 +873,7 @@ export class GetDataCommand extends Message<GetDataCommand> {
   static readonly typeName = "flowstate.v1.GetDataCommand";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "state_ref", kind: "message", T: StateCtxRef },
-    { no: 2, name: "data_ref", kind: "message", T: DataRef },
-    { no: 3, name: "alias", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "alias", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetDataCommand {
