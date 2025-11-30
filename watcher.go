@@ -1,21 +1,20 @@
 package flowstate
 
 import (
-	"log"
-	"time"
+	"sync/atomic"
 )
 
 type Watcher struct {
-	e Engine
+	e   *Engine
+	cmd *GetStatesCommand
 
-	cmd      *GetStatesCommand
-	pollDur  time.Duration
 	watchCh  chan State
 	closeCh  chan struct{}
 	closedCh chan struct{}
+	closed   atomic.Bool
 }
 
-func NewWatcher(e Engine, pollDur time.Duration, cmd *GetStatesCommand) *Watcher {
+func newWatcher(e *Engine, cmd *GetStatesCommand) *Watcher {
 	copyCmd := &GetStatesCommand{
 		SinceRev:   cmd.SinceRev,
 		SinceTime:  cmd.SinceTime,
@@ -26,16 +25,15 @@ func NewWatcher(e Engine, pollDur time.Duration, cmd *GetStatesCommand) *Watcher
 	copyCmd.Prepare()
 
 	w := &Watcher{
-		e:       e,
-		cmd:     copyCmd,
-		pollDur: pollDur,
+		e:   e,
+		cmd: copyCmd,
 
 		watchCh:  make(chan State, 1),
 		closeCh:  make(chan struct{}),
 		closedCh: make(chan struct{}),
 	}
 
-	go w.listen()
+	go w.doWatch()
 
 	return w
 }
@@ -45,54 +43,88 @@ func (w *Watcher) Next() <-chan State {
 }
 
 func (w *Watcher) Close() {
+	if !w.closed.CompareAndSwap(false, true) {
+		return
+	}
+
 	close(w.closeCh)
+	w.e.maxRevCond.Broadcast()
 	<-w.closedCh
 }
 
-func (w *Watcher) listen() {
+func (w *Watcher) doWatch() {
 	defer close(w.closedCh)
-
-	t := time.NewTicker(w.pollDur)
-	defer t.Stop()
 
 	for {
 		select {
-		case <-t.C:
-			for {
-				if more := w.stream(); !more {
-					break
-				}
-			}
+		case <-w.e.doneCh:
+			w.Close()
+			return
 		case <-w.closeCh:
 			return
+		default:
 		}
+
+		currMaxRev := w.e.maxRev.Load()
+		w.stream()
+		w.wait(currMaxRev)
 	}
 }
 
-func (w *Watcher) stream() bool {
-	getManyCmd := w.cmd
+func (w *Watcher) stream() {
+	for {
+		getManyCmd := w.cmd
 
-	getManyCmd.Result = nil
-	if err := w.e.Do(getManyCmd); err != nil {
-		log.Printf("ERROR: WatchListener: get many states: %s", err)
-		return false
+		getManyCmd.Result = nil
+		if err := w.e.Do(getManyCmd); err != nil {
+			w.e.l.Error("engine: do: get many states: %s", "error", err)
+			w.Close()
+			return
+		}
+
+		res := getManyCmd.MustResult()
+		if len(res.States) == 0 {
+			return
+		}
+
+		for i := range res.States {
+			select {
+			case w.watchCh <- res.States[i]:
+				getManyCmd.SinceRev = res.States[i].Rev
+			case <-w.closeCh:
+				return
+			}
+		}
+
+		if res.More {
+			continue
+		}
+
+		return
 	}
+}
 
-	res := getManyCmd.MustResult()
-	if len(res.States) == 0 {
-		return false
-	}
+func (w *Watcher) wait(currMaxRev int64) {
+	w.e.maxRevCond.L.Lock()
+	defer w.e.maxRevCond.L.Unlock()
 
-	for i := range res.States {
-		select {
-		case w.watchCh <- res.States[i]:
-			getManyCmd.SinceRev = res.States[i].Rev
-		case <-w.closeCh:
-			return false
+	for {
+		// fast path - max rev already advanced
+		if currMaxRev < w.e.maxRev.Load() {
+			return
+		}
+
+		w.e.maxRevCond.Wait()
+
+		// when rev match check if closed
+		if currMaxRev == w.e.maxRev.Load() {
+			select {
+			case <-w.closeCh:
+				return
+			default:
+			}
 		}
 	}
-
-	return res.More
 }
 
 func copyORLabels(orLabels []map[string]string) []map[string]string {

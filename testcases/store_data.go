@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func StoreData(t *testing.T, e flowstate.Engine, _ flowstate.FlowRegistry, _ flowstate.Driver) {
+func StoreData(t *testing.T, e *flowstate.Engine, _ flowstate.FlowRegistry, _ flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",

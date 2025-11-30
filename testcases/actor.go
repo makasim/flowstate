@@ -9,12 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Actor(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func Actor(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	trkr := &Tracker{IncludeTaskID: true}
 
-	mustSetFlow(fr, "actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+		// time.Millisecond*100
+		w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 			"actor.foo": "inbox",
 		}))
 		defer w.Close()
@@ -39,7 +40,7 @@ func Actor(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 			}
 		}
 	}))
-	mustSetFlow(fr, "inbox", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "inbox", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		return nil, fmt.Errorf("must never be executed")
 	}))
 

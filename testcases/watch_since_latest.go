@@ -2,13 +2,12 @@ package testcases
 
 import (
 	"testing"
-	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
 )
 
-func WatchSinceLatest(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func WatchSinceLatest(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -29,7 +28,8 @@ func WatchSinceLatest(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistr
 
 	expRev := stateCtx.Committed.Rev
 
-	w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+	// time.Millisecond*100
+	w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceLatest())
 	defer w.Close()

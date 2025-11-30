@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func WatchLabels(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func WatchLabels(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -38,7 +38,8 @@ func WatchLabels(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d 
 		}),
 	)))
 
-	w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+	// time.Millisecond*100
+	w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}))
 	defer w.Close()

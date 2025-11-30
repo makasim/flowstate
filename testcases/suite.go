@@ -15,7 +15,7 @@ type Suite struct {
 	SetUpDelayer bool
 
 	disableGoleak bool
-	cases         map[string]func(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver)
+	cases         map[string]func(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver)
 }
 
 func (s *Suite) Test(main *testing.T) {
@@ -46,6 +46,8 @@ func (s *Suite) run(main *testing.T, name string) {
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}
+		e.MaxRevPollInterval = time.Millisecond * 100
+
 		t.Cleanup(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
@@ -91,7 +93,7 @@ func Get(setUp func(t *testing.T) flowstate.Driver) *Suite {
 		SetUp:        setUp,
 		SetUpDelayer: true,
 
-		cases: map[string]func(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver){
+		cases: map[string]func(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver){
 			"Actor": Actor,
 
 			"CallFlow":           CallFlow,

@@ -26,16 +26,14 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 }
 
 func LogCommand(msg string, cmd0 Command, l *slog.Logger) {
-	logCommand(msg, 0, cmd0, l)
+	logCommand(msg, sessID(cmd0), cmd0, l)
 }
 
 func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 	var args []any
 
 	if execSessID > 0 {
-		args = []any{"sess", strconv.FormatInt(execSessID, 10) + ":" + strconv.FormatInt(cmd0.SessID(), 10)}
-	} else {
-		args = []any{"sess", cmd0.SessID()}
+		args = []any{"sess", strconv.FormatInt(execSessID, 10)}
 	}
 
 	switch cmd := cmd0.(type) {

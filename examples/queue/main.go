@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/examples"
@@ -15,7 +14,7 @@ func main() {
 	e, fr, _, tearDown := examples.SetUp()
 	defer tearDown()
 
-	err := fr.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+	err := fr.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
 		slog.Default().Info("Executing state: " + string(stateCtx.Current.ID))
 		// Tell the engine that the state is completed
 		return flowstate.Commit(flowstate.Park(stateCtx)), nil
@@ -41,7 +40,7 @@ func main() {
 		examples.HandleError(err)
 	}
 
-	w := flowstate.NewWatcher(e, time.Second, flowstate.GetStatesByLabels(map[string]string{
+	w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 		"queue": "example",
 	}))
 

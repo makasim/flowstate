@@ -12,16 +12,17 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func RateLimit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func RateLimit(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	trkr := &Tracker{
 		IncludeState: true,
 	}
 
-	mustSetFlow(fr, "limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "limiter", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
-		w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+		// time.Millisecond*100
+		w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 			"limiter": "theName",
 		}))
 		defer w.Close()
@@ -54,7 +55,7 @@ func RateLimit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d fl
 			}
 		}
 	}))
-	mustSetFlow(fr, "limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "limited", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if stateCtx.Current.Annotation(`state`) == `resumed` {

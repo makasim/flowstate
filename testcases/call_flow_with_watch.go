@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func CallFlowWithWatch(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func CallFlowWithWatch(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	var nextStateCtx *flowstate.StateCtx
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
@@ -20,7 +20,7 @@ func CallFlowWithWatch(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 
 	trkr := &Tracker{}
 
-	mustSetFlow(fr, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if stateCtx.Current.Annotations[`called`] == `` {
@@ -45,7 +45,8 @@ func CallFlowWithWatch(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 			}
 		}
 
-		w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+		// time.Millisecond*100
+		w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 			`theWatchLabel`: string(stateCtx.Current.ID),
 		}).WithSinceRev(stateCtx.Committed.Rev))
 		defer w.Close()
@@ -70,18 +71,18 @@ func CallFlowWithWatch(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegist
 		}
 
 	}))
-	mustSetFlow(fr, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `calledEnd`), nil
 	}))
-	mustSetFlow(fr, "calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		return flowstate.Commit(
 			flowstate.Park(stateCtx),
 		), nil
 	}))
-	mustSetFlow(fr, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		close(endedCh)

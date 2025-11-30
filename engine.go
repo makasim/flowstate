@@ -7,46 +7,62 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
 var sessIDS = &atomic.Int64{}
 
-type Engine interface {
-	Execute(stateCtx *StateCtx) error
-	Do(cmds ...Command) error
-	Shutdown(ctx context.Context) error
-}
+//type Engine interface {
+//	Execute(stateCtx *StateCtx) error
+//	Do(cmds ...Command) error
+//	Shutdown(ctx context.Context) error
+//	Watch(cmd *GetStatesCommand) *Watcher
+//}
 
-type engine struct {
+type Engine struct {
 	d  Driver
 	fr FlowRegistry
 	l  *slog.Logger
+
+	maxRev             atomic.Int64
+	maxRevCond         *sync.Cond
+	MaxRevPollInterval time.Duration
 
 	wg     *sync.WaitGroup
 	doneCh chan struct{}
 }
 
-func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (Engine, error) {
-	e := &engine{
+func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (*Engine, error) {
+	e := &Engine{
 		d:  d,
 		fr: fr,
 		l:  l,
 
-		wg:     &sync.WaitGroup{},
-		doneCh: make(chan struct{}),
+		MaxRevPollInterval: time.Millisecond * 100,
+		wg:                 &sync.WaitGroup{},
+		doneCh:             make(chan struct{}),
+		maxRevCond:         sync.NewCond(&sync.Mutex{}),
 	}
 
 	if err := d.Init(e); err != nil {
 		return nil, fmt.Errorf("driver: init: %w", err)
 	}
 
+	// Undone in Shutdown
 	e.wg.Add(1)
+
+	e.wg.Add(1)
+	go func() {
+		defer e.wg.Done()
+
+		e.doSyncMaxRev()
+	}()
 
 	return e, nil
 }
 
-func (e *engine) Execute(stateCtx *StateCtx) error {
+func (e *Engine) Execute(stateCtx *StateCtx) error {
 	select {
 	case <-e.doneCh:
 		return fmt.Errorf("engine stopped")
@@ -55,9 +71,7 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 		defer e.wg.Done()
 	}
 
-	sessID := sessIDS.Add(1)
-	sessE := &execEngine{engine: e, sessID: sessID}
-	stateCtx.sessID = sessID
+	stateCtx.sessID = sessIDS.Add(1)
 	stateCtx.e = e
 	stateCtx.doneCh = e.doneCh
 
@@ -82,12 +96,10 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 		}
 
 		logExecute(stateCtx, e.l)
-		cmd0, err := f.Execute(stateCtx, sessE)
+		cmd0, err := f.Execute(stateCtx, e)
 		if err != nil {
 			return err
 		}
-
-		cmd0.setSessID(sessID)
 
 		if cmd, ok := cmd0.(*ExecuteCommand); ok {
 			cmd.sync = true
@@ -95,9 +107,8 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 
 		conflictErr := &ErrRevMismatch{}
 
-		if err = e.doCmd(stateCtx.sessID, cmd0); errors.As(err, conflictErr) {
+		if err = e.doCmd(cmd0); errors.As(err, conflictErr) {
 			e.l.Info("engine: do conflict",
-				"sess", cmd0.SessID(),
 				"conflict", err.Error(),
 				"id", stateCtx.Current.ID,
 				"rev", stateCtx.Current.Rev,
@@ -106,6 +117,8 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 		} else if err != nil {
 			return err
 		}
+
+		e.maybeUpdateMaxRev(stateCtx.Current.Rev)
 
 		if nextStateCtx, err := e.continueExecution(cmd0); err != nil {
 			return err
@@ -118,32 +131,13 @@ func (e *engine) Execute(stateCtx *StateCtx) error {
 	}
 }
 
-func (e *engine) Do(cmds ...Command) error {
-	return e.do(0, cmds...)
-}
-
-func (e *engine) do(execSessID int64, cmds ...Command) error {
+func (e *Engine) Do(cmds ...Command) error {
 	if len(cmds) == 0 {
 		return fmt.Errorf("no commands to do")
 	}
 
-	var sessID int64
 	for _, cmd := range cmds {
-		if cmd.SessID() == 0 {
-			if sessID == 0 {
-				sessID = sessIDS.Add(1)
-			}
-
-			cmd.setSessID(sessID)
-
-			if cmtCmd, ok := cmd.(*CommitCommand); ok {
-				for _, subCmd := range cmtCmd.Commands {
-					subCmd.setSessID(sessID)
-				}
-			}
-		}
-
-		if err := e.doCmd(execSessID, cmd); err != nil {
+		if err := e.doCmd(cmd); err != nil {
 			return err
 		}
 	}
@@ -151,7 +145,7 @@ func (e *engine) do(execSessID int64, cmds ...Command) error {
 	return nil
 }
 
-func (e *engine) Shutdown(ctx context.Context) error {
+func (e *Engine) Shutdown(ctx context.Context) error {
 	select {
 	case <-e.doneCh:
 		return nil
@@ -178,8 +172,12 @@ func (e *engine) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
-	logCommand("engine: do", execSessID, cmd0, e.l)
+func (e *Engine) Watch(cmd *GetStatesCommand) *Watcher {
+	return newWatcher(e, cmd)
+}
+
+func (e *Engine) doCmd(cmd0 Command) error {
+	logCommand("engine: do", sessID(cmd0), cmd0, e.l)
 
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
@@ -292,7 +290,7 @@ func (e *engine) doCmd(execSessID int64, cmd0 Command) error {
 	}
 }
 
-func (e *engine) continueExecution(cmd0 Command) (*StateCtx, error) {
+func (e *Engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 	switch cmd := cmd0.(type) {
 	case *CommitCommand:
 		if len(cmd.Commands) != 1 {
@@ -315,11 +313,96 @@ func (e *engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 	}
 }
 
-type execEngine struct {
-	*engine
-	sessID int64
+func (e *Engine) doSyncMaxRev() {
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			getMany := GetStatesByLabels(nil).WithLatestOnly().WithLimit(1)
+			if err := e.Do(getMany); err != nil {
+				e.l.Error("engine: do sync max rev: get many states: %s", "error", err)
+				continue
+			}
+
+			res := getMany.MustResult()
+			if len(res.States) == 0 {
+				continue
+			}
+
+			e.maybeUpdateMaxRev(res.States[0].Rev)
+		case <-e.doneCh:
+			return
+		}
+	}
+
 }
 
-func (e *execEngine) Do(cmds ...Command) error {
-	return e.do(e.sessID, cmds...)
+func (e *Engine) maybeUpdateMaxRev(newMaxRev int64) {
+	e.maxRevCond.L.Lock()
+	defer e.maxRevCond.L.Unlock()
+
+	currMaxRev := e.maxRev.Load()
+	if newMaxRev > currMaxRev {
+		e.maxRev.Store(newMaxRev)
+		e.maxRevCond.Broadcast()
+	}
+}
+
+func sessID(cmds ...Command) int64 {
+	for _, cmd0 := range cmds {
+		switch cmd := cmd0.(type) {
+		case *TransitCommand:
+			if cmd.StateCtx.sessID != 0 {
+				return cmd.StateCtx.sessID
+			}
+		case *ParkCommand:
+			if cmd.StateCtx.sessID != 0 {
+				return cmd.StateCtx.sessID
+			}
+		case *DelayCommand:
+			if cmd.StateCtx.sessID != 0 {
+				return cmd.StateCtx.sessID
+			}
+		case *NoopCommand:
+			continue
+		case *StackCommand:
+			if cmd.CarrierStateCtx.sessID != 0 {
+				return cmd.CarrierStateCtx.sessID
+			}
+		case *UnstackCommand:
+			if cmd.CarrierStateCtx.sessID != 0 {
+				return cmd.CarrierStateCtx.sessID
+			}
+		case *GetStateByIDCommand:
+			continue
+		case *GetStateByLabelsCommand:
+			continue
+		case *GetStatesCommand:
+			continue
+		case *GetDelayedStatesCommand:
+			continue
+		case *CommitCommand:
+			if sid := sessID(cmd.Commands...); sid != 0 {
+				return sid
+			}
+		case *ExecuteCommand:
+			if cmd.StateCtx.sessID != 0 {
+				return cmd.StateCtx.sessID
+			}
+		case *StoreDataCommand:
+			if cmd.StateCtx.sessID != 0 {
+				return cmd.StateCtx.sessID
+			}
+		case *GetDataCommand:
+			if cmd.StateCtx.sessID != 0 {
+				return cmd.StateCtx.sessID
+			}
+		default:
+			panic(fmt.Sprintf("BUG: unknown command type %T", cmd0))
+		}
+	}
+
+	return 0
 }

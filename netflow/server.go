@@ -10,7 +10,7 @@ import (
 	"github.com/makasim/flowstate"
 )
 
-func HandleExecute(rw http.ResponseWriter, r *http.Request, e flowstate.Engine) bool {
+func HandleExecute(rw http.ResponseWriter, r *http.Request, e *flowstate.Engine) bool {
 	if r.URL.Path != "/flowstate.v1.Flow/Execute" {
 		return false
 	}

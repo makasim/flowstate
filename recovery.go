@@ -112,13 +112,13 @@ type Recoverer struct {
 	dropped   int64
 	commited  int64
 
-	e         Engine
+	e         *Engine
 	stopCh    chan struct{}
 	stoppedCh chan struct{}
 	l         *slog.Logger
 }
 
-func NewRecoverer(e Engine, l *slog.Logger) (*Recoverer, error) {
+func NewRecoverer(e *Engine, l *slog.Logger) (*Recoverer, error) {
 	r := &Recoverer{
 		e: e,
 		l: l,

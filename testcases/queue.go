@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func Queue(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	trkr := &Tracker{
 		IncludeTaskID: true,
 	}
 
-	mustSetFlow(fr, "enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "enqueue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		stateCtx.Current.SetLabel("queue", "theName")
@@ -23,10 +23,11 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 			flowstate.Park(stateCtx),
 		), nil
 	}))
-	mustSetFlow(fr, "queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "queue", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+		// time.Millisecond*100
+		w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 			"queue": "theName",
 		}))
 		defer w.Close()
@@ -52,7 +53,7 @@ func Queue(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 			}
 		}
 	}))
-	mustSetFlow(fr, "dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "dequeued", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.Park(stateCtx),

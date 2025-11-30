@@ -8,7 +8,7 @@ import (
 	"github.com/makasim/flowstate/memdriver"
 )
 
-func SetUp() (flowstate.Engine, flowstate.FlowRegistry, flowstate.Driver, func()) {
+func SetUp() (*flowstate.Engine, flowstate.FlowRegistry, flowstate.Driver, func()) {
 	d := memdriver.New(slog.Default())
 	fr := &flowstate.DefaultFlowRegistry{}
 
