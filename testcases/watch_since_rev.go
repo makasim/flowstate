@@ -28,7 +28,6 @@ func WatchSinceRev(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry,
 		flowstate.Park(stateCtx),
 	)))
 
-	// time.Millisecond*100
 	w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceRev(sinceRev))

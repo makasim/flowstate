@@ -13,13 +13,6 @@ import (
 var ErrFlowNotFound = errors.New("flow not found")
 var sessIDS = &atomic.Int64{}
 
-//type Engine interface {
-//	Execute(stateCtx *StateCtx) error
-//	Do(cmds ...Command) error
-//	Shutdown(ctx context.Context) error
-//	Watch(cmd *GetStatesCommand) *Watcher
-//}
-
 type Engine struct {
 	d  Driver
 	fr FlowRegistry
@@ -39,7 +32,7 @@ func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (*Engine, error) {
 		fr: fr,
 		l:  l,
 
-		MaxRevPollInterval: time.Millisecond * 100,
+		MaxRevPollInterval: time.Second,
 		wg:                 &sync.WaitGroup{},
 		doneCh:             make(chan struct{}),
 		maxRevCond:         sync.NewCond(&sync.Mutex{}),
@@ -119,6 +112,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 		}
 
 		e.maybeUpdateMaxRev(stateCtx.Current.Rev)
+		e.maybeUpdateMaxRev(cmdsMaxRev(cmd0))
 
 		if nextStateCtx, err := e.continueExecution(cmd0); err != nil {
 			return err
@@ -141,6 +135,8 @@ func (e *Engine) Do(cmds ...Command) error {
 			return err
 		}
 	}
+
+	e.maybeUpdateMaxRev(cmdsMaxRev(cmds...))
 
 	return nil
 }
@@ -177,7 +173,7 @@ func (e *Engine) Watch(cmd *GetStatesCommand) *Watcher {
 }
 
 func (e *Engine) doCmd(cmd0 Command) error {
-	logCommand("engine: do", sessID(cmd0), cmd0, e.l)
+	logCommand("engine: do", cmdsSessID(cmd0), cmd0, e.l)
 
 	switch cmd := cmd0.(type) {
 	case *TransitCommand:
@@ -314,7 +310,7 @@ func (e *Engine) continueExecution(cmd0 Command) (*StateCtx, error) {
 }
 
 func (e *Engine) doSyncMaxRev() {
-	t := time.NewTicker(time.Second)
+	t := time.NewTicker(e.MaxRevPollInterval)
 	defer t.Stop()
 
 	for {
@@ -350,7 +346,7 @@ func (e *Engine) maybeUpdateMaxRev(newMaxRev int64) {
 	}
 }
 
-func sessID(cmds ...Command) int64 {
+func cmdsSessID(cmds ...Command) int64 {
 	for _, cmd0 := range cmds {
 		switch cmd := cmd0.(type) {
 		case *TransitCommand:
@@ -384,7 +380,7 @@ func sessID(cmds ...Command) int64 {
 		case *GetDelayedStatesCommand:
 			continue
 		case *CommitCommand:
-			if sid := sessID(cmd.Commands...); sid != 0 {
+			if sid := cmdsSessID(cmd.Commands...); sid != 0 {
 				return sid
 			}
 		case *ExecuteCommand:
@@ -399,6 +395,48 @@ func sessID(cmds ...Command) int64 {
 			if cmd.StateCtx.sessID != 0 {
 				return cmd.StateCtx.sessID
 			}
+		default:
+			panic(fmt.Sprintf("BUG: unknown command type %T", cmd0))
+		}
+	}
+
+	return 0
+}
+
+func cmdsMaxRev(cmds ...Command) int64 {
+	var maxRev int64
+	for _, cmd0 := range cmds {
+		switch cmd := cmd0.(type) {
+		case *TransitCommand:
+			maxRev = max(maxRev, cmd.StateCtx.Current.Rev)
+		case *ParkCommand:
+			maxRev = max(maxRev, cmd.StateCtx.Current.Rev)
+		case *DelayCommand:
+			maxRev = max(maxRev, cmd.StateCtx.Current.Rev)
+		case *NoopCommand:
+			continue
+		case *StackCommand:
+			maxRev = max(maxRev, cmd.CarrierStateCtx.Current.Rev)
+			maxRev = max(maxRev, cmd.StackedStateCtx.Current.Rev)
+		case *UnstackCommand:
+			maxRev = max(maxRev, cmd.CarrierStateCtx.Current.Rev)
+			maxRev = max(maxRev, cmd.UnstackStateCtx.Current.Rev)
+		case *GetStateByIDCommand:
+			continue
+		case *GetStateByLabelsCommand:
+			continue
+		case *GetStatesCommand:
+			continue
+		case *GetDelayedStatesCommand:
+			continue
+		case *CommitCommand:
+			maxRev = max(maxRev, cmdsMaxRev(cmd.Commands...))
+		case *ExecuteCommand:
+			maxRev = max(maxRev, cmd.StateCtx.Current.Rev)
+		case *StoreDataCommand:
+			maxRev = max(maxRev, cmd.StateCtx.Current.Rev)
+		case *GetDataCommand:
+			maxRev = max(maxRev, cmd.StateCtx.Current.Rev)
 		default:
 			panic(fmt.Sprintf("BUG: unknown command type %T", cmd0))
 		}

@@ -26,7 +26,7 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 }
 
 func LogCommand(msg string, cmd0 Command, l *slog.Logger) {
-	logCommand(msg, sessID(cmd0), cmd0, l)
+	logCommand(msg, cmdsSessID(cmd0), cmd0, l)
 }
 
 func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {

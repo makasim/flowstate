@@ -14,7 +14,6 @@ func Actor(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flows
 
 	mustSetFlow(fr, "actor", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
-		// time.Millisecond*100
 		w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 			"actor.foo": "inbox",
 		}))

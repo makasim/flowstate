@@ -45,7 +45,6 @@ func CallFlowWithWatch(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegis
 			}
 		}
 
-		// time.Millisecond*100
 		w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 			`theWatchLabel`: string(stateCtx.Current.ID),
 		}).WithSinceRev(stateCtx.Committed.Rev))

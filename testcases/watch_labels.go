@@ -38,7 +38,6 @@ func WatchLabels(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d
 		}),
 	)))
 
-	// time.Millisecond*100
 	w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}))

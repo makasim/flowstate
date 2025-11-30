@@ -47,8 +47,11 @@ func (w *Watcher) Close() {
 		return
 	}
 
+	w.e.maxRevCond.L.Lock()
 	close(w.closeCh)
 	w.e.maxRevCond.Broadcast()
+	w.e.maxRevCond.L.Unlock()
+
 	<-w.closedCh
 }
 
@@ -60,6 +63,7 @@ func (w *Watcher) doWatch() {
 		case <-w.e.doneCh:
 			w.Close()
 			return
+			//panic("BUG: watchers should be closed before engine is closed")
 		case <-w.closeCh:
 			return
 		default:
@@ -105,24 +109,28 @@ func (w *Watcher) stream() {
 }
 
 func (w *Watcher) wait(currMaxRev int64) {
-	w.e.maxRevCond.L.Lock()
-	defer w.e.maxRevCond.L.Unlock()
-
 	for {
 		// fast path - max rev already advanced
 		if currMaxRev < w.e.maxRev.Load() {
 			return
 		}
 
-		w.e.maxRevCond.Wait()
+		w.e.maxRevCond.L.Lock()
 
-		// when rev match check if closed
-		if currMaxRev == w.e.maxRev.Load() {
-			select {
-			case <-w.closeCh:
-				return
-			default:
-			}
+		select {
+		case <-w.closeCh:
+			w.e.maxRevCond.L.Unlock()
+			return
+		default:
+		}
+
+		w.e.maxRevCond.Wait()
+		w.e.maxRevCond.L.Unlock()
+
+		select {
+		case <-w.closeCh:
+			return
+		default:
 		}
 	}
 }

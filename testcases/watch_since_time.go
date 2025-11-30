@@ -22,7 +22,6 @@ func WatchSinceTime(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry
 	)))
 	require.Greater(t, stateCtx.Committed.CommittedAt.UnixMilli(), int64(0))
 
-	// time.Millisecond*100
 	w := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAt.UnixMilli() + 5000)))
@@ -30,7 +29,6 @@ func WatchSinceTime(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry
 
 	require.Equal(t, []flowstate.State(nil), watchCollectStates(t, w, 0))
 
-	// time.Millisecond*100
 	w2 := e.Watch(flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithSinceTime(time.UnixMilli(stateCtx.Committed.CommittedAt.UnixMilli() - 1000)))
