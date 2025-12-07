@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var ErrFlowNotFound = errors.New("flow not found")
@@ -19,7 +20,7 @@ type Engine interface {
 }
 
 type engine struct {
-	d  Driver
+	d  *cacheDriver
 	fr FlowRegistry
 	l  *slog.Logger
 
@@ -29,7 +30,7 @@ type engine struct {
 
 func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (Engine, error) {
 	e := &engine{
-		d:  d,
+		d:  newCacheDriver(d, 1000, l),
 		fr: fr,
 		l:  l,
 
@@ -42,6 +43,12 @@ func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (Engine, error) {
 	}
 
 	e.wg.Add(1)
+
+	e.wg.Add(1)
+	go func() {
+		defer e.wg.Done()
+		e.d.getHead(time.Millisecond*100, time.Second*5, e.doneCh)
+	}()
 
 	return e, nil
 }

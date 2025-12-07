@@ -89,6 +89,18 @@ func (trkr *Tracker) WaitVisitedEqual(t *testing.T, expVisited []string, wait ti
 	return visited
 }
 
+func (trkr *Tracker) WaitVisitedCountGreaterOrEqual(t *testing.T, expVisited int, wait time.Duration) []string {
+	t.Helper()
+
+	var visited []string
+	assert.Eventually(t, func() bool {
+		visited = trkr.Visited()
+		return len(visited) >= expVisited
+	}, wait, time.Millisecond*50)
+
+	return visited
+}
+
 func mustSetFlow(fr flowstate.FlowRegistry, id flowstate.FlowID, f flowstate.Flow) {
 	if err := fr.SetFlow(id, f); err != nil {
 		panic(fmt.Sprintf("set flow %s: %s", id, err))

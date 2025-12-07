@@ -120,11 +120,7 @@ func Mutex(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowst
 		require.NoError(t, err)
 	}
 
-	time.Sleep(time.Millisecond * 500)
-
-	visited := trkr.Visited()
-
-	require.Len(t, visited, 9)
+	visited := trkr.WaitVisitedCountGreaterOrEqual(t, 9, time.Millisecond*1200)
 	var lockCnt int
 	var protectedCnt int
 	var unlockCnt int

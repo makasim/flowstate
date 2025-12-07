@@ -16,7 +16,7 @@ import (
 )
 
 func TestRegistry(t *testing.T) {
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
@@ -130,7 +130,7 @@ func TestRegistry(t *testing.T) {
 }
 
 func TestRegistry_Flow_SlowPath(t *testing.T) {
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 		l = slog.Default()
