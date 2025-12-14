@@ -31,30 +31,30 @@ func TestCacheDriver_appendStateLocked(t *testing.T) {
 	}
 
 	// empty
-	f(nil, -1, -1, 0)
+	f(nil, -1, 0, 0)
 
 	// one
 	f([]State{
 		{ID: `s1`, Rev: 1},
-	}, 1, 1, 1)
+	}, 0, 1, 1)
 
 	// two no gaps
 	f([]State{
 		{ID: `s1`, Rev: 1},
 		{ID: `s1`, Rev: 2},
-	}, 1, 2, 2)
+	}, 0, 2, 2)
 
 	// two with a gap
 	f([]State{
 		{ID: `s1`, Rev: 1},
 		{ID: `s1`, Rev: 3},
-	}, 1, 3, 2)
+	}, 0, 3, 2)
 
 	// two start from three
 	f([]State{
 		{ID: `s1`, Rev: 3},
 		{ID: `s1`, Rev: 4},
-	}, 3, 4, 2)
+	}, 2, 4, 2)
 
 	// five with a gap
 	f([]State{
@@ -63,7 +63,7 @@ func TestCacheDriver_appendStateLocked(t *testing.T) {
 		{ID: `s3`, Rev: 5},
 		{ID: `s4`, Rev: 7},
 		{ID: `s5`, Rev: 9},
-	}, 1, 9, 5)
+	}, 0, 9, 5)
 
 	// ten max size
 	f([]State{
@@ -77,7 +77,7 @@ func TestCacheDriver_appendStateLocked(t *testing.T) {
 		{ID: `s8`, Rev: 8},
 		{ID: `s9`, Rev: 9},
 		{ID: `s10`, Rev: 10},
-	}, 1, 10, 10)
+	}, 0, 10, 10)
 
 	// wrap around one
 	f([]State{
@@ -92,7 +92,7 @@ func TestCacheDriver_appendStateLocked(t *testing.T) {
 		{ID: `s9`, Rev: 9},
 		{ID: `s10`, Rev: 10},
 		{ID: `s11`, Rev: 11},
-	}, 2, 11, 10)
+	}, 1, 11, 10)
 
 	// wrap around whole size
 	f([]State{
@@ -116,7 +116,7 @@ func TestCacheDriver_appendStateLocked(t *testing.T) {
 		{ID: `s18`, Rev: 18},
 		{ID: `s19`, Rev: 19},
 		{ID: `s20`, Rev: 20},
-	}, 11, 20, 10)
+	}, 10, 20, 10)
 
 	// wrap around whole size plus one
 	f([]State{
@@ -141,7 +141,7 @@ func TestCacheDriver_appendStateLocked(t *testing.T) {
 		{ID: `s19`, Rev: 19},
 		{ID: `s20`, Rev: 20},
 		{ID: `s21`, Rev: 21},
-	}, 12, 21, 10)
+	}, 11, 21, 10)
 }
 
 func TestCacheDriver_getStateByIDFromLog(t *testing.T) {
@@ -221,77 +221,6 @@ func TestCacheDriver_getStateByIDFromLog(t *testing.T) {
 	f(ss, `s6`, 0, true, `s6`, 15)
 }
 
-func TestCacheDriver_getStateByLabelsFromLog(t *testing.T) {
-	f := func(ss []State, labels map[string]string, expFound bool, expID StateID, expRev int64) {
-		t.Helper()
-
-		cmd := GetStateByLabels(&StateCtx{}, labels)
-
-		l := slog.New(slogassert.New(t, slog.LevelDebug, nil))
-		d := newCacheDriver(nil, 10, l)
-
-		for _, s := range ss {
-			d.appendStateLocked(&s)
-		}
-
-		found := d.getStateByLabelsFromLog(cmd)
-		if found != expFound {
-			t.Fatalf("expected found %v, got %v", expFound, found)
-		}
-		if cmd.StateCtx.Current.ID != expID {
-			t.Fatalf("expected id %v, got %v", expID, cmd.StateCtx.Current.ID)
-		}
-		if cmd.StateCtx.Current.Rev != expRev {
-			t.Fatalf("expected rev %v, got %v", expRev, cmd.StateCtx.Current.Rev)
-		}
-	}
-
-	f(nil, nil, false, ``, 0)
-
-	f(nil, map[string]string{
-		"foo": "fooVal",
-	}, false, ``, 0)
-
-	f([]State{
-		{ID: `s1`, Rev: 1, Labels: map[string]string{"foo": "fooVal"}},
-	}, map[string]string{
-		"foo": "fooVal",
-	}, true, `s1`, 1)
-
-	f([]State{
-		{ID: `s1`, Rev: 1, Labels: map[string]string{"foo": "fooVal"}},
-		{ID: `s2`, Rev: 2, Labels: map[string]string{"foo": "fooVal"}},
-	}, map[string]string{
-		"foo": "fooVal",
-	}, true, `s2`, 2)
-
-	f([]State{
-		{ID: `s1`, Rev: 1, Labels: map[string]string{"foo": "fooVal"}},
-		{ID: `s2`, Rev: 2, Labels: map[string]string{"foo": "fooVal"}},
-		{ID: `s3`, Rev: 3, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
-		{ID: `s4`, Rev: 4, Labels: map[string]string{"bar": "barVal"}},
-	}, map[string]string{
-		"foo": "fooVal",
-		"bar": "barVal",
-	}, true, `s3`, 3)
-
-	f([]State{
-		{ID: `s1`, Rev: 1, Labels: map[string]string{"foo": "fooVal"}},
-		{ID: `s2`, Rev: 2, Labels: map[string]string{"foo": "fooVal"}},
-		{ID: `s3`, Rev: 3, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
-		{ID: `s4`, Rev: 4, Labels: map[string]string{"bar": "barVal"}},
-	}, map[string]string{
-		"bar": "barVal",
-	}, true, `s4`, 4)
-
-	f([]State{
-		{ID: `s1`, Rev: 1, Labels: map[string]string{"foo": "fooVal"}},
-		{ID: `s2`, Rev: 2, Labels: map[string]string{"foo": "fooVal"}},
-		{ID: `s3`, Rev: 3, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
-		{ID: `s4`, Rev: 4, Labels: map[string]string{"bar": "barVal"}},
-	}, nil, true, `s4`, 4)
-}
-
 func TestCacheDriver_getStatesFromLog(t *testing.T) {
 	f := func(ss []State, cmd *GetStatesCommand, expFound bool, expRes *GetStatesResult) {
 		t.Helper()
@@ -312,7 +241,38 @@ func TestCacheDriver_getStatesFromLog(t *testing.T) {
 		}
 	}
 
+	f(nil, GetStatesByLabels(nil).WithSinceRev(1), false, nil)
+
 	ss := []State{
+		{ID: `s1`, Rev: 6},
+	}
+	f(ss, GetStatesByLabels(nil).WithSinceRev(4), false, nil)
+
+	f(ss, GetStatesByLabels(nil).WithSinceRev(6), false, nil)
+
+	f(ss, GetStatesByLabels(nil).WithSinceRev(5), true, &GetStatesResult{
+		States: ss,
+	})
+
+	ss = []State{
+		{ID: `s1`, Rev: 6},
+		{ID: `s1`, Rev: 7},
+	}
+	f(ss, GetStatesByLabels(nil).WithSinceRev(4), false, nil)
+
+	f(ss, GetStatesByLabels(nil).WithSinceRev(7), false, nil)
+
+	f(ss, GetStatesByLabels(nil).WithSinceRev(5), true, &GetStatesResult{
+		States: ss,
+	})
+
+	f(ss, GetStatesByLabels(nil).WithSinceRev(6), true, &GetStatesResult{
+		States: []State{
+			{ID: `s1`, Rev: 7},
+		},
+	})
+
+	ss = []State{
 		{ID: `s1`, Rev: 6, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
 		{ID: `s2`, Rev: 7, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
 		{ID: `s3`, Rev: 8, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
@@ -329,17 +289,17 @@ func TestCacheDriver_getStatesFromLog(t *testing.T) {
 	f(ss, GetStatesByLabels(nil), false, nil)
 
 	// since rev lower than min rev
-	f(ss, GetStatesByLabels(nil).WithSinceRev(5), false, nil)
+	f(ss, GetStatesByLabels(nil).WithSinceRev(4), false, nil)
 
 	// since rev greater than max rev
 	f(ss, GetStatesByLabels(nil).WithSinceRev(16), false, nil)
 
-	f(ss, GetStatesByLabels(nil).WithSinceRev(6), true, &GetStatesResult{
+	f(ss, GetStatesByLabels(nil).WithSinceRev(5), true, &GetStatesResult{
 		States: ss,
 		More:   false,
 	})
 
-	f(ss, GetStatesByLabels(nil).WithSinceRev(6).WithLimit(5), true, &GetStatesResult{
+	f(ss, GetStatesByLabels(nil).WithSinceRev(5).WithLimit(5), true, &GetStatesResult{
 		States: []State{
 			{ID: `s1`, Rev: 6, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
 			{ID: `s2`, Rev: 7, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
@@ -350,7 +310,7 @@ func TestCacheDriver_getStatesFromLog(t *testing.T) {
 		More: true,
 	})
 
-	f(ss, GetStatesByLabels(nil).WithSinceRev(13), true, &GetStatesResult{
+	f(ss, GetStatesByLabels(nil).WithSinceRev(12), true, &GetStatesResult{
 		States: []State{
 			{ID: `s4`, Rev: 13},
 			{ID: `s5`, Rev: 14, Labels: map[string]string{"foo": "fooVal", "baz": "bazVal"}},
@@ -359,7 +319,7 @@ func TestCacheDriver_getStatesFromLog(t *testing.T) {
 		More: false,
 	})
 
-	f(ss, GetStatesByLabels(map[string]string{"foo": "fooVal"}).WithSinceRev(6), true, &GetStatesResult{
+	f(ss, GetStatesByLabels(map[string]string{"foo": "fooVal"}).WithSinceRev(5), true, &GetStatesResult{
 		States: []State{
 			{ID: `s1`, Rev: 6, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
 			{ID: `s2`, Rev: 7, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
@@ -370,7 +330,7 @@ func TestCacheDriver_getStatesFromLog(t *testing.T) {
 		More: false,
 	})
 
-	f(ss, GetStatesByLabels(map[string]string{"foo": "fooVal", "bar": "barVal"}).WithSinceRev(6), true, &GetStatesResult{
+	f(ss, GetStatesByLabels(map[string]string{"foo": "fooVal", "bar": "barVal"}).WithSinceRev(5), true, &GetStatesResult{
 		States: []State{
 			{ID: `s1`, Rev: 6, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
 			{ID: `s2`, Rev: 7, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
@@ -381,7 +341,7 @@ func TestCacheDriver_getStatesFromLog(t *testing.T) {
 
 	cmd := GetStatesByLabels(map[string]string{"foo": "fooVal", "bar": "barVal"}).
 		WithORLabels(map[string]string{"bar": "barVal", "baz": "bazVal"}).
-		WithSinceRev(6)
+		WithSinceRev(5)
 	f(ss, cmd, true, &GetStatesResult{
 		States: []State{
 			{ID: `s1`, Rev: 6, Labels: map[string]string{"foo": "fooVal", "bar": "barVal"}},
@@ -447,7 +407,7 @@ func TestCacheDriver_commitAppendLog(t *testing.T) {
 		return newCacheDriver(nil, 10, l)
 	}
 
-	f := func(d *cacheDriver, cmd *CommitCommand, expMaxRev int64) {
+	f := func(d *cacheDriver, cmd *CommitCommand, expMaxRev int64, expSize int) {
 		t.Helper()
 
 		ss := []State{
@@ -457,8 +417,11 @@ func TestCacheDriver_commitAppendLog(t *testing.T) {
 			{ID: `s4`, Rev: 4},
 			{ID: `s5`, Rev: 5},
 		}
-		for _, s := range ss {
-			d.appendStateLocked(&s)
+
+		if d.maxRev == 0 {
+			for _, s := range ss {
+				d.appendStateLocked(&s)
+			}
 		}
 
 		d.commitAppendLog(cmd)
@@ -466,44 +429,64 @@ func TestCacheDriver_commitAppendLog(t *testing.T) {
 		if d.maxRev != expMaxRev {
 			t.Fatalf("expected maxRev %d, got %d", expMaxRev, d.maxRev)
 		}
+		if d.size != expSize {
+			t.Fatalf("expected size %d, got %d", expSize, d.size)
+		}
 	}
 
-	f(newD(), Commit(), 5)
-	f(newD(), Commit(GetData(&StateCtx{}, `foo`)), 5)
+	f(newD(), Commit(), 5, 5)
+	f(newD(), Commit(GetData(&StateCtx{}, `foo`)), 5, 5)
 
 	f(newD(), Commit(
 		Park(&StateCtx{Current: State{ID: `s6`, Rev: 6}}),
-	), 6)
+	), 6, 6)
 
 	f(newD(), Commit(
 		Park(&StateCtx{Current: State{ID: `s6`, Rev: 6}}),
 		Park(&StateCtx{Current: State{ID: `s7`, Rev: 7}}),
-	), 7)
+	), 7, 7)
 
 	f(newD(), Commit(
 		Park(&StateCtx{Current: State{ID: `s7`, Rev: 7}}),
 		Park(&StateCtx{Current: State{ID: `s6`, Rev: 6}}),
-	), 7)
+	), 7, 7)
 
 	f(newD(), Commit(
 		Park(&StateCtx{Current: State{ID: `s7`, Rev: 7}}),
-	), 5)
+	), 5, 5)
 
 	d := newD()
 	f(d, Commit(
 		Park(&StateCtx{Current: State{ID: `s7`, Rev: 7}}),
-	), 5)
+	), 5, 5)
 	f(d, Commit(
 		Park(&StateCtx{Current: State{ID: `s6`, Rev: 6}}),
-	), 7)
+	), 7, 7)
 
 	d = newD()
 	f(d, Commit(
 		Park(&StateCtx{Current: State{ID: `s7`, Rev: 7}}),
 		Park(&StateCtx{Current: State{ID: `s7`, Rev: 8}}),
 		Park(&StateCtx{Current: State{ID: `s7`, Rev: 9}}),
-	), 5)
+	), 5, 5)
 	f(d, Commit(
 		Park(&StateCtx{Current: State{ID: `s6`, Rev: 6}}),
-	), 9)
+	), 9, 9)
+
+	d = newD()
+	f(d, Commit(GetData(&StateCtx{}, `foo`)), 5, 5)
+	d.appendStateLocked(&State{ID: `s6`, Rev: 6})
+	f(d, Commit(
+		Park(&StateCtx{Current: State{ID: `s6`, Rev: 6}}),
+	), 6, 6)
+
+	d = newD()
+	f(d, Commit(
+		Park(&StateCtx{Current: State{ID: `s6`, Rev: 6}}),
+	), 6, 6)
+	d.appendStateLocked(&State{ID: `s7`, Rev: 7})
+	d.appendStateLocked(&State{ID: `s8`, Rev: 8})
+	f(d, Commit(
+		Park(&StateCtx{Current: State{ID: `s7`, Rev: 7}}),
+	), 8, 8)
 }

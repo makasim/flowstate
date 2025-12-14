@@ -1,7 +1,7 @@
 package flowstate
 
 import (
-	"log"
+	"fmt"
 	"log/slog"
 	"sort"
 	"sync"
@@ -12,7 +12,6 @@ var _ Driver = &cacheDriver{}
 
 // A cacheDriver is a driver that keeps a head of states and updates them by worker from time to time.
 // The head refresh can also be triggered by state commit commands.
-// The driver clients can subscribe to head updates.
 type cacheDriver struct {
 	d Driver
 	l *slog.Logger
@@ -24,13 +23,15 @@ type cacheDriver struct {
 	maxRev    int64 // maximum revision available in the log
 	log       []State
 	committed []State
-
-	closeCh  chan struct{}
-	closedCh chan struct{}
 }
 
+// newCacheDriver creates a new cacheDriver.
+// d is the underlying driver to wrap.
+// maxSize is the maximum number of states to keep in the cache.
+//
+// Please note that the cacheDriver does not start the head refresh worker - it must be started by the caller.
 func newCacheDriver(d Driver, maxSize int, l *slog.Logger) *cacheDriver {
-	hd := &cacheDriver{
+	return &cacheDriver{
 		d: d,
 		l: l,
 
@@ -39,35 +40,28 @@ func newCacheDriver(d Driver, maxSize int, l *slog.Logger) *cacheDriver {
 		size:      0,
 		idx:       0,
 		minRev:    -1,
-		maxRev:    -1,
-		closeCh:   make(chan struct{}),
-		closedCh:  make(chan struct{}),
+		maxRev:    0,
 	}
-
-	//go hd.getHead()
-
-	return hd
-}
-
-func (d *cacheDriver) close() {
-	close(d.closeCh)
-	<-d.closedCh
 }
 
 // appendStateLocked appends a state to the cycle buffer log.
 // Must be called with d.m held.
 func (d *cacheDriver) appendStateLocked(s *State) {
+	if s.Rev <= d.maxRev {
+		panic("BUG: appendStateLocked: state revision must be greater than maxRev; client responsibility to ensure this")
+	}
+
 	pos := d.idx % len(d.log)
 	s.CopyTo(&d.log[pos])
 
 	d.maxRev = s.Rev
 
 	if d.size == 0 {
-		d.minRev = s.Rev
+		d.minRev = s.Rev - 1
 	} else if d.size >= len(d.log) {
 		// Buffer is full, wrapping around - oldest is at next position
 		oldestPos := (d.idx + 1) % len(d.log)
-		d.minRev = d.log[oldestPos].Rev
+		d.minRev = d.log[oldestPos].Rev - 1
 	}
 
 	d.idx++
@@ -76,12 +70,12 @@ func (d *cacheDriver) appendStateLocked(s *State) {
 	}
 }
 
-func (d *cacheDriver) Init(e *Engine) error {
+func (d *cacheDriver) Init(e Engine) error {
 	return d.d.Init(e)
 }
 
 func (d *cacheDriver) GetStateByID(cmd *GetStateByIDCommand) error {
-	if d.getStateByIDFromLog(cmd) {
+	if cmd.Rev != 0 && d.getStateByIDFromLog(cmd) {
 		return nil
 	}
 
@@ -95,7 +89,7 @@ func (d *cacheDriver) getStateByIDFromLog(cmd *GetStateByIDCommand) bool {
 	if d.size == 0 {
 		return false
 	}
-	if cmd.Rev != 0 && cmd.Rev < d.minRev {
+	if cmd.Rev != 0 && cmd.Rev <= d.minRev {
 		return false
 	}
 	if cmd.Rev != 0 && cmd.Rev > d.maxRev {
@@ -116,44 +110,7 @@ func (d *cacheDriver) getStateByIDFromLog(cmd *GetStateByIDCommand) bool {
 }
 
 func (d *cacheDriver) GetStateByLabels(cmd *GetStateByLabelsCommand) error {
-	if d.getStateByLabelsFromLog(cmd) {
-		return nil
-	}
-
 	return d.d.GetStateByLabels(cmd)
-}
-
-func (d *cacheDriver) getStateByLabelsFromLog(cmd *GetStateByLabelsCommand) bool {
-	d.m.Lock()
-	defer d.m.Unlock()
-
-	if d.size == 0 {
-		return false
-	}
-
-	if len(cmd.Labels) == 0 {
-		// return last state from the log
-		pos := (d.idx - 1 + len(d.log)) % len(d.log)
-		s := d.log[pos]
-		s.CopyToCtx(cmd.StateCtx)
-		return true
-	}
-
-	orLabels := []map[string]string{cmd.Labels}
-
-	for i := 0; i < d.size; i++ {
-		pos := (d.idx - 1 - i + len(d.log)) % len(d.log)
-		s := d.log[pos]
-
-		if !matchLabels(s, orLabels) {
-			continue
-		}
-
-		s.CopyToCtx(cmd.StateCtx)
-		return true
-	}
-
-	return false
 }
 
 func (d *cacheDriver) GetStates(cmd *GetStatesCommand) error {
@@ -161,12 +118,23 @@ func (d *cacheDriver) GetStates(cmd *GetStatesCommand) error {
 		return nil
 	}
 
-	return d.d.GetStates(cmd)
+	if err := d.d.GetStates(cmd); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *cacheDriver) getStatesFromLog(cmd *GetStatesCommand) bool {
 	d.m.Lock()
 	defer d.m.Unlock()
+
+	if !cmd.SinceTime.IsZero() {
+		return false
+	}
+	if cmd.LatestOnly {
+		return false
+	}
 
 	if d.size == 0 {
 		return false
@@ -174,7 +142,7 @@ func (d *cacheDriver) getStatesFromLog(cmd *GetStatesCommand) bool {
 	if cmd.SinceRev < d.minRev {
 		return false
 	}
-	if cmd.SinceRev > d.maxRev {
+	if cmd.SinceRev >= d.maxRev {
 		return false
 	}
 
@@ -182,7 +150,7 @@ func (d *cacheDriver) getStatesFromLog(cmd *GetStatesCommand) bool {
 	for i := 0; i < d.size; i++ {
 		pos := (d.idx - d.size + i) % len(d.log)
 		s := d.log[pos]
-		if s.Rev < cmd.SinceRev {
+		if s.Rev <= cmd.SinceRev {
 			continue
 		}
 		if len(cmd.Labels) > 0 && !matchLabels(s, cmd.Labels) {
@@ -240,7 +208,7 @@ func (d *cacheDriver) commitRevMismatch(cmd *CommitCommand) error {
 			continue
 		}
 
-		if copyStateCtx.Committed.Rev > stateCtx.Current.Rev {
+		if copyStateCtx.Current.Rev > stateCtx.Current.Rev {
 			revMismatchErr.Add(stateCtx.Current.ID)
 		}
 	}
@@ -274,17 +242,23 @@ func (d *cacheDriver) commitAppendLog(cmd *CommitCommand) {
 		return d.committed[i].Rev < d.committed[j].Rev
 	})
 
-	committed := d.committed
-	for _, s := range d.committed {
-		if d.maxRev+1 == s.Rev {
-			d.appendStateLocked(&s)
-			committed = committed[1:]
+	i := 0
+	for i < len(d.committed) {
+		s := d.committed[i]
+		expRev := d.maxRev + 1
+		if s.Rev < expRev {
+			i++
 			continue
 		}
-
+		if expRev == s.Rev {
+			d.appendStateLocked(&s)
+			i++
+			continue
+		}
 		break
 	}
-	d.committed = append(d.committed[:0], committed...)
+
+	d.committed = append(d.committed[:0], d.committed[i:]...)
 }
 
 func (d *cacheDriver) GetData(cmd *GetDataCommand) error {
@@ -295,57 +269,62 @@ func (d *cacheDriver) StoreData(cmd *StoreDataCommand) error {
 	return d.d.StoreData(cmd)
 }
 
-func (d *cacheDriver) getHead() {
-	defer close(d.closedCh)
-
-	headRev := int64(-1)
-
+func (d *cacheDriver) getHead(refreshDur, refreshErrDur time.Duration, closeCh chan struct{}) {
 	for {
-		if headRev < 0 {
+		d.m.Lock()
+		maxRev := d.maxRev
+		d.m.Unlock()
+
+		if maxRev <= 0 {
 			getCmd := GetStatesByLabels(nil).
 				WithSinceLatest().
 				WithLatestOnly().
 				WithLimit(1)
 			if err := d.d.GetStates(getCmd); err != nil {
-				d.l.Error("get head: get states failed; retrying in 5s", "error", err)
-				waitT := time.NewTimer(time.Second * 5)
+				d.l.Error(fmt.Sprintf("get head: get states failed; retrying in %s", refreshErrDur), "error", err)
+				waitT := time.NewTimer(refreshErrDur)
 				select {
 				case <-waitT.C:
 					continue
-				case <-d.closeCh:
+				case <-closeCh:
+					waitT.Stop()
 					return
 				}
 			}
 
 			getRes := getCmd.MustResult()
 			if len(getRes.States) == 0 {
-				waitT := time.NewTimer(time.Second)
+				waitT := time.NewTimer(refreshDur)
 				select {
 				case <-waitT.C:
 					continue
-				case <-d.closeCh:
+				case <-closeCh:
+					waitT.Stop()
 					return
 				}
 			}
 
-			headRev = getRes.States[0].Rev
 			d.m.Lock()
-			d.appendStateLocked(&getRes.States[0])
+			if d.maxRev == 0 || d.maxRev+1 == getRes.States[0].Rev {
+				d.appendStateLocked(&getRes.States[0])
+			}
+			maxRev = d.maxRev
 			d.m.Unlock()
 			continue
 		}
 
 		getCmd := GetStatesByLabels(nil).
-			WithSinceRev(headRev).
+			WithSinceRev(maxRev).
 			WithLatestOnly().
-			WithLimit(min(1000, cap(d.log)))
+			WithLimit(min(100, cap(d.log)))
 		if err := d.d.GetStates(getCmd); err != nil {
-			d.l.Error("get head: get states failed; retrying in 5s", "error", err)
-			waitT := time.NewTimer(time.Second * 5)
+			d.l.Error(fmt.Sprintf("get head: get states failed; retrying in %s", refreshErrDur), "error", err)
+			waitT := time.NewTimer(refreshErrDur)
 			select {
 			case <-waitT.C:
 				continue
-			case <-d.closeCh:
+			case <-closeCh:
+				waitT.Stop()
 				return
 			}
 		}
@@ -354,8 +333,12 @@ func (d *cacheDriver) getHead() {
 			d.m.Lock()
 			d.committed = d.committed[:0]
 			for i := range getRes.States {
+				if getRes.States[i].Rev <= d.maxRev {
+					continue
+				}
+
 				d.appendStateLocked(&getRes.States[i])
-				headRev = getRes.States[i].Rev
+				maxRev = d.maxRev
 			}
 			d.m.Unlock()
 
@@ -364,11 +347,12 @@ func (d *cacheDriver) getHead() {
 			}
 		}
 
-		waitT := time.NewTimer(time.Second)
+		waitT := time.NewTimer(refreshDur)
 		select {
 		case <-waitT.C:
 			continue
-		case <-d.closeCh:
+		case <-closeCh:
+			waitT.Stop()
 			return
 		}
 	}
@@ -382,7 +366,7 @@ func matchLabels(state State, orLabels []map[string]string) bool {
 next:
 	for _, labels := range orLabels {
 		if len(labels) == 0 {
-			continue
+			return true
 		}
 		if len(labels) > len(state.Labels) {
 			continue

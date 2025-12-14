@@ -14,7 +14,7 @@ var ErrFlowNotFound = errors.New("flow not found")
 var sessIDS = &atomic.Int64{}
 
 type Engine struct {
-	d  Driver
+	d  *cacheDriver
 	fr FlowRegistry
 	l  *slog.Logger
 
@@ -26,9 +26,9 @@ type Engine struct {
 	doneCh chan struct{}
 }
 
-func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (*Engine, error) {
+func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (Engine, error) {
 	e := &Engine{
-		d:  d,
+		d:  newCacheDriver(d, 1000, l),
 		fr: fr,
 		l:  l,
 
@@ -48,8 +48,7 @@ func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (*Engine, error) {
 	e.wg.Add(1)
 	go func() {
 		defer e.wg.Done()
-
-		e.doSyncMaxRev()
+		e.d.getHead(time.Millisecond*100, time.Second*5, e.doneCh)
 	}()
 
 	return e, nil

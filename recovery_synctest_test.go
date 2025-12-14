@@ -20,7 +20,9 @@ func TestRecovererRetryLogic(t *testing.T) {
 	f := func(genFn func(e *flowstate.Engine), flowFn flowstate.FlowFunc, expStats flowstate.RecovererStats) {
 		t.Helper()
 
-		synctest.Run(func() {
+		synctest.Test(t, func(t *testing.T) {
+			t.Helper()
+
 			lh := slogassert.New(t, slog.LevelDebug, nil)
 			l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
@@ -477,7 +479,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 // The test ensures that all states are retried and processed correctly,
 // and that the standby recoverer becomes active when the active one is shut down.
 func TestRecovererActiveStandby(t *testing.T) {
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
@@ -565,7 +567,7 @@ func TestRecovererActiveStandby(t *testing.T) {
 // This test simulates a crash of the active recoverer and checks if the standby recoverer becomes active.
 // The test ensures that the standby recoverer takes over and retries the states correctly.
 func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
@@ -650,7 +652,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 }
 
 func TestRecovererOnlyOneActive(t *testing.T) {
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		assertOneActive := func(rs []*flowstate.Recoverer) {
 			var activeCnt int
 			for _, r := range rs {

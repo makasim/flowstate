@@ -24,7 +24,7 @@ func TestDelayer(t *testing.T) {
 	f := func(delayingStates []delayingStateFunc, exp []delayedState) {
 		t.Helper()
 
-		synctest.Run(func() {
+		synctest.Test(t, func(t *testing.T) {
 			lh := slogassert.New(t, slog.LevelDebug, nil)
 			l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
@@ -237,7 +237,7 @@ func TestDelayer(t *testing.T) {
 }
 
 func TestDelayer_Concurrency(t *testing.T) {
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		lh := slogassert.New(t, slog.LevelDebug, nil)
 		l := slog.New(slogassert.New(t, slog.LevelDebug, lh))
 
