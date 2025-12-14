@@ -26,7 +26,7 @@ type Engine struct {
 	doneCh chan struct{}
 }
 
-func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (Engine, error) {
+func NewEngine(d Driver, fr FlowRegistry, l *slog.Logger) (*Engine, error) {
 	e := &Engine{
 		d:  newCacheDriver(d, 1000, l),
 		fr: fr,
@@ -101,6 +101,7 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 
 		if err = e.doCmd(cmd0); errors.As(err, conflictErr) {
 			e.l.Info("engine: do conflict",
+				"sess", cmdsSessID(cmd0),
 				"conflict", err.Error(),
 				"id", stateCtx.Current.ID,
 				"rev", stateCtx.Current.Rev,
