@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func DataStoreGetWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func DataStoreGetWithCommit(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -26,7 +26,7 @@ func DataStoreGetWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowR
 	}
 	actData := &flowstate.Data{}
 
-	mustSetFlow(fr, "store", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "store", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		d := &flowstate.Data{
@@ -43,7 +43,7 @@ func DataStoreGetWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowR
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	mustSetFlow(fr, "get", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "get", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if err := e.Do(flowstate.Commit(
@@ -56,7 +56,7 @@ func DataStoreGetWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowR
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	mustSetFlow(fr, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Park(stateCtx), nil
 	}))

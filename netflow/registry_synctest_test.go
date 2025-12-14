@@ -31,14 +31,14 @@ func TestRegistry(t *testing.T) {
 		// make sure we skiped the first round of Registry.watchFlows call
 		time.Sleep(time.Second * 5)
 
-		if err := firstFR.SetFlow(`aFlowOnFirstFR`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+		if err := firstFR.SetFlow(`aFlowOnFirstFR`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
 			panic("should not be called")
 			return nil, nil
 		})); err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
 
-		if err := secondFR.SetFlow(`aFlowOnSecondFR`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+		if err := secondFR.SetFlow(`aFlowOnSecondFR`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
 			panic("should not be called")
 			return nil, nil
 		})); err != nil {

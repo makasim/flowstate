@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func CallFlowWithCommit(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	endedCh := make(chan struct{})
 	trkr := &Tracker{}
 
-	mustSetFlow(fr, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "call", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if stateCtx.Current.Annotation(`state`) == `resumed` {
@@ -38,7 +38,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 
 		return flowstate.Noop(), nil
 	}))
-	mustSetFlow(fr, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "called", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if err := e.Do(
@@ -50,7 +50,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 
 		return flowstate.Noop(), nil
 	}))
-	mustSetFlow(fr, "calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "calledEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		if stateCtx.Current.Annotations[`caller_state`] != "" {
 			callStateCtx := &flowstate.StateCtx{}
@@ -71,7 +71,7 @@ func CallFlowWithCommit(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 
 		return flowstate.Park(stateCtx), nil
 	}))
-	mustSetFlow(fr, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "callEnd", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		close(endedCh)

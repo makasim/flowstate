@@ -70,7 +70,7 @@ func (d *cacheDriver) appendStateLocked(s *State) {
 	}
 }
 
-func (d *cacheDriver) Init(e Engine) error {
+func (d *cacheDriver) Init(e *Engine) error {
 	return d.d.Init(e)
 }
 
@@ -315,7 +315,6 @@ func (d *cacheDriver) getHead(refreshDur, refreshErrDur time.Duration, closeCh c
 
 		getCmd := GetStatesByLabels(nil).
 			WithSinceRev(maxRev).
-			WithLatestOnly().
 			WithLimit(min(100, cap(d.log)))
 		if err := d.d.GetStates(getCmd); err != nil {
 			d.l.Error(fmt.Sprintf("get head: get states failed; retrying in %s", refreshErrDur), "error", err)

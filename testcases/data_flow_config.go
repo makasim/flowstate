@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func DataFlowConfig(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	type fooConfig struct {
 		A int `json:"a"`
 	}
@@ -35,7 +35,7 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 
 	trkr := &Tracker{}
 
-	mustSetFlow(fr, "foo", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "foo", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if err := e.Do(
@@ -76,7 +76,7 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	mustSetFlow(fr, "bar", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "bar", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if err := e.Do(
@@ -118,7 +118,7 @@ func DataFlowConfig(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry,
 
 		return flowstate.Execute(stateCtx), nil
 	}))
-	mustSetFlow(fr, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "end", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Park(stateCtx), nil
 	}))

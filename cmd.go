@@ -30,25 +30,18 @@ var _ Command = &CommitCommand{}
 
 var _ Command = &ExecuteCommand{}
 
+var _ Command = &StoreDataCommand{}
+
+var _ Command = &GetDataCommand{}
+
 type Command interface {
-	setSessID(id int64)
-	SessID() int64
 	cmd()
 }
 
 type command struct {
-	sessID int64
 }
 
 func (_ *command) cmd() {}
-
-func (cmd *command) setSessID(doID int64) {
-	cmd.sessID = doID
-}
-
-func (cmd *command) SessID() int64 {
-	return cmd.sessID
-}
 
 func Commit(cmds ...Command) *CommitCommand {
 	return &CommitCommand{
@@ -63,13 +56,6 @@ type CommittableCommand interface {
 type CommitCommand struct {
 	command
 	Commands []Command
-}
-
-func (cmd *CommitCommand) setSessID(id int64) {
-	cmd.command.setSessID(id)
-	for _, subCmd := range cmd.Commands {
-		subCmd.setSessID(id)
-	}
 }
 
 func Parked(state State) bool {

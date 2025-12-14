@@ -32,7 +32,7 @@ func TestDelayer(t *testing.T) {
 			act := make([]delayedState, 0, len(delayingStates))
 			d := memdriver.New(l)
 			fr := &flowstate.DefaultFlowRegistry{}
-			mustSetFlow(fr, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+			mustSetFlow(fr, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 				actMux.Lock()
 				defer actMux.Unlock()
 
@@ -165,7 +165,7 @@ func TestDelayer(t *testing.T) {
 	// delay committed state
 	f(
 		[]delayingStateFunc{
-			func(t *testing.T, e flowstate.Engine) {
+			func(t *testing.T, e *flowstate.Engine) {
 				stateCtx := &flowstate.StateCtx{
 					Current: flowstate.State{ID: `s1`},
 				}
@@ -186,7 +186,7 @@ func TestDelayer(t *testing.T) {
 	// ignore on rev mismatch
 	f(
 		[]delayingStateFunc{
-			func(t *testing.T, e flowstate.Engine) {
+			func(t *testing.T, e *flowstate.Engine) {
 				stateCtx := &flowstate.StateCtx{
 					Current: flowstate.State{ID: `s1`},
 				}
@@ -211,7 +211,7 @@ func TestDelayer(t *testing.T) {
 	// with, a commit it causes a rev mismatch, without commit it should execute state
 	f(
 		[]delayingStateFunc{
-			func(t *testing.T, e flowstate.Engine) {
+			func(t *testing.T, e *flowstate.Engine) {
 				stateCtx := &flowstate.StateCtx{
 					Current: flowstate.State{ID: `s1`},
 				}
@@ -245,7 +245,7 @@ func TestDelayer_Concurrency(t *testing.T) {
 		var delayedPastCnt atomic.Int64
 		d := memdriver.New(l)
 		fr := &flowstate.DefaultFlowRegistry{}
-		mustSetFlow(fr, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		mustSetFlow(fr, `delayed`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			if stateCtx.Current.Labels[`delay`] == `future` {
 				delayedFutureCnt.Add(1)
 			} else {
@@ -360,10 +360,10 @@ func parseTime(s string) time.Time {
 	return t
 }
 
-type delayingStateFunc func(t *testing.T, e flowstate.Engine)
+type delayingStateFunc func(t *testing.T, e *flowstate.Engine)
 
 func sleepAndDelay(state flowstate.State, sleepDur, dur time.Duration) delayingStateFunc {
-	return func(t *testing.T, e flowstate.Engine) {
+	return func(t *testing.T, e *flowstate.Engine) {
 		stateCtx := state.CopyToCtx(&flowstate.StateCtx{})
 
 		time.Sleep(sleepDur)

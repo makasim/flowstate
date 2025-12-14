@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func ForkJoin_FirstWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func ForkJoin_FirstWins(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	stateCtx := &flowstate.StateCtx{
 		Current: flowstate.State{
 			ID: "aTID",
@@ -17,7 +17,7 @@ func ForkJoin_FirstWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 
 	trkr := &Tracker{}
 
-	mustSetFlow(fr, "fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "fork", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		stateCtx.Current.SetLabel(`theForkJoinLabel`, string(stateCtx.Current.ID))
@@ -40,7 +40,7 @@ func ForkJoin_FirstWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 
 		return flowstate.Noop(), nil
 	}))
-	mustSetFlow(fr, "join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "join", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
 		if stateCtx.Committed.Transition.To != `join` {
@@ -87,12 +87,12 @@ func ForkJoin_FirstWins(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegis
 		}
 	}))
 
-	mustSetFlow(fr, "forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "forked", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Transit(stateCtx, `join`), nil
 	}))
 
-	mustSetFlow(fr, "joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "joined", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Park(stateCtx), nil
 	}))

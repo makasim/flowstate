@@ -32,7 +32,7 @@ func New(conn conn, l *slog.Logger) *Driver {
 	}
 }
 
-func (d *Driver) Init(_ flowstate.Engine) error {
+func (d *Driver) Init(_ *flowstate.Engine) error {
 	return nil
 }
 

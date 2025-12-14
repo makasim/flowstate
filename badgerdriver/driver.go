@@ -57,7 +57,7 @@ func New(db *badger.DB) (*Driver, error) {
 	}, nil
 }
 
-func (d *Driver) Init(_ flowstate.Engine) error {
+func (d *Driver) Init(_ *flowstate.Engine) error {
 	return nil
 }
 
