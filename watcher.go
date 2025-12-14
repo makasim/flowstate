@@ -6,7 +6,7 @@ import (
 )
 
 type Watcher struct {
-	e Engine
+	e *Engine
 
 	cmd      *GetStatesCommand
 	pollDur  time.Duration
@@ -15,7 +15,7 @@ type Watcher struct {
 	closedCh chan struct{}
 }
 
-func NewWatcher(e Engine, pollDur time.Duration, cmd *GetStatesCommand) *Watcher {
+func NewWatcher(e *Engine, pollDur time.Duration, cmd *GetStatesCommand) *Watcher {
 	copyCmd := &GetStatesCommand{
 		SinceRev:   cmd.SinceRev,
 		SinceTime:  cmd.SinceTime,

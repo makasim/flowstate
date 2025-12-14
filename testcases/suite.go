@@ -15,7 +15,7 @@ type Suite struct {
 	SetUpDelayer bool
 
 	disableGoleak bool
-	cases         map[string]func(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver)
+	cases         map[string]func(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver)
 }
 
 func (s *Suite) Test(main *testing.T) {
@@ -91,7 +91,7 @@ func Get(setUp func(t *testing.T) flowstate.Driver) *Suite {
 		SetUp:        setUp,
 		SetUpDelayer: true,
 
-		cases: map[string]func(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver){
+		cases: map[string]func(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver){
 			"Actor": Actor,
 
 			"CallFlow":           CallFlow,

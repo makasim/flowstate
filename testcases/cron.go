@@ -11,10 +11,10 @@ import (
 	//"go.uber.org/goleak"
 )
 
-func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func Cron(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	trkr := &Tracker{}
 
-	mustSetFlow(fr, "cron", flowstate.FlowFunc(func(cronStateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "cron", flowstate.FlowFunc(func(cronStateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(cronStateCtx, trkr)
 
 		now := time.Now()
@@ -78,7 +78,7 @@ func Cron(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowsta
 
 		return flowstate.Noop(), nil
 	}))
-	mustSetFlow(fr, "task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+	mustSetFlow(fr, "task", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 		return flowstate.Commit(
 			flowstate.Park(stateCtx),

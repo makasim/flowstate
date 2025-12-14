@@ -16,7 +16,7 @@ func main() {
 	e, fr, _, tearDown := examples.SetUp()
 	defer tearDown()
 
-	err := fr.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+	err := fr.SetFlow(`example`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
 		// The condition succeeds if the main execution timed out.
 		// The delayed task wont be executed if the state was completed before the timeout.
 		if flowstate.Delayed(stateCtx.Current) {

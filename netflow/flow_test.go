@@ -21,7 +21,7 @@ func TestFlowExecute(t *testing.T) {
 	d := memdriver.New(l)
 	fr := &flowstate.DefaultFlowRegistry{}
 	executedCh := make(chan struct{})
-	if err := fr.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+	if err := fr.SetFlow(`aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
 		close(executedCh)
 		return flowstate.Park(stateCtx), nil
 	})); err != nil {
@@ -66,7 +66,7 @@ func TestFlowExecute(t *testing.T) {
 	}
 }
 
-func startSrv(t *testing.T, e flowstate.Engine) *httptest.Server {
+func startSrv(t *testing.T, e *flowstate.Engine) *httptest.Server {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == `/health` {

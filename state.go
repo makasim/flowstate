@@ -95,7 +95,7 @@ type StateCtx struct {
 	Transitions []Transition
 
 	sessID int64
-	e      Engine
+	e      *Engine
 	doneCh chan struct{}
 }
 

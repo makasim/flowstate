@@ -17,7 +17,7 @@ import (
 )
 
 func TestRecovererRetryLogic(t *testing.T) {
-	f := func(genFn func(e flowstate.Engine), flowFn flowstate.FlowFunc, expStats flowstate.RecovererStats) {
+	f := func(genFn func(e *flowstate.Engine), flowFn flowstate.FlowFunc, expStats flowstate.RecovererStats) {
 		t.Helper()
 
 		synctest.Test(t, func(t *testing.T) {
@@ -76,8 +76,8 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// recoverer should commit recoveryStateCtx only once if there is no state commits.
 	f(
-		func(e flowstate.Engine) {},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(e *flowstate.Engine) {},
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			t.Fatalf("unexpected call to flow function")
 			return nil, nil
 		},
@@ -88,7 +88,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// states with disabled recovery ignored completely
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			for i := 0; i < 100; i++ {
 				go func() {
 					stateCtx := &flowstate.StateCtx{
@@ -110,7 +110,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				}()
 			}
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -120,7 +120,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// parked states marked completed
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			for i := 0; i < 100; i++ {
 				go func() {
 					stateCtx := &flowstate.StateCtx{
@@ -135,7 +135,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				}()
 			}
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			t.Fatalf("unexpected call to flow function")
 			return nil, nil
 		},
@@ -147,7 +147,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// a state retried if there is no any further commits (aka test ticks work)
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			stateCtx := &flowstate.StateCtx{
 				Current: flowstate.State{
 					ID: flowstate.StateID("aTID"),
@@ -160,7 +160,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 			// just commit, do not execute, recovery should kick in
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -173,7 +173,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// every fifth state retried should be retried
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			for i := 0; i < 100; i++ {
 				go func() {
 					stateCtx := &flowstate.StateCtx{
@@ -196,7 +196,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				}()
 			}
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -209,7 +209,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// a state retried default max times (3)
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			stateCtx := &flowstate.StateCtx{
 				Current: flowstate.State{
 					ID: flowstate.StateID("aTID"),
@@ -222,7 +222,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 			// just commit, do not execute, recovery should kick in
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			// do nothing to see how many times the state will be retried
 			return flowstate.Noop(), nil
 		},
@@ -237,7 +237,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// a state retried custom set max times (4)
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			stateCtx := &flowstate.StateCtx{
 				Current: flowstate.State{
 					ID: flowstate.StateID("aTID"),
@@ -251,7 +251,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 			// just commit, do not execute, recovery should kick in
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			// do nothing to see how many times the state will be retried
 			return flowstate.Noop(), nil
 		},
@@ -266,7 +266,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// a state retried if there are new commits
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			for i := 0; i < 30; i++ {
 				go func() {
 					stateCtx := &flowstate.StateCtx{
@@ -285,7 +285,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				time.Sleep(time.Second * 30)
 			}
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -298,7 +298,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// test that recovery state commited when rev difference > 1000
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			var wg sync.WaitGroup
 			for i := 0; i < 1500; i++ {
 				if i%100 == 0 {
@@ -327,7 +327,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 			wg.Wait()
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -339,7 +339,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// default retry after (2m) is respected - successful execution
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			for i := 0; i < 10; i++ {
 				go func() {
 					stateCtx := &flowstate.StateCtx{
@@ -360,7 +360,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				}()
 			}
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -372,7 +372,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// default retry after (2m) is respected - retry execution
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			for i := 0; i < 10; i++ {
 				go func() {
 					stateCtx := &flowstate.StateCtx{
@@ -393,7 +393,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				}()
 			}
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -406,7 +406,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// custom retry after (1m) is respected - successful execution
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			for i := 0; i < 10; i++ {
 				go func() {
 					stateCtx := &flowstate.StateCtx{
@@ -428,7 +428,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				}()
 			}
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -440,7 +440,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 
 	// custom retry after (1m) is respected - retry execution
 	f(
-		func(e flowstate.Engine) {
+		func(e *flowstate.Engine) {
 			for i := 0; i < 10; i++ {
 				go func() {
 					stateCtx := &flowstate.StateCtx{
@@ -462,7 +462,7 @@ func TestRecovererRetryLogic(t *testing.T) {
 				}()
 			}
 		},
-		func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		},
 		flowstate.RecovererStats{
@@ -485,7 +485,7 @@ func TestRecovererActiveStandby(t *testing.T) {
 
 		d := memdriver.New(l)
 		fr := &flowstate.DefaultFlowRegistry{}
-		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		}))
 
@@ -573,7 +573,7 @@ func TestRecovererCrashStandbyBecomeActive(t *testing.T) {
 
 		d := memdriver.New(l)
 		fr := &flowstate.DefaultFlowRegistry{}
-		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		}))
 
@@ -670,7 +670,7 @@ func TestRecovererOnlyOneActive(t *testing.T) {
 
 		d := memdriver.New(l)
 		fr := &flowstate.DefaultFlowRegistry{}
-		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e flowstate.Engine) (flowstate.Command, error) {
+		mustSetFlow(fr, `aFlow`, flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 			return flowstate.Commit(flowstate.Park(stateCtx)), nil
 		}))
 

@@ -169,7 +169,7 @@ func (cmd *GetDelayedStatesCommand) Prepare() {
 }
 
 type Delayer struct {
-	e Engine
+	e *Engine
 
 	metaStateCtx *StateCtx
 	offset       int64
@@ -187,7 +187,7 @@ type Delayer struct {
 	l         *slog.Logger
 }
 
-func NewDelayer(e Engine, l *slog.Logger) (*Delayer, error) {
+func NewDelayer(e *Engine, l *slog.Logger) (*Delayer, error) {
 	d := &Delayer{
 		e: e,
 		l: l,

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func GetManyORLabels(t *testing.T, e flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
+func GetManyORLabels(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flowstate.Driver) {
 	require.NoError(t, e.Do(flowstate.Commit(
 		flowstate.Park(&flowstate.StateCtx{
 			Current: flowstate.State{

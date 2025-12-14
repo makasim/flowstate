@@ -28,7 +28,7 @@ func New(httpHost string) *Flow {
 	}
 }
 
-func (f *Flow) Execute(stateCtx *flowstate.StateCtx, _ flowstate.Engine) (flowstate.Command, error) {
+func (f *Flow) Execute(stateCtx *flowstate.StateCtx, _ *flowstate.Engine) (flowstate.Command, error) {
 	b := flowstate.MarshalStateCtx(stateCtx, nil)
 	req, err := http.NewRequest(`POST`, strings.TrimRight(f.httpHost, `/`)+`/flowstate.v1.Flow/Execute`, bytes.NewBuffer(b))
 	if err != nil {

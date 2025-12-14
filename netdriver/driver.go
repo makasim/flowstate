@@ -26,7 +26,7 @@ func New(httpHost string) *Driver {
 	}
 }
 
-func (d *Driver) Init(_ flowstate.Engine) error {
+func (d *Driver) Init(_ *flowstate.Engine) error {
 	return nil
 }
 
