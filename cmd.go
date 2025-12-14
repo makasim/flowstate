@@ -224,6 +224,8 @@ func (cmd *GetStatesCommand) MustResult() *GetStatesResult {
 	return cmd.Result
 }
 
+// WithSinceRev sets SinceRev filter for the command.
+// States with revision greater than SinceRev will be returned.
 func (cmd *GetStatesCommand) WithSinceRev(rev int64) *GetStatesCommand {
 	cmd.SinceRev = rev
 	return cmd
