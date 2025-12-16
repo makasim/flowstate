@@ -116,6 +116,10 @@ func (e *Engine) Execute(stateCtx *StateCtx) error {
 	}
 }
 
+func (e *Engine) Iter(cmd *GetStatesCommand) *Iter {
+	return NewIter(e.d, cmd)
+}
+
 func (e *Engine) Do(cmds ...Command) error {
 	return e.do(cmds...)
 }
