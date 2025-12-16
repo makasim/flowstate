@@ -36,6 +36,7 @@ func TestIter(t *testing.T) {
 			iter := flowstate.NewIter(d, cmd)
 
 			stopT := time.NewTimer(time.Minute * 5)
+			defer stopT.Stop()
 			var act int
 		loop:
 			for {

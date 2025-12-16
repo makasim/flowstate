@@ -77,14 +77,14 @@ func (w *Iter) Err() error {
 
 // Wait returns when new states are available or the context is done
 // It is expected to call Wait only when Next() returned false
-// It is expected to call Next() again after Wait() returned true
+// It is expected to call Next() again after Wait() returns
 // You can optionally check ctx.Err() to see if the context was done to break the loop
 func (w *Iter) Wait(ctx context.Context) {
 	if w.err != nil {
 		panic("BUG: Wait() must not be called if there is an error; i.e. Next() returned false")
 	}
 	if w.res == nil || w.res.More {
-		panic("BUG: Wait() must be called only when watcher reached the log head and there is no more states immediately available")
+		panic("BUG: Wait() must be called only when iterator reached the log head and there is no more states immediately available")
 	}
 
 	for {
@@ -104,6 +104,7 @@ func (w *Iter) Wait(ctx context.Context) {
 		case <-t.C:
 			continue
 		case <-ctx.Done():
+			t.Stop()
 			return
 		}
 	}
@@ -121,12 +122,6 @@ func (w *Iter) more() bool {
 	if len(w.res.States) == 0 {
 		return false
 	}
-
-	//if len(w.res.States) > 0 {
-	//	log.Println(len(w.res.States), w.res.More, w.res.States[0].ID)
-	//} else {
-	//	log.Println(len(w.res.States), w.res.More)
-	//}
 
 	w.Cmd.SinceRev = w.res.States[w.resIdx].Rev
 	return true
