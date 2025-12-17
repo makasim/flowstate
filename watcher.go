@@ -60,8 +60,8 @@ func (w *Watcher) listen() {
 			}
 		}
 
-		if w.iter.Err() != nil {
-			w.e.l.Error("watcher: stream: iter: next", slog.String("err", w.iter.err.Error()))
+		if err := w.iter.Err(); err != nil {
+			w.e.l.Error("watcher: stream: iter: next", slog.String("err", err.Error()))
 			return
 		}
 
