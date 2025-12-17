@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/makasim/flowstate/examples"
@@ -29,22 +27,19 @@ func main() {
 
 	iter := e.Iter(flowstate.GetStatesByLabels(nil))
 
-	for {
-		for iter.Next() {
-			// Put your business logic here
-			_ = iter.State()
-		}
-		if err := iter.Err(); err != nil {
-			// Check for iteration error when iter.Next() returns false
-			examples.HandleError(err)
-		}
-
-		// At this point all states till the log head have been processed
-		// You can stop here or wait for new states to arrive:
-		// Wait returns when new states are available or the context is done
-		waitCtx, waitCancel := context.WithTimeout(context.Background(), time.Minute)
-		iter.Wait(waitCtx)
-		waitCancel()
-
+	for iter.Next() {
+		// Put your business logic here
+		_ = iter.State()
 	}
+	if err := iter.Err(); err != nil {
+		// Check for iteration error when iter.Next() returns false
+		examples.HandleError(err)
+	}
+
+	// At this point all states till the log head have been processed
+	// You can stop here or wait for new states to arrive:
+	// Wait returns when new states are available or the context is done
+	//waitCtx, waitCancel := context.WithTimeout(context.Background(), time.Minute)
+	//iter.Wait(waitCtx)
+	//waitCancel()
 }
