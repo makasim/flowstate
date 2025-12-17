@@ -232,7 +232,7 @@ func TestCacheDriver_getStatesFromLog(t *testing.T) {
 			d.appendStateLocked(&s)
 		}
 
-		found := d.getStatesFromLog(cmd)
+		_, _, found := d.getStatesFromLog(cmd)
 		if found != expFound {
 			t.Fatalf("expected found %v, got %v", expFound, found)
 		}
