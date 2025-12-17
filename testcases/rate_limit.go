@@ -21,7 +21,7 @@ func RateLimit(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d f
 		// The zero value of Sometimes behaves like sync.Once, though less efficiently.
 		l := rate.NewLimiter(rate.Every(time.Millisecond*100), 1)
 
-		w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
 			"limiter": "theName",
 		}))
 		defer w.Close()

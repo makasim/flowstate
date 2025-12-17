@@ -1,37 +1,30 @@
 package flowstate
 
 import (
-	"log"
+	"context"
+	"log/slog"
 	"time"
 )
 
 type Watcher struct {
-	e *Engine
+	e    *Engine
+	iter *Iter
 
-	cmd      *GetStatesCommand
-	pollDur  time.Duration
 	watchCh  chan State
-	closeCh  chan struct{}
+	ctx      context.Context
+	cancel   context.CancelFunc
 	closedCh chan struct{}
 }
 
-func NewWatcher(e *Engine, pollDur time.Duration, cmd *GetStatesCommand) *Watcher {
-	copyCmd := &GetStatesCommand{
-		SinceRev:   cmd.SinceRev,
-		SinceTime:  cmd.SinceTime,
-		Labels:     copyORLabels(cmd.Labels),
-		LatestOnly: cmd.LatestOnly,
-		Limit:      cmd.Limit,
-	}
-	copyCmd.Prepare()
-
+func NewWatcher(e *Engine, cmd *GetStatesCommand) *Watcher {
+	ctx, cancel := context.WithCancel(context.Background())
 	w := &Watcher{
-		e:       e,
-		cmd:     copyCmd,
-		pollDur: pollDur,
+		e:    e,
+		iter: NewIter(e.d, cmd),
 
 		watchCh:  make(chan State, 1),
-		closeCh:  make(chan struct{}),
+		ctx:      ctx,
+		cancel:   cancel,
 		closedCh: make(chan struct{}),
 	}
 
@@ -45,66 +38,35 @@ func (w *Watcher) Next() <-chan State {
 }
 
 func (w *Watcher) Close() {
-	close(w.closeCh)
+	w.cancel()
 	<-w.closedCh
 }
 
 func (w *Watcher) listen() {
 	defer close(w.closedCh)
 
-	t := time.NewTicker(w.pollDur)
-	defer t.Stop()
-
 	for {
 		select {
-		case <-t.C:
-			for {
-				if more := w.stream(); !more {
-					break
-				}
+		case <-w.ctx.Done():
+			return
+		default:
+		}
+
+		for w.iter.Next() {
+			select {
+			case w.watchCh <- w.iter.State():
+			case <-w.ctx.Done():
+				return
 			}
-		case <-w.closeCh:
+		}
+
+		if err := w.iter.Err(); err != nil {
+			w.e.l.Error("watcher: stream: iter: next", slog.String("err", err.Error()))
 			return
 		}
+
+		ctx, cancel := context.WithTimeout(w.ctx, time.Second*5)
+		w.iter.Wait(ctx)
+		cancel()
 	}
-}
-
-func (w *Watcher) stream() bool {
-	getManyCmd := w.cmd
-
-	getManyCmd.Result = nil
-	if err := w.e.Do(getManyCmd); err != nil {
-		log.Printf("ERROR: WatchListener: get many states: %s", err)
-		return false
-	}
-
-	res := getManyCmd.MustResult()
-	if len(res.States) == 0 {
-		return false
-	}
-
-	for i := range res.States {
-		select {
-		case w.watchCh <- res.States[i]:
-			getManyCmd.SinceRev = res.States[i].Rev
-		case <-w.closeCh:
-			return false
-		}
-	}
-
-	return res.More
-}
-
-func copyORLabels(orLabels []map[string]string) []map[string]string {
-	copyORLabels := make([]map[string]string, 0, len(orLabels))
-
-	for _, labels := range orLabels {
-		copyLabels := make(map[string]string)
-		for k, v := range labels {
-			copyLabels[k] = v
-		}
-		copyORLabels = append(copyORLabels, copyLabels)
-	}
-
-	return copyORLabels
 }

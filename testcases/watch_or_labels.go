@@ -2,7 +2,6 @@ package testcases
 
 import (
 	"testing"
-	"time"
 
 	"github.com/makasim/flowstate"
 	"github.com/stretchr/testify/require"
@@ -31,7 +30,7 @@ func WatchORLabels(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry,
 		}),
 	)))
 
-	w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}).WithORLabels(map[string]string{
 		`bar`: `barVal`,

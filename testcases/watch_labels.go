@@ -38,7 +38,7 @@ func WatchLabels(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d
 		}),
 	)))
 
-	w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{
+	w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{
 		`foo`: `fooVal`,
 	}))
 	defer w.Close()

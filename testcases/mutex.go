@@ -20,7 +20,7 @@ func Mutex(t *testing.T, e *flowstate.Engine, fr flowstate.FlowRegistry, d flows
 	mustSetFlow(fr, "lock", flowstate.FlowFunc(func(stateCtx *flowstate.StateCtx, e *flowstate.Engine) (flowstate.Command, error) {
 		Track(stateCtx, trkr)
 
-		w := flowstate.NewWatcher(e, time.Millisecond*100, flowstate.GetStatesByLabels(map[string]string{"mutex": "theName"}).WithSinceLatest())
+		w := flowstate.NewWatcher(e, flowstate.GetStatesByLabels(map[string]string{"mutex": "theName"}).WithSinceLatest())
 		defer w.Close()
 
 		var mutexStateCtx *flowstate.StateCtx
