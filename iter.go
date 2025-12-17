@@ -87,6 +87,8 @@ func (it *Iter) Wait(ctx context.Context) {
 		panic("BUG: Wait() must be called only when iterator reached the log head and there is no more states immediately available")
 	}
 
+	t := time.NewTimer(time.Millisecond * 100)
+	t.Stop()
 	for {
 		it.Cmd.Result = nil
 		if err := it.d.GetStates(it.Cmd); err != nil {
@@ -99,9 +101,10 @@ func (it *Iter) Wait(ctx context.Context) {
 			return
 		}
 
-		t := time.NewTimer(time.Millisecond * 100)
+		t.Reset(time.Millisecond * 100)
 		select {
 		case <-t.C:
+			t.Stop()
 			continue
 		case <-ctx.Done():
 			t.Stop()
