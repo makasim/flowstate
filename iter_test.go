@@ -109,7 +109,7 @@ func TestIter(t *testing.T) {
 	// iterate over foo=fooVal states
 	f(gen100, flowstate.GetStatesByLabels(map[string]string{"foo": "fooVal"}), 34)
 
-	// iterate over foo=fooVal states
+	// iterate over bar=barVal states
 	f(gen100, flowstate.GetStatesByLabels(map[string]string{"bar": "barVal"}), 50)
 
 	// states are added every 10s while iterating

@@ -33,69 +33,69 @@ func NewIter(d Driver, cmd *GetStatesCommand) *Iter {
 // Next advances the iterator to the next state
 // It returns true if there is a next state, false otherwise
 // It is expected to call Next repeatedly until it returns false
-func (w *Iter) Next() bool {
-	if w.err != nil {
+func (it *Iter) Next() bool {
+	if it.err != nil {
 		return false
 	}
 
-	if w.res == nil {
-		return w.more()
+	if it.res == nil {
+		return it.more()
 	}
-	if len(w.res.States) == 0 {
+	if len(it.res.States) == 0 {
 		return false
 	}
-	w.resIdx++
-	if w.resIdx >= len(w.res.States) {
-		if w.res.More {
-			return w.more()
+	it.resIdx++
+	if it.resIdx >= len(it.res.States) {
+		if it.res.More {
+			return it.more()
 		}
 
 		return false
 	}
 
-	w.Cmd.SinceRev = w.res.States[w.resIdx].Rev
+	it.Cmd.SinceRev = it.res.States[it.resIdx].Rev
 	return true
 }
 
 // State returns the current state in the iteration
 // It is expected to call State only when Next() returned true
-func (w *Iter) State() State {
-	if w.err != nil {
+func (it *Iter) State() State {
+	if it.err != nil {
 		panic("BUG: State() must not be called if there is an error; i.e. Next() returned false")
 	}
 
-	return w.res.States[w.resIdx]
+	return it.res.States[it.resIdx]
 }
 
 // Err returns the error encountered during iteration, if any
 // It is expected to call Err only when Next() returned false
 // The iterator cannot be used once Err returns a non-nil error
 // Create a new iterator using Iter.Cmd.
-func (w *Iter) Err() error {
-	return w.err
+func (it *Iter) Err() error {
+	return it.err
 }
 
 // Wait returns when new states are available or the context is done
 // It is expected to call Wait only when Next() returned false
 // It is expected to call Next() again after Wait() returns
 // You can optionally check ctx.Err() to see if the context was done to break the loop
-func (w *Iter) Wait(ctx context.Context) {
-	if w.err != nil {
+func (it *Iter) Wait(ctx context.Context) {
+	if it.err != nil {
 		panic("BUG: Wait() must not be called if there is an error; i.e. Next() returned false")
 	}
-	if w.res == nil || w.res.More {
+	if it.res == nil || it.res.More {
 		panic("BUG: Wait() must be called only when iterator reached the log head and there is no more states immediately available")
 	}
 
 	for {
-		w.Cmd.Result = nil
-		if err := w.d.GetStates(w.Cmd); err != nil {
-			w.err = err
+		it.Cmd.Result = nil
+		if err := it.d.GetStates(it.Cmd); err != nil {
+			it.err = err
 			return
 		}
-		if res := w.Cmd.MustResult(); len(res.States) > 0 {
-			w.res = res
-			w.resIdx = -1
+		if res := it.Cmd.MustResult(); len(res.States) > 0 {
+			it.res = res
+			it.resIdx = -1
 			return
 		}
 
@@ -110,33 +110,33 @@ func (w *Iter) Wait(ctx context.Context) {
 	}
 }
 
-func (w *Iter) more() bool {
-	w.Cmd.Result = nil
-	if err := w.d.GetStates(w.Cmd); err != nil {
-		w.err = err
+func (it *Iter) more() bool {
+	it.Cmd.Result = nil
+	if err := it.d.GetStates(it.Cmd); err != nil {
+		it.err = err
 		return false
 	}
 
-	w.res = w.Cmd.MustResult()
-	w.resIdx = 0
-	if len(w.res.States) == 0 {
+	it.res = it.Cmd.MustResult()
+	it.resIdx = 0
+	if len(it.res.States) == 0 {
 		return false
 	}
 
-	w.Cmd.SinceRev = w.res.States[w.resIdx].Rev
+	it.Cmd.SinceRev = it.res.States[it.resIdx].Rev
 	return true
 }
 
 func copyORLabels(orLabels []map[string]string) []map[string]string {
-	copyORLabels := make([]map[string]string, 0, len(orLabels))
+	resORLabels := make([]map[string]string, 0, len(orLabels))
 
 	for _, labels := range orLabels {
 		copyLabels := make(map[string]string)
 		for k, v := range labels {
 			copyLabels[k] = v
 		}
-		copyORLabels = append(copyORLabels, copyLabels)
+		resORLabels = append(resORLabels, copyLabels)
 	}
 
-	return copyORLabels
+	return resORLabels
 }
