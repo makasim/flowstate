@@ -15,18 +15,9 @@ type Iter struct {
 }
 
 func NewIter(d Driver, cmd *GetStatesCommand) *Iter {
-	copyCmd := &GetStatesCommand{
-		SinceRev:   cmd.SinceRev,
-		SinceTime:  cmd.SinceTime,
-		Labels:     copyORLabels(cmd.Labels),
-		LatestOnly: cmd.LatestOnly,
-		Limit:      cmd.Limit,
-	}
-	copyCmd.Prepare()
-
 	return &Iter{
 		d:   d,
-		Cmd: copyCmd,
+		Cmd: copyGetStatesCmd(cmd),
 	}
 }
 
@@ -50,6 +41,23 @@ func (it *Iter) Next() bool {
 			return it.more()
 		}
 
+		return false
+	}
+
+	it.Cmd.SinceRev = it.res.States[it.resIdx].Rev
+	return true
+}
+
+func (it *Iter) more() bool {
+	it.Cmd.Result = nil
+	if err := it.d.GetStates(it.Cmd); err != nil {
+		it.err = err
+		return false
+	}
+
+	it.res = it.Cmd.MustResult()
+	it.resIdx = 0
+	if len(it.res.States) == 0 {
 		return false
 	}
 
@@ -89,15 +97,9 @@ func (it *Iter) Wait(ctx context.Context) {
 
 	t := time.NewTimer(time.Millisecond * 100)
 	t.Stop()
+
 	for {
-		it.Cmd.Result = nil
-		if err := it.d.GetStates(it.Cmd); err != nil {
-			it.err = err
-			return
-		}
-		if res := it.Cmd.MustResult(); len(res.States) > 0 {
-			it.res = res
-			it.resIdx = -1
+		if it.getStates() {
 			return
 		}
 
@@ -113,21 +115,67 @@ func (it *Iter) Wait(ctx context.Context) {
 	}
 }
 
-func (it *Iter) more() bool {
+func (it *Iter) getStates() bool {
 	it.Cmd.Result = nil
+
+	if cd, ok := it.d.(*cacheDriver); ok {
+		return it.getStatesCacheDriver(cd)
+	}
+
 	if err := it.d.GetStates(it.Cmd); err != nil {
 		it.err = err
+		return true
+	}
+	if res := it.Cmd.MustResult(); len(res.States) > 0 {
+		it.res = res
+		it.resIdx = -1
+		return true
+	}
+
+	return false
+}
+
+func (it *Iter) getStatesCacheDriver(cd *cacheDriver) bool {
+	minRev, maxRev, ok := cd.getStatesFromLog(it.Cmd)
+	if ok {
+		if res := it.Cmd.MustResult(); len(res.States) > 0 {
+			it.res = res
+			it.resIdx = -1
+			return true
+		}
+
+		it.Cmd.SinceRev = maxRev
 		return false
 	}
 
-	it.res = it.Cmd.MustResult()
-	it.resIdx = 0
-	if len(it.res.States) == 0 {
-		return false
+	if err := cd.d.GetStates(it.Cmd); err != nil {
+		it.err = err
+		return true
+	}
+	if res := it.Cmd.MustResult(); len(res.States) > 0 {
+		it.res = res
+		it.resIdx = -1
+		return true
 	}
 
-	it.Cmd.SinceRev = it.res.States[it.resIdx].Rev
-	return true
+	if it.Cmd.SinceRev < minRev {
+		it.Cmd.SinceRev = minRev
+	}
+
+	return false
+}
+
+func copyGetStatesCmd(cmd *GetStatesCommand) *GetStatesCommand {
+	copyCmd := &GetStatesCommand{
+		SinceRev:   cmd.SinceRev,
+		SinceTime:  cmd.SinceTime,
+		Labels:     copyORLabels(cmd.Labels),
+		LatestOnly: cmd.LatestOnly,
+		Limit:      cmd.Limit,
+	}
+	copyCmd.Prepare()
+
+	return copyCmd
 }
 
 func copyORLabels(orLabels []map[string]string) []map[string]string {

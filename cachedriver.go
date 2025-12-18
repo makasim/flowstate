@@ -114,7 +114,7 @@ func (d *cacheDriver) GetStateByLabels(cmd *GetStateByLabelsCommand) error {
 }
 
 func (d *cacheDriver) GetStates(cmd *GetStatesCommand) error {
-	if d.getStatesFromLog(cmd) {
+	if _, _, found := d.getStatesFromLog(cmd); found {
 		return nil
 	}
 
@@ -125,25 +125,25 @@ func (d *cacheDriver) GetStates(cmd *GetStatesCommand) error {
 	return nil
 }
 
-func (d *cacheDriver) getStatesFromLog(cmd *GetStatesCommand) bool {
+func (d *cacheDriver) getStatesFromLog(cmd *GetStatesCommand) (int64, int64, bool) {
 	d.m.Lock()
 	defer d.m.Unlock()
 
 	if !cmd.SinceTime.IsZero() {
-		return false
+		return d.minRev, d.maxRev, false
 	}
 	if cmd.LatestOnly {
-		return false
+		return d.minRev, d.maxRev, false
 	}
 
 	if d.size == 0 {
-		return false
+		return d.minRev, d.maxRev, false
 	}
 	if cmd.SinceRev < d.minRev {
-		return false
+		return d.minRev, d.maxRev, false
 	}
 	if cmd.SinceRev >= d.maxRev {
-		return false
+		return d.minRev, d.maxRev, false
 	}
 
 	cmd.Result = &GetStatesResult{}
@@ -166,7 +166,7 @@ func (d *cacheDriver) getStatesFromLog(cmd *GetStatesCommand) bool {
 		cmd.Result.States = append(cmd.Result.States, s.CopyTo(&State{}))
 	}
 
-	return true
+	return d.minRev, d.maxRev, true
 }
 
 func (d *cacheDriver) GetDelayedStates(cmd *GetDelayedStatesCommand) error {
