@@ -20,7 +20,12 @@ func logExecute(stateCtx *StateCtx, l *slog.Logger) {
 		args = append(args, "delayed", "true")
 	}
 
-	args = append(args, "labels", stateCtx.Current.Labels)
+	if len(stateCtx.Current.Annotations) > 0 {
+		args = append(args, "labels", stateCtx.Current.Labels)
+	}
+	if len(stateCtx.Current.Annotations) > 0 {
+		args = append(args, "ann", stateCtx.Current.Annotations)
+	}
 
 	l.Info("engine: execute", args...)
 }
@@ -51,6 +56,9 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 		if len(cmd.StateCtx.Current.Labels) > 0 {
 			args = append(args, "labels", cmd.StateCtx.Current.Labels)
 		}
+		if len(cmd.StateCtx.Current.Annotations) > 0 {
+			args = append(args, "ann", cmd.StateCtx.Current.Annotations)
+		}
 	case *ParkCommand:
 		args = append(args,
 			"cmd", "park",
@@ -59,6 +67,9 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 		)
 		if len(cmd.StateCtx.Current.Labels) > 0 {
 			args = append(args, "labels", cmd.StateCtx.Current.Labels)
+		}
+		if len(cmd.StateCtx.Current.Annotations) > 0 {
+			args = append(args, "ann", cmd.StateCtx.Current.Annotations)
 		}
 	case *DelayCommand:
 		args = append(args,
@@ -70,6 +81,9 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 		if len(cmd.StateCtx.Current.Labels) > 0 {
 			args = append(args, "labels", cmd.StateCtx.Current.Labels)
 		}
+		if len(cmd.StateCtx.Current.Annotations) > 0 {
+			args = append(args, "ann", cmd.StateCtx.Current.Annotations)
+		}
 	case *ExecuteCommand:
 		args = append(args,
 			"cmd", "execute",
@@ -78,6 +92,9 @@ func logCommand(msg string, execSessID int64, cmd0 Command, l *slog.Logger) {
 		)
 		if len(cmd.StateCtx.Current.Labels) > 0 {
 			args = append(args, "labels", cmd.StateCtx.Current.Labels)
+		}
+		if len(cmd.StateCtx.Current.Annotations) > 0 {
+			args = append(args, "ann", cmd.StateCtx.Current.Annotations)
 		}
 	case *NoopCommand:
 		args = append(args, "cmd", "noop")
