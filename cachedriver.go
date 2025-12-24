@@ -25,6 +25,10 @@ type cacheDriver struct {
 	committed []State
 }
 
+func NewCacheDriver(d Driver, maxSize int, l *slog.Logger) Driver {
+	return newCacheDriver(d, maxSize, l)
+}
+
 // newCacheDriver creates a new cacheDriver.
 // d is the underlying driver to wrap.
 // maxSize is the maximum number of states to keep in the cache.
