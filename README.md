@@ -24,6 +24,7 @@ Flowstate is a great fit when you need:
 * [Execute with timeout](examples/execute_with_timeout/main.go)
 * [Queue](examples/queue/main.go)
 * [Money transfer, aka state machine](examples/state_machine/main.go)
+* [flowstream](https://github.com/makasim/flowstream) - Kafka-style streaming in Go.
 * Real-time Two-Player Game – GoGame: [Live Demo](https://gogame.makasim.com/) | [Video](https://x.com/maksim_ka2/status/1825587227163795478) | [Source Code](https://github.com/makasim/gogame).
 * [UI Demo](https://flowstate-gogame.makasim.com/)
 * [Testcases](testcases)
