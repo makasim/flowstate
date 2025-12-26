@@ -27,7 +27,7 @@ tasks:
       - |
         : "${TAG:=$(git describe --long --tags --dirty --always | tr '/' '-')}"
         export TAG
-        TAG=$TAG task build
+        TAG=$TAG task package
 
         docker tag "flowstate:$TAG" "docker.io/makasim/flowstate:$TAG"
         echo "Pushing docker.io/makasim/flowstate:$TAG"
